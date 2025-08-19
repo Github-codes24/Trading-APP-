@@ -1,16 +1,15 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import { NewAppScreen } from '@react-native/new-app-screen';
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import MainScreen from './screens/auth/MainScreen';
+import RegisterScreen from './screens/auth/RegisterScreen';
+import SignInScreen from './screens/auth/SignInScreen';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import EmailScreen from './screens/auth/EmailScreen';
+import EnterPassScreen from './screens/auth/EnterPassScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -25,14 +24,18 @@ function App() {
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
+  const Stack = createNativeStackNavigator();
 
   return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Main" component={MainScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="SignIn" component={SignInScreen} />
+        <Stack.Screen name="Email" component={EmailScreen} />
+        <Stack.Screen name="EnterPass" component={EnterPassScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
