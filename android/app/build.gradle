@@ -117,3 +117,6 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Automatically copy vector icon fonts into android/app/src/main/assets/fonts
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, TouchableOpacity, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Feather';
 
 export default function RegisterScreen() {
   const [isConfirmedNonUSTaxResident, setIsConfirmedNonUSTaxResident] = React.useState<boolean>(false);
@@ -12,7 +13,7 @@ export default function RegisterScreen() {
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>{'‹'}</Text>
+            <Icon name="chevron-left" size={28} color="#111111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Your residence</Text>
           <View style={styles.grow} />
@@ -22,10 +23,10 @@ export default function RegisterScreen() {
           <Text style={styles.subtitle}>Select your residence</Text>
 
           <TouchableOpacity accessibilityRole="button" style={styles.selectorRow}>
-            <Text style={styles.selectorIcon}>🌐</Text>
+            <Icon name="globe" size={18} color="#111111" style={styles.selectorIcon} />
             <Text style={styles.selectorText}>Country / region</Text>
             <View style={styles.grow} />
-            <Text style={styles.chevron}>{'›'}</Text>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
 
@@ -37,7 +38,7 @@ export default function RegisterScreen() {
             style={styles.checkboxRow}
           >
             <View style={[styles.checkbox, isConfirmedNonUSTaxResident && styles.checkboxChecked]}>
-              {isConfirmedNonUSTaxResident ? <Text style={styles.checkboxTick}>✓</Text> : null}
+              {isConfirmedNonUSTaxResident ? <Icon name="check" size={14} color="#111111" /> : null}
             </View>
             <Text style={styles.checkboxLabel}>
               I declare and confirm that I am not a citizen or
@@ -55,7 +56,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity accessibilityRole="button" style={styles.secondaryAction}>
-            <Text style={styles.partnerIcon}>👥</Text>
+            <Icon name="users" size={14} color="#6B7280" />
             <Text style={styles.secondaryText}>Partner code (Optional)</Text>
           </TouchableOpacity>
         </View>
@@ -86,11 +87,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
   },
-  backIcon: {
-    fontSize: 28,
-    color: '#111111',
-    includeFontPadding: false,
-  },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -119,16 +115,11 @@ const styles = StyleSheet.create({
     borderColor: '#F2F4F7',
   },
   selectorIcon: {
-    fontSize: 18,
     marginRight: 12,
   },
   selectorText: {
     fontSize: 16,
     color: '#111111',
-  },
-  chevron: {
-    fontSize: 22,
-    color: '#9CA3AF',
   },
   footer: {
     marginTop: 'auto',
@@ -154,11 +145,6 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: '#FFD100',
     borderColor: '#FFD100',
-  },
-  checkboxTick: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '700',
   },
   checkboxLabel: {
     flex: 1,
@@ -187,9 +173,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 6,
     gap: 8,
-  },
-  partnerIcon: {
-    fontSize: 14,
   },
   secondaryText: {
     color: '#6B7280',

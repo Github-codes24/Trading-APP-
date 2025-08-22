@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Feather';
 
 
 const EmailScreen: React.FC = () => {
@@ -23,7 +24,7 @@ const EmailScreen: React.FC = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backArrow}>{'‹'}</Text>
+          <Icon name="chevron-left" size={24} color="#000000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Enter your email</Text>
       </View>
@@ -67,11 +68,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
     marginRight: 8,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: '#000000',
-    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 20,

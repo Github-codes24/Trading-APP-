@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Feather';
 
 const EnterPassScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -29,7 +30,7 @@ const EnterPassScreen: React.FC = () => {
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>{'‹'}</Text>
+          <Icon name="chevron-left" size={24} color="#000000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Choose a password</Text>
       </View>
@@ -52,7 +53,7 @@ const EnterPassScreen: React.FC = () => {
             onPress={() => setIsPasswordHidden(prev => !prev)}
             style={styles.eyeButton}
           >
-            <Text style={styles.eyeGlyph}>{isPasswordHidden ? '👁️' : '🙈'}</Text>
+            <Icon name={isPasswordHidden ? "eye" : "eye-off"} size={16} color="#6B7280" />
           </TouchableOpacity>
         </View>
 
@@ -103,11 +104,6 @@ const styles = StyleSheet.create({
     padding: 5,
     marginRight: 8,
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#000000',
-    fontWeight: 'bold',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -144,9 +140,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 36,
-  },
-  eyeGlyph: {
-    fontSize: 16,
   },
   rulesContainer: {
     marginTop: 12,

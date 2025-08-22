@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Feather';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -14,7 +15,7 @@ export default function SignInScreen() {
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>{'‹'}</Text>
+            <Icon name="chevron-left" size={28} color="#111111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sign In</Text>
           <View style={styles.grow} />
@@ -51,14 +52,14 @@ export default function SignInScreen() {
                 onPress={() => setIsPasswordHidden((v) => !v)}
                 style={styles.eyeButton}
               >
-                <Text style={styles.eyeIcon}>{isPasswordHidden ? '👁' : '🙈'}</Text>
+                <Icon name={isPasswordHidden ? "eye" : "eye-off"} size={16} color="#6B7280" />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton}>
+          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={() => navigation.navigate('Account' as never)}>
             <Text style={styles.primaryButtonText}>Sign in</Text>
           </TouchableOpacity>
 
@@ -92,11 +93,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-  },
-  backIcon: {
-    fontSize: 28,
-    color: '#111111',
-    includeFontPadding: false,
   },
   headerTitle: {
     fontSize: 22,
@@ -144,10 +140,6 @@ const styles = StyleSheet.create({
     width: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  eyeIcon: {
-    fontSize: 16,
-    color: '#6B7280',
   },
   footer: {
     marginTop: 'auto',

@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, TouchableOpacity, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Feather';
 
 const GOOGLE_LOGO_PNG = 'https://developers.google.com/identity/images/g-logo.png';
 
@@ -13,7 +14,7 @@ export default function MainScreen() {
         <View style={styles.headerRow}>
           <View style={styles.grow} />
           <TouchableOpacity accessibilityRole="button" style={styles.helpButton}>
-            <Text style={styles.helpButtonText}>?</Text>
+            <Icon name="help-circle" size={16} color="#111111" />
           </TouchableOpacity>
         </View>
 
@@ -73,12 +74,6 @@ const styles = StyleSheet.create({
     borderColor: '#C7C7CC',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  helpButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111111',
-    includeFontPadding: false,
   },
   logoContainer: {
     flex: 1,
