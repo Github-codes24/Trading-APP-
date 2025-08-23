@@ -4,6 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 
+// Import your local image
+import ExnessLogo from '../../assets/images/exnessLogo.png';
+
 const GOOGLE_LOGO_PNG = 'https://developers.google.com/identity/images/g-logo.png';
 
 export default function MainScreen() {
@@ -19,15 +22,24 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>exness</Text>
+          {/* Replace text with image */}
+          <Image source={ExnessLogo} style={styles.logoImage} />
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={() => navigation.navigate('Register' as never)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('Register' as never)}
+          >
             <Text style={styles.primaryButtonText}>Register</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.secondaryButton} onPress={() => navigation.navigate('SignIn' as never)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate('SignIn' as never)}
+          >
             <Text style={styles.secondaryButtonText}>Sign in</Text>
           </TouchableOpacity>
 
@@ -80,11 +92,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: {
-    fontSize: 64,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: '#000000',
+  // New style for your logo image
+  logoImage: {
+    width: 290,
+    height: 84,
+    resizeMode: 'contain',
   },
   footer: {
     paddingBottom: 24,
@@ -92,26 +104,26 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: '#FFD100',
-    height: 48,
+    height: 42,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
     color: '#111111',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
   },
   secondaryButton: {
     backgroundColor: '#F2F4F7',
-    height: 48,
+    height: 42,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
     color: '#111111',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   separatorRow: {
@@ -132,7 +144,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     backgroundColor: '#F2F4F7',
-    height: 48,
+    height: 42,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -149,9 +161,7 @@ const styles = StyleSheet.create({
   },
   googleText: {
     color: '#111111',
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '400',
   },
 });
-
-
