@@ -1,225 +1,454 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-
-const instruments = [
-  { key: 'BTC', name: 'BTC', subtitle: 'Bitcoin vs US Dollar', price: '113765.81', change: '+ 0.81%', changeColor: '#1E90FF', leftIcon: 'bitcoin' as const },
-  { key: 'XAUUSD', name: 'XAU/USD', subtitle: 'Gold vs US Dollar', price: '3335.228', change: '+ 0.63%', changeColor: '#1E90FF', leftIcon: 'flag' as const },
-  { key: 'AAPL', name: 'AAPL', subtitle: 'Apple Inc.', price: '229.30', change: '− 0.45%', changeColor: '#EF4444', leftIcon: 'apple' as const },
-  { key: 'EURUSD', name: 'EUR/USD', subtitle: 'Euro vs US Dollar', price: '1.16494', change: '+ 0.07%', changeColor: '#1E90FF', leftIcon: 'flag' as const },
-  { key: 'GBPUSD', name: 'GBP/USD', subtitle: 'Great Britain Pound vs US Dollar', price: '1.34764', change: '− 0.06%', changeColor: '#EF4444', leftIcon: 'flag' as const },
-  { key: 'USDJPY', name: 'USD/JPY', subtitle: 'US Dollar vs Japanese Yen', price: '147.436', change: '− 0.20%', changeColor: '#EF4444', leftIcon: 'flag' as const },
-  { key: 'USTEC', name: 'USTEC', subtitle: 'US Tech 100 Index', price: '23352.18', change: '− 0.02%', changeColor: '#EF4444', leftIcon: 'trending-up' as const },
-];
+import { tradingApiService, TradingInstrument } from '../../../services';
+import SparklineChart from '../../../components/SparklineChart';
 
 const TradeScreen: React.FC = () => {
+  const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
+  const [activeTab, setActiveTab] = useState('Favorites');
+  const [connectionError, setConnectionError] = useState(false);
+
+  useEffect(() => {
+    // Initialize trading API connection
+    tradingApiService.initializeConnection();
+
+    // Subscribe to real data from WS
+    const handleLiveData = (data: TradingInstrument[]) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setTradingData(data);
+        setConnectionError(false);
+      }
+    };
+    tradingApiService.subscribeToTradingData(handleLiveData);
+
+    return () => {
+      
+      tradingApiService.removeAllListeners();
+      tradingApiService.disconnect();
+    };
+  }, []);
+
+  const getIconName = (icon: string) => {
+    switch (icon) {
+      case 'bitcoin':
+        return 'circle';
+      case 'apple':
+        return 'apple';
+      case 'trending-up':
+        return 'trending-up';
+      default:
+        return 'flag';
+    }
+  };
+
+  const getIconColor = (icon: string) => {
+    switch (icon) {
+      case 'bitcoin':
+        return '#F7931A';
+      case 'apple':
+        return '#000000';
+      case 'trending-up':
+        return '#1F2937';
+      default:
+        return '#6B7280';
+    }
+  };
+
+  const getIconBackground = (icon: string) => {
+    switch (icon) {
+      case 'bitcoin':
+        return '#FEF3C7';
+      case 'apple':
+        return '#F3F4F6';
+      case 'trending-up':
+        return '#F3F4F6';
+      default:
+        return '#F3F4F6';
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Trade</Text>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity style={styles.iconButton}>
-          <Icon name="settings" size={18} color="#111" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Account Button - Centered above header */}
+      <View style={styles.accountButtonContainer}>
+        <TouchableOpacity style={styles.accountButton}>
+           <View style={styles.realButton}>
+          <Text style={styles.accountButtonText}>Real</Text>
+          </View>
+          <Text style={styles.accountBalance}>0.00 USD</Text>
+          <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
-
-      <View style={styles.tabsRow}>
-        <View style={styles.tabsLeft}>
-          <Text style={[styles.tabLabel, styles.tabActive]}>Favorites</Text>
-          <Text style={styles.tabLabel}>Most traded</Text>
-          <Text style={styles.tabLabel}>Top Movers</Text>
-          <Text style={styles.tabLabel}>Majors</Text>
+      
+      {/* Header with title and clock icon */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Trade</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconButton}>
+            <Icon name="clock" size={18} color="#111" />
+          </TouchableOpacity>
         </View>
-        <Icon name="search" size={18} color="#111" />
       </View>
-      <View style={styles.activeTabUnderline} />
 
+      {/* Navigation Tabs */}
+      <View style={styles.tabsRow}>
+        <View style={styles.scrollWrapper}>
+       <ScrollView 
+    horizontal 
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={styles.tabsContainer}
+  >
+          {['Favorites', 'Most traded', 'Top Movers', 'Majors'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={styles.tabContainer}
+            >
+              <Text style={[
+                styles.tabLabel,
+                activeTab === tab && styles.tabActive
+              ]}>
+                {tab}
+              </Text>
+              {activeTab === tab && <View style={styles.activeTabUnderline} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        </View>
+        <TouchableOpacity style={styles.searchButton}>
+          <Icon name="search" size={22} color="#111" />
+        </TouchableOpacity>
+      </View>
+      
+     
+
+      {/* Sort and Edit Controls */}
       <View style={styles.sortRow}>
         <TouchableOpacity style={styles.sortChip}>
           <Text style={styles.sortChipText}>Sorted manually</Text>
-          <Icon name="chevron-down" size={16} color="#111" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.editChip}>
           <Text style={styles.editChipText}>Edit</Text>
-          <Icon name="edit-2" size={16} color="#111" />
+          <Icon name="edit" size={13} color="#111" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-        {instruments.map((item, index) => (
-          <View key={item.key} style={styles.instrumentCard}>
-            <View style={styles.instrumentLeft}>
-              <View style={styles.instrumentIconCircle}>
-                <Icon name={item.leftIcon} size={16} color="#111" />
+      
+
+      {/* Trading Instruments List or Error Message */}
+      {connectionError ? (
+        <View style={styles.errorContainer}>
+          <Icon name="wifi-off" size={48} color="#EF4444" />
+          <Text style={styles.errorTitle}>Connection Error</Text>
+          <Text style={styles.errorMessage}>Unable to connect to trading server. Please check your internet connection and try again.</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => {
+              setConnectionError(false);
+              tradingApiService.disconnect();
+              tradingApiService.initializeConnection();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry Connection</Text>
+          </TouchableOpacity>
+        </View>
+      ) : tradingData.length > 0 ? (
+        <ScrollView 
+          contentContainerStyle={styles.listContent} 
+          showsVerticalScrollIndicator={false}
+          style={styles.scrollView}
+        >
+          {tradingData.map((item) => (
+             <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
+              <View style={styles.instrumentLeft}>
+                <View style={styles.instrumentInfo}>
+                  <View style={styles.titleRow}>
+                    <View style={[
+                      styles.instrumentIconCircle,
+                      { backgroundColor: getIconBackground(item.icon) }
+                    ]}>
+                      <Icon 
+                        name={getIconName(item.icon) as any} 
+                        size={14} 
+                        color={getIconColor(item.icon)} 
+                      />
+                    </View>
+                    <Text style={styles.instrumentTitle}>{item.name}</Text>
+                  </View>
+                  <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.instrumentTitle}>{item.name}</Text>
-                <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
+              <View style={styles.instrumentMiddle}>
+                <SparklineChart 
+                  data={item.sparkline} 
+                  color={item.changeColor}
+                  width={80}
+                  height={30}
+                />
               </View>
-            </View>
-            <View style={styles.instrumentRight}>
-              <View style={styles.sparkline} />
-              <Text style={styles.instrumentPrice}>{item.price}</Text>
-              <Text style={[styles.instrumentChange, { color: item.changeColor }]}>{item.change}</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+              <View style={styles.instrumentRight}>
+                <Text style={styles.instrumentPrice}>{item.price}</Text>
+                <Text style={[styles.instrumentChange, { color: item.changeColor }]}>
+                  {item.change}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading trading data...</Text>
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F8F9F9',
+  },
+  accountButtonContainer: {
+    alignItems: 'center',
+    
+    paddingBottom: 8,
+    
+  },
+  accountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  realButton:{
+    paddingHorizontal:6,
+    paddingVertical:3,
+    backgroundColor:'#F3F5F7',
+    borderRadius:20,
+    marginRight: 6,
+  },
+  accountButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111111',
+    
+  },
+  accountBalance: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111111',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111111',
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   iconButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 16,
   },
   tabsRow: {
-    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+    marginTop: 8,
+    borderBottomWidth: 1, // Optional: adds a faint line below the entire tab bar
+    borderBottomColor: '#E5E7EB',
   },
-  tabsLeft: {
+   scrollWrapper: {
+    flex: 1, // Allows the scrollable area to take up all available horizontal space
+  },
+  tabsContainer: {
+    // This style applies to the content within the ScrollView
     flexDirection: 'row',
-    gap: 16,
     alignItems: 'center',
-    marginRight: 'auto',
+  },
+  tabContainer: {
+    
+    paddingHorizontal: 12, // Increased horizontal padding for better spacing
+    alignItems: 'center', // Center the content (text and underline)
+    justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B7280',
+    fontWeight: '500',
+    paddingBottom:8
   },
   tabActive: {
-    color: '#111111',
-    fontWeight: '700',
+    color: '#000000',
+    fontWeight: 400,
   },
   activeTabUnderline: {
-    marginLeft: 24,
-    marginTop: 8,
-    width: 56,
-    height: 2,
-    backgroundColor: '#111111',
-    borderRadius: 2,
+    height: 3,
+    backgroundColor: '#000000',
+    width: '100%', // Underline spans the full width of the tab container
+    marginTop: 5, // Space between text and underline
+  },
+  searchButton: {
+    paddingHorizontal: 6, 
   },
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 24,
-    marginTop: 16,
+    
+    paddingHorizontal: 16,
+    marginTop: 24,
     marginBottom: 8,
   },
   sortChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 20,
-    paddingVertical: 8,
+    backgroundColor: '#EDEFF1',
+    borderRadius: 16,
+    paddingVertical: 6,
+    marginRight:8,
     paddingHorizontal: 12,
   },
   sortChipText: {
-    color: '#111111',
+    color: '#9da2a5',
     fontSize: 14,
-    marginRight: 6,
+    fontWeight: '500',
   },
   editChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 20,
-    paddingVertical: 8,
+    backgroundColor: '#EDEFF1',
+    borderRadius: 16,
+    paddingVertical: 6,
     paddingHorizontal: 12,
   },
   editChipText: {
-    color: '#111111',
+    color: '#555C61',
     fontSize: 14,
-    marginRight: 6,
+    fontWeight: '500',
+    marginRight:6
+  },
+  scrollView: {
+    flex: 1,
   },
   listContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingBottom: 24,
-    gap: 12,
   },
   instrumentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EEF2F7',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    borderRadius: 8,
+    padding:14,
+   
+    marginBottom: 8,
   },
   instrumentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    flex: 1.5,
   },
   instrumentIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
+    width: 20,
+    height: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  instrumentInfo: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2, // Add some space between title row and subtitle
+  },
+  instrumentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  instrumentSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  instrumentMiddle: {
+    
+    alignItems: 'center',
+  },
+  instrumentRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  instrumentPrice: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  instrumentChange: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  searchButton: {
+  
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111111',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  instrumentTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111111',
-  },
-  instrumentSubtitle: {
-    fontSize: 12,
+  loadingText: {
+    fontSize: 16,
     color: '#6B7280',
-  },
-  instrumentRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  sparkline: {
-    width: 80,
-    height: 20,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  instrumentPrice: {
-    fontSize: 14,
-    color: '#111111',
-    fontWeight: '600',
-  },
-  instrumentChange: {
-    fontSize: 12,
   },
 });
 
