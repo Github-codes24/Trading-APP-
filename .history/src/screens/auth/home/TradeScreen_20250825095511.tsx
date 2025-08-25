@@ -401,7 +401,7 @@ instrumentLeft: {
     marginBottom: 2, 
   },
   instrumentTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#000000',
   },

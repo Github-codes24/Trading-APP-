@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar,TextInput } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
@@ -10,6 +10,9 @@ const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
   const [activeTab, setActiveTab] = useState('Favorites');
   const [connectionError, setConnectionError] = useState(false);
+
+   const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Initialize trading API connection
@@ -37,6 +40,11 @@ const TradeScreen: React.FC = () => {
     }
     return name;
   };
+
+  const filteredData = tradingData.filter((item) =>
+    formatInstrumentName(item.name).toLowerCase().startsWith(searchQuery.toLowerCase())
+  );
+
 
   const getIconName = (icon: string) => {
     switch (icon) {
@@ -127,12 +135,22 @@ const TradeScreen: React.FC = () => {
             ))}
           </ScrollView>
         </View>
-        <TouchableOpacity style={styles.searchButton}>
+
+        <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
           <Icon name="search" size={22} color="#111" />
         </TouchableOpacity>
       </View>
 
-
+{searchVisible && (
+        <View style={styles.searchInputWrapper}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search instruments..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      )}
 
       {/* Sort and Edit Controls */}
       <View style={styles.sortRow}>
@@ -226,6 +244,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9F9',
+  },
+  searchInputWrapper: {
+  paddingHorizontal: 16,   
+  marginTop: 8,
+  marginBottom: 8,
+},
+  searchInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  noResultsContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
   accountButtonContainer: {
     alignItems: 'center',

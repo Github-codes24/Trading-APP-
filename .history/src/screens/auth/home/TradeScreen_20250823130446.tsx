@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
 instrumentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 2.5, 
+    flex: 1, 
   },
   instrumentIconCircle: {
     width: 24,
@@ -387,11 +387,9 @@ instrumentLeft: {
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16
   },
   instrumentInfo: {
     flex: 1,
-    flexDirection: 'column'
   },
   
   titleChartRow: {
@@ -399,16 +397,16 @@ instrumentLeft: {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 2, 
+    marginLeft:20
   },
   instrumentTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#000000',
   },
   instrumentSubtitle: {
     fontSize: 13,
     color: '#6B7280',
-    marginLeft:-30
   },
   instrumentMiddle: {
     alignItems: 'center',

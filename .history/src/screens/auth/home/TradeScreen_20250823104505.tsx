@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 
 import Icon from 'react-native-vector-icons/Feather';
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
-import Fontisto from 'react-native-vector-icons/Fontisto';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
@@ -25,18 +24,11 @@ const TradeScreen: React.FC = () => {
     tradingApiService.subscribeToTradingData(handleLiveData);
 
     return () => {
-
+      
       tradingApiService.removeAllListeners();
       tradingApiService.disconnect();
     };
   }, []);
-
-  const formatInstrumentName = (name: string) => {
-    if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
-      return `${name.slice(0, 3)}/${name.slice(3)}`;
-    }
-    return name;
-  };
 
   const getIconName = (icon: string) => {
     switch (icon) {
@@ -67,7 +59,7 @@ const TradeScreen: React.FC = () => {
   const getIconBackground = (icon: string) => {
     switch (icon) {
       case 'bitcoin':
-        return '#F7931A';
+        return '#FEF3C7';
       case 'apple':
         return '#F3F4F6';
       case 'trending-up':
@@ -80,18 +72,18 @@ const TradeScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
+      
       {/* Account Button - Centered above header */}
       <View style={styles.accountButtonContainer}>
         <TouchableOpacity style={styles.accountButton}>
-          <View style={styles.realButton}>
-            <Text style={styles.accountButtonText}>Real</Text>
+           <View style={styles.realButton}>
+          <Text style={styles.accountButtonText}>Real</Text>
           </View>
           <Text style={styles.accountBalance}>0.00 USD</Text>
           <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
-
+      
       {/* Header with title and clock icon */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Trade</Text>
@@ -105,34 +97,34 @@ const TradeScreen: React.FC = () => {
       {/* Navigation Tabs */}
       <View style={styles.tabsRow}>
         <View style={styles.scrollWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsContainer}
-          >
-            {['Favorites', 'Most traded', 'Top Movers', 'Majors'].map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={styles.tabContainer}
-              >
-                <Text style={[
-                  styles.tabLabel,
-                  activeTab === tab && styles.tabActive
-                ]}>
-                  {tab}
-                </Text>
-                {activeTab === tab && <View style={styles.activeTabUnderline} />}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+       <ScrollView 
+    horizontal 
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={styles.tabsContainer}
+  >
+          {['Favorites', 'Most traded', 'Top Movers', 'Majors'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={styles.tabContainer}
+            >
+              <Text style={[
+                styles.tabLabel,
+                activeTab === tab && styles.tabActive
+              ]}>
+                {tab}
+              </Text>
+              {activeTab === tab && <View style={styles.activeTabUnderline} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
         </View>
         <TouchableOpacity style={styles.searchButton}>
           <Icon name="search" size={22} color="#111" />
         </TouchableOpacity>
       </View>
-
-
+      
+     
 
       {/* Sort and Edit Controls */}
       <View style={styles.sortRow}>
@@ -145,7 +137,7 @@ const TradeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-
+      
 
       {/* Trading Instruments List or Error Message */}
       {connectionError ? (
@@ -153,7 +145,7 @@ const TradeScreen: React.FC = () => {
           <Icon name="wifi-off" size={48} color="#EF4444" />
           <Text style={styles.errorTitle}>Connection Error</Text>
           <Text style={styles.errorMessage}>Unable to connect to trading server. Please check your internet connection and try again.</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.retryButton}
             onPress={() => {
               setConnectionError(false);
@@ -165,44 +157,38 @@ const TradeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       ) : tradingData.length > 0 ? (
-        <ScrollView
-          contentContainerStyle={styles.listContent}
+        <ScrollView 
+          contentContainerStyle={styles.listContent} 
           showsVerticalScrollIndicator={false}
           style={styles.scrollView}
         >
           {tradingData.map((item) => (
-            <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
+             <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
               <View style={styles.instrumentLeft}>
-                <View style={[
-                  styles.instrumentIconCircle,
-                  { backgroundColor: getIconBackground(item.icon) }
-                ]}>
-                  {item.icon === 'bitcoin' ? (
-                    <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
-                  ) : (
-                    <Icon
-                      name={getIconName(item.icon) as any}
-                      size={14}
-                      color={getIconColor(item.icon)}
-                    />
-                  )}
-                </View>
                 <View style={styles.instrumentInfo}>
-                  {/* NEW: A row for the title and the sparkline chart */}
-                  <View style={styles.titleChartRow}>
-                    <Text style={styles.instrumentTitle}>{formatInstrumentName(item.name)}</Text>
-                    <View style={styles.instrumentMiddle}>
-                      <SparklineChart
-                        data={item.sparkline}
-                        color={item.changeColor}
-                        width={80}
-                        height={30}
+                  <View style={styles.titleRow}>
+                    <View style={[
+                      styles.instrumentIconCircle,
+                      { backgroundColor: getIconBackground(item.icon) }
+                    ]}>
+                      <Icon 
+                        name={getIconName(item.icon) as any} 
+                        size={14} 
+                        color={getIconColor(item.icon)} 
                       />
                     </View>
+                    <Text style={styles.instrumentTitle}>{item.name}</Text>
                   </View>
-                  {/* Subtitle is now directly below the title/chart row */}
                   <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
                 </View>
+              </View>
+              <View style={styles.instrumentMiddle}>
+                <SparklineChart 
+                  data={item.sparkline} 
+                  color={item.changeColor}
+                  width={80}
+                  height={30}
+                />
               </View>
               <View style={styles.instrumentRight}>
                 <Text style={styles.instrumentPrice}>{item.price}</Text>
@@ -229,9 +215,9 @@ const styles = StyleSheet.create({
   },
   accountButtonContainer: {
     alignItems: 'center',
-
+    
     paddingBottom: 8,
-
+    
   },
   accountButton: {
     flexDirection: 'row',
@@ -243,18 +229,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  realButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    backgroundColor: '#F3F5F7',
-    borderRadius: 20,
+  realButton:{
+    paddingHorizontal:6,
+    paddingVertical:3,
+    backgroundColor:'#F3F5F7',
+    borderRadius:20,
     marginRight: 6,
   },
   accountButtonText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#111111',
-
+    
   },
   accountBalance: {
     fontSize: 14,
@@ -289,7 +275,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, // Optional: adds a faint line below the entire tab bar
     borderBottomColor: '#E5E7EB',
   },
-  scrollWrapper: {
+   scrollWrapper: {
     flex: 1, // Allows the scrollable area to take up all available horizontal space
   },
   tabsContainer: {
@@ -298,7 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabContainer: {
-
+    
     paddingHorizontal: 12, // Increased horizontal padding for better spacing
     alignItems: 'center', // Center the content (text and underline)
     justifyContent: 'center',
@@ -307,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     fontWeight: '500',
-    paddingBottom: 8
+    paddingBottom:8
   },
   tabActive: {
     color: '#000000',
@@ -320,15 +306,15 @@ const styles = StyleSheet.create({
     marginTop: 5, // Space between text and underline
   },
   searchButton: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 6, 
   },
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
-
+    
     paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 18,
+    marginTop: 24,
+    marginBottom: 8,
   },
   sortChip: {
     flexDirection: 'row',
@@ -336,7 +322,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDEFF1',
     borderRadius: 16,
     paddingVertical: 6,
-    marginRight: 8,
+    marginRight:8,
     paddingHorizontal: 12,
   },
   sortChipText: {
@@ -356,7 +342,7 @@ const styles = StyleSheet.create({
     color: '#555C61',
     fontSize: 14,
     fontWeight: '500',
-    marginRight: 6
+    marginRight:6
   },
   scrollView: {
     flex: 1,
@@ -371,46 +357,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    padding: 14,
-
+    padding:14,
+   
     marginBottom: 8,
   },
-instrumentLeft: {
+  instrumentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 2.5, 
+    flex: 1.5,
   },
   instrumentIconCircle: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16
   },
   instrumentInfo: {
     flex: 1,
-    flexDirection: 'column'
   },
-  
-  titleChartRow: {
+  titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2, 
+    marginBottom: 2, // Add some space between title row and subtitle
   },
   instrumentTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
     color: '#000000',
   },
   instrumentSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B7280',
-    marginLeft:-30
   },
   instrumentMiddle: {
+    
     alignItems: 'center',
   },
   instrumentRight: {
@@ -425,6 +407,9 @@ instrumentLeft: {
   instrumentChange: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  searchButton: {
+  
   },
   errorContainer: {
     flex: 1,

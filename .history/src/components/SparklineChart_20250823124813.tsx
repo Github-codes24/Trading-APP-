@@ -1,0 +1,57 @@
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import Svg, { Path, G } from 'react-native-svg';
+
+interface TrendSparklineChartProps {
+  trend?: 'up' | 'down';
+  width?: number;
+  height?: number;
+  color?: string;
+}
+
+const TrendSparklineChart: React.FC<TrendSparklineChartProps> = ({
+  trend = 'up',
+  width = 80,
+  height = 40,
+  color = trend === 'up' ? '#22c55e' : '#ef4444', // Green for up, Red for down
+}) => {
+  // The path data extracted from your provided SVG.
+  // The final "Z" was removed to make it an open line rather than a closed shape.
+  const pathData =
+    'M-1102.6046,34.645947l-16.1122,25.204086-39.5133,61.725077-12.9665-7.32723-19.6799-11.12509-8.2863,21.06096-49.9478,127.13292-12.0458-2.18665-15.9971-2.91554-5.831,15.15314-22.3269,57.96555-12.1993-14.38589-13.1199,27.39074-39.59,82.86274-26.3933,31.72569-6.7902-20.79241-1.0742-3.29916-2.1098-2.72373-86.3154-110.4453-15.6135-19.91007-15.4217,20.02516-32.9149,42.65897-24.8204-26.35496-21.7899-23.17087-10.9716,29.88429-30.1145,82.09549-2.3018-2.80045-21.5979-26.16314-11.9308,31.76405-61.8785,164.61297-17.2247-12.92812-11.01,19.44973-28.3114,50.02454-15.8437-9.13025-17.1097-9.85913-9.7823,17.14799-6.0613,10.62638-41.4313-93.87275-17.8002-40.39559-18.0687,40.2805-54.8965,122.33763-12.0075-1.7263-13.5036-1.91812-6.5216,11.96906-42.9274,78.71961-19.7183-39.47489-15.9204,41.89172-12.6596,33.37527-8.4013-15.57513-15.6136,39.01454-22.8639,57.12159l36.4826,14.5777l7.2505-18.10704l9.3604,17.37815l15.2682-40.20377l12.0075-31.72569l13.2734,26.54677l18.0303-33.03001l54.3979-99.74219l13.1582,1.87976l14.6544,2.10993l6.0613-13.50356l42.8508-95.52233l39.2831,89.07745l15.7286,35.60029l19.2962-33.79726l15.6136-27.31401l15.9203,9.20697l17.148,9.89749l9.7824-17.26307l27.0455-47.83789l2.4552,1.8414l20.9459,15.72857l9.2069-24.51356l59.1931-157.40084l2.4936,3.03062l21.8282,26.39332l11.7773-32.14767l30.9201-84.35888l18.8358,19.9868l15.8053,16.76436l14.0407-18.26049l31.5338-40.8943l68.6304,87.84985l16.6876,51.25214l11.01,33.79726l22.7489-27.31401l50.7918-60.91946l1.5729-1.87976l1.0357-2.22502l27.5442-57.65866l15.7286,18.60576l11.9307-30.92008l28.4265-73.69413l11.9308,2.18665l15.882,2.87718l5.9078-15.03805l47.5693-121.11004l9.5522,5.37074l16.1889,9.13024l10.0127-15.65185l33.4135-52.2112L-914.09187,384.7794l32.608-21.94329L-1085.8786,59.466403l-16.726-24.820456';
+
+  // The viewBox is taken directly from the SVG to ensure correct scaling.
+  const viewBox = '0 0 1570.62 1047.75';
+  
+  // Transform to apply the initial translation from the SVG's <g> element.
+  const baseTransform = 'translate(2206.31, -4.382112)';
+
+  // For the 'down' trend, we flip the path vertically.
+  // We scale it by -1 on the Y-axis and then translate it back into view.
+  const flipTransform = trend === 'down' ? `translate(0, 1047.75) scale(1, -1)` : '';
+
+  return (
+    <View style={[styles.container, { width, height }]}>
+      <Svg width={width} height={height} viewBox={viewBox} preserveAspectRatio="none">
+        <G transform={`${baseTransform} ${flipTransform}`}>
+          <Path
+            d={pathData}
+            stroke={color}
+            strokeWidth={32} // Stroke width from original SVG
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </G>
+      </Svg>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'transparent',
+  },
+});
+
+export default TrendSparklineChart;
