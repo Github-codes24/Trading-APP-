@@ -68,6 +68,7 @@ const PerformanceScreen: React.FC = () => {
           <Text style={styles.sectionHeader}>Profit / Loss</Text>
           <Icon name="info" size={20} color="#111" />
         </View>
+        
         <View style={styles.sectionCard}>
           <View style={styles.profitRow}>
             <Text style={styles.profitValue}>+9.21 USD</Text>
@@ -114,17 +115,28 @@ const PerformanceScreen: React.FC = () => {
               ))}
             </View>
           </View>
-          
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryDotGreen} />
-            <Text style={styles.summaryLabel}>Profit</Text>
-            <Text style={styles.summaryValue}>+9.21 USD</Text>
-            <View style={styles.summaryDotDark} />
-            <Text style={styles.summaryLabel}>Loss</Text>
-            <Text style={styles.summaryValue}>+0.00 USD</Text>
-          </View>
-          <Text style={styles.lastUpdated}>Last updated: Today, 10:21 am</Text>
         </View>
+
+        {/* Profit and Loss summary in separate containers */}
+        <View style={styles.profitLossRow}>
+          <View style={styles.profitLossCard}>
+            <View style={styles.profitLossHeader}>
+              <View style={styles.summaryDotGreen} />
+              <Text style={styles.profitLossLabel}>Profit</Text>
+            </View>
+            <Text style={styles.profitLossValue}>+9.21 USD</Text>
+          </View>
+          
+          <View style={styles.profitLossCard}>
+            <View style={styles.profitLossHeader}>
+              <View style={styles.summaryDotDark} />
+              <Text style={styles.profitLossLabel}>Loss</Text>
+            </View>
+            <Text style={styles.profitLossValue}>+0.00 USD</Text>
+          </View>
+        </View>
+
+        <Text style={styles.lastUpdatedExternal}>Last updated: Today, 10:21 am</Text>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeader}>Equity</Text>
@@ -225,7 +237,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
     padding: 20,
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -311,7 +323,6 @@ const styles = StyleSheet.create({
   },
   chartBar: {
     width: 10,
-    
   },
   chartXAxisRow: {
     position: 'absolute',
@@ -328,45 +339,57 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
-  summaryRow: {
+  profitLossRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
+    marginHorizontal: 16,
     marginBottom: 8,
     gap: 8,
+  },
+  profitLossCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  profitLossHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profitLossLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: FONT_REGULAR,
+    marginLeft: 8,
+  },
+  profitLossValue: {
+    fontSize: 18,
+    color: '#111111',
+    fontFamily: FONT_BOLD,
+    fontWeight: '800',
   },
   summaryDotGreen: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#4ADE80',
-    marginRight: 4,
   },
   summaryDotDark: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#111827',
-    marginLeft: 16,
-    marginRight: 4,
   },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontFamily: FONT_REGULAR,
-    marginRight: 2,
-  },
-  summaryValue: {
-    fontSize: 14,
-    color: '#111111',
-    fontFamily: FONT_BOLD,
-    marginRight: 8,
-  },
-  lastUpdated: {
+  lastUpdatedExternal: {
     fontSize: 13,
     color: '#6B7280',
     fontFamily: FONT_REGULAR,
-    marginTop: 8,
+    marginBottom: 24,
+    marginHorizontal: 24,
   },
   equityValue: {
     fontSize: 22,

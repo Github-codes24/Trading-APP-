@@ -114,7 +114,7 @@ const PerformanceScreen: React.FC = () => {
               ))}
             </View>
           </View>
-          
+           </View>
           <View style={styles.summaryRow}>
             <View style={styles.summaryDotGreen} />
             <Text style={styles.summaryLabel}>Profit</Text>
@@ -122,7 +122,7 @@ const PerformanceScreen: React.FC = () => {
             <View style={styles.summaryDotDark} />
             <Text style={styles.summaryLabel}>Loss</Text>
             <Text style={styles.summaryValue}>+0.00 USD</Text>
-          </View>
+         
           <Text style={styles.lastUpdated}>Last updated: Today, 10:21 am</Text>
         </View>
 
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryRow: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 8,

@@ -19,7 +19,7 @@ const CHART_DATA = [
   { date: '06 Apr', value: 0 },
   { date: '07 Apr', value: 0 },
   { date: '08 Apr', value: 0 },
-  { date: '09 Apr', value: 9.21 },
+  { date: '09 Apr', value: .21 },
   { date: '10 Apr', value: 0 },
   { date: '11 Apr', value: 0 },
 ];

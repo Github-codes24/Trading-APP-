@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   chartContainer: {
-    height: 280,
+    height: 180,
     marginVertical: 16,
     borderRadius: 12,
     padding: 16,
@@ -270,6 +270,7 @@ const styles = StyleSheet.create({
   chartYAxisContainer: {
     position: 'absolute',
     left: 0,
+    top: 16,
     width: '100%',
     height: 200,
     justifyContent: 'space-between',
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   chartRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 40,
+    height: 20,
   },
   chartYAxis: {
     width: 36,
@@ -296,7 +297,7 @@ const styles = StyleSheet.create({
   chartBarsContainer: {
     position: 'absolute',
     left: 52,
-    bottom: 60,
+    bottom: 40,
     right: 16,
     height: 120,
     flexDirection: 'row',
@@ -310,8 +311,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   chartBar: {
-    width: 10,
-    
+    width: 20,
+    borderRadius: 4,
+    minHeight: 2,
   },
   chartXAxisRow: {
     position: 'absolute',

@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontFamily: FONT_REGULAR,
     textAlign: 'right',
-    marginRight: 8,
+    marginRight: 48,
   },
   chartGridLine: {
     flex: 1,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   chartBarsContainer: {
     position: 'absolute',
     left: 52,
-    bottom: 60,
+    bottom: 40,
     right: 16,
     height: 120,
     flexDirection: 'row',
@@ -310,8 +310,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   chartBar: {
-    width: 10,
-    
+    width: 20,
+    borderRadius: 4,
+    minHeight: 2,
   },
   chartXAxisRow: {
     position: 'absolute',
