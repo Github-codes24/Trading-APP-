@@ -13,22 +13,8 @@ const TABS = [
   { label: 'Exness benefits' },
 ];
 
-// Sample chart data - replace with your actual data
-const CHART_DATA = [
-  { date: '05 Apr', value: 0 },
-  { date: '06 Apr', value: 0 },
-  { date: '07 Apr', value: 0 },
-  { date: '08 Apr', value: 0 },
-  { date: '09 Apr', value: 9.21 },
-  { date: '10 Apr', value: 0 },
-  { date: '11 Apr', value: 0 },
-];
-
 const PerformanceScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
-
-  const maxValue = Math.max(...CHART_DATA.map(d => d.value));
-  const chartHeight = 120;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,44 +63,22 @@ const PerformanceScreen: React.FC = () => {
               <Icon name="info" size={14} color="#E11D48" style={{ marginLeft: 2 }} />
             </View>
           </View>
-          
           <View style={styles.chartContainer}>
-            {/* Y-axis labels and grid lines */}
-            <View style={styles.chartYAxisContainer}>
-              {[10, 8, 6, 4, 2, 0].map((val, i) => (
-                <View key={val} style={styles.chartRow}>
-                  <Text style={styles.chartYAxis}>{val.toFixed(2)}</Text>
-                  <View style={styles.chartGridLine} />
-                </View>
-              ))}
+            {[10, 8, 6, 4, 2, 0].map((val, i) => (
+              <View key={val} style={styles.chartRow}>
+                <Text style={styles.chartYAxis}>{val.toFixed(2)}</Text>
+                <View style={styles.chartGridLine} />
+              </View>
+            ))}
+            <View style={styles.chartBarWrapper}>
+              <View style={styles.chartBar} />
             </View>
-            
-            {/* Chart bars */}
-            <View style={styles.chartBarsContainer}>
-              {CHART_DATA.map((item, index) => {
-                const barHeight = maxValue > 0 ? (item.value / maxValue) * chartHeight : 0;
-                return (
-                  <View key={item.date} style={styles.chartBarWrapper}>
-                    <View style={[
-                      styles.chartBar, 
-                      { 
-                        height: barHeight,
-                        backgroundColor: item.value > 0 ? '#4ADE80' : '#E5E7EB'
-                      }
-                    ]} />
-                  </View>
-                );
-              })}
-            </View>
-            
-            {/* X-axis labels */}
             <View style={styles.chartXAxisRow}>
-              {CHART_DATA.map((item) => (
-                <Text key={item.date} style={styles.chartXAxisLabel}>{item.date}</Text>
+              {['05 Apr', '06 Apr', '07 Apr', '08 Apr', '09 Apr', '10 Apr', '11 Apr'].map((d) => (
+                <Text key={d} style={styles.chartXAxisLabel}>{d}</Text>
               ))}
             </View>
           </View>
-          
           <View style={styles.summaryRow}>
             <View style={styles.summaryDotGreen} />
             <Text style={styles.summaryLabel}>Profit</Text>
@@ -145,6 +109,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
+    paddingTop: 8,
   },
   headerTitle: {
     fontSize: 34,
@@ -261,28 +226,24 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   chartContainer: {
-    height: 280,
+    height: 160,
     marginVertical: 16,
+    backgroundColor: '#F7F9FA',
     borderRadius: 12,
-    padding: 16,
-    position: 'relative',
-  },
-  chartYAxisContainer: {
-    position: 'absolute',
-    left: 0,
-    width: '100%',
-    height: 200,
-    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 0,
+    justifyContent: 'flex-end',
   },
   chartRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 40,
+    height: 20,
   },
   chartYAxis: {
     width: 36,
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 13,
+    color: '#A3A3A3',
     fontFamily: FONT_REGULAR,
     textAlign: 'right',
     marginRight: 8,
@@ -291,42 +252,37 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     backgroundColor: '#E5E7EB',
-    opacity: 0.5,
-  },
-  chartBarsContainer: {
-    position: 'absolute',
-    left: 52,
-    bottom: 60,
-    right: 16,
-    height: 120,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    opacity: 0.7,
   },
   chartBarWrapper: {
-    flex: 1,
-    alignItems: 'center',
+    position: 'absolute',
+    left: 70,
+    bottom: 32,
+    width: 32,
+    height: 90,
     justifyContent: 'flex-end',
-    marginHorizontal: 2,
+    alignItems: 'center',
   },
   chartBar: {
-    width: 10,
-    
+    width: 32,
+    height: 90,
+    backgroundColor: '#4ADE80',
+    borderRadius: 6,
+    opacity: 0.9,
   },
   chartXAxisRow: {
-    position: 'absolute',
-    left: 52,
-    bottom: 16,
-    right: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
+    marginLeft: 44,
+    marginRight: 8,
   },
   chartXAxisLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
+    fontSize: 12,
+    color: '#A3A3A3',
     fontFamily: FONT_REGULAR,
+    width: 36,
     textAlign: 'center',
-    flex: 1,
   },
   summaryRow: {
     flexDirection: 'row',

@@ -387,7 +387,7 @@ instrumentLeft: {
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16
+    marginTop: -4
   },
   instrumentInfo: {
     flex: 1,
@@ -401,14 +401,14 @@ instrumentLeft: {
     marginBottom: 2, 
   },
   instrumentTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#000000',
   },
   instrumentSubtitle: {
     fontSize: 13,
     color: '#6B7280',
-    marginLeft:-30
+    marginLeft:-10
   },
   instrumentMiddle: {
     alignItems: 'center',

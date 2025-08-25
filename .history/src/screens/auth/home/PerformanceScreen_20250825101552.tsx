@@ -13,30 +13,18 @@ const TABS = [
   { label: 'Exness benefits' },
 ];
 
-// Sample chart data - replace with your actual data
-const CHART_DATA = [
-  { date: '05 Apr', value: 0 },
-  { date: '06 Apr', value: 0 },
-  { date: '07 Apr', value: 0 },
-  { date: '08 Apr', value: 0 },
-  { date: '09 Apr', value: 9.21 },
-  { date: '10 Apr', value: 0 },
-  { date: '11 Apr', value: 0 },
-];
-
 const PerformanceScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
-
-  const maxValue = Math.max(...CHART_DATA.map(d => d.value));
-  const chartHeight = 120;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Performance</Text>
         </View>
 
+        {/* Tabs */}
         <View style={styles.tabsRow}>
           {TABS.map((tab, idx) => (
             <TouchableOpacity
@@ -53,17 +41,19 @@ const PerformanceScreen: React.FC = () => {
         </View>
         <View style={styles.tabDivider} />
 
+        {/* Filters */}
         <View style={styles.filtersRow}>
           <TouchableOpacity style={styles.filterChip} activeOpacity={0.8}>
             <Text style={styles.filterText}>All real accounts</Text>
             <Icon name="chevron-down" size={16} color="#111" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.filterChip} activeOpacity={0.8}>
-            <Icon name="calendar" size={16} color="#111" style={{ marginRight: 8 }} />
+            <Icon name="calendar" size={16} color="#111" style={{ marginRight: 6 }} />
             <Text style={styles.filterText}>Last 7 days</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Profit / Loss */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeader}>Profit / Loss</Text>
           <Icon name="info" size={20} color="#111" />
@@ -77,44 +67,26 @@ const PerformanceScreen: React.FC = () => {
               <Icon name="info" size={14} color="#E11D48" style={{ marginLeft: 2 }} />
             </View>
           </View>
-          
+
+          {/* Chart */}
           <View style={styles.chartContainer}>
-            {/* Y-axis labels and grid lines */}
-            <View style={styles.chartYAxisContainer}>
-              {[10, 8, 6, 4, 2, 0].map((val, i) => (
-                <View key={val} style={styles.chartRow}>
-                  <Text style={styles.chartYAxis}>{val.toFixed(2)}</Text>
-                  <View style={styles.chartGridLine} />
-                </View>
-              ))}
+            {[10, 8, 6, 4, 2, 0].map((val) => (
+              <View key={val} style={styles.chartRow}>
+                <Text style={styles.chartYAxis}>{val.toFixed(2)}</Text>
+                <View style={styles.chartGridLine} />
+              </View>
+            ))}
+            <View style={styles.chartBarWrapper}>
+              <View style={styles.chartBar} />
             </View>
-            
-            {/* Chart bars */}
-            <View style={styles.chartBarsContainer}>
-              {CHART_DATA.map((item, index) => {
-                const barHeight = maxValue > 0 ? (item.value / maxValue) * chartHeight : 0;
-                return (
-                  <View key={item.date} style={styles.chartBarWrapper}>
-                    <View style={[
-                      styles.chartBar, 
-                      { 
-                        height: barHeight,
-                        backgroundColor: item.value > 0 ? '#4ADE80' : '#E5E7EB'
-                      }
-                    ]} />
-                  </View>
-                );
-              })}
-            </View>
-            
-            {/* X-axis labels */}
             <View style={styles.chartXAxisRow}>
-              {CHART_DATA.map((item) => (
-                <Text key={item.date} style={styles.chartXAxisLabel}>{item.date}</Text>
+              {['05 Apr', '06 Apr', '07 Apr', '08 Apr', '09 Apr', '10 Apr', '11 Apr'].map((d) => (
+                <Text key={d} style={styles.chartXAxisLabel}>{d}</Text>
               ))}
             </View>
           </View>
-          
+
+          {/* Summary */}
           <View style={styles.summaryRow}>
             <View style={styles.summaryDotGreen} />
             <Text style={styles.summaryLabel}>Profit</Text>
@@ -126,6 +98,7 @@ const PerformanceScreen: React.FC = () => {
           <Text style={styles.lastUpdated}>Last updated: Today, 10:21 am</Text>
         </View>
 
+        {/* Equity */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeader}>Equity</Text>
           <Icon name="info" size={20} color="#111" />
@@ -145,6 +118,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
+    paddingTop: 8,
   },
   headerTitle: {
     fontSize: 34,
@@ -152,6 +126,8 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontWeight: '800',
   },
+
+  // Tabs
   tabsRow: {
     flexDirection: 'row',
     marginTop: 16,
@@ -160,17 +136,16 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   tabActive: {
-    borderBottomWidth: 3,
+    borderBottomWidth: 2,
     borderBottomColor: '#111111',
   },
   tabText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#6B7280',
     fontFamily: FONT_MEDIUM,
-    fontWeight: '700',
   },
   tabTextActive: {
     color: '#111111',
@@ -182,30 +157,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginHorizontal: 24,
   },
+
+  // Filters
   filtersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     paddingHorizontal: 24,
-    marginBottom: 32,
+    marginBottom: 28,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
-    borderWidth: 1,
-    borderRadius: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 12,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   filterText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#111111',
-    marginRight: 6,
+    marginRight: 4,
     fontFamily: FONT_REGULAR,
   },
+
+  // Section
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,7 +191,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionHeader: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: FONT_BOLD,
     color: '#111111',
     fontWeight: '800',
@@ -229,16 +205,18 @@ const styles = StyleSheet.create({
     padding: 20,
     shadowColor: '#000',
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
   },
+
+  // Profit Row
   profitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   profitValue: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: FONT_BOLD,
     color: '#111111',
     fontWeight: '800',
@@ -247,37 +225,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEE2E2',
-    borderRadius: 16,
-    paddingHorizontal: 8,
+    borderRadius: 12,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    marginLeft: 8,
-    gap: 2,
   },
   percentText: {
     color: '#E11D48',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONT_BOLD,
-    marginLeft: 2,
-    marginRight: 2,
+    marginHorizontal: 2,
   },
+
+  // Chart
   chartContainer: {
-    height: 280,
-    marginVertical: 16,
+    height: 140,
+    marginVertical: 12,
+    backgroundColor: '#F7F9FA',
     borderRadius: 12,
-    padding: 16,
-    position: 'relative',
-  },
-  chartYAxisContainer: {
-    position: 'absolute',
-    left: 0,
-    width: '100%',
-    height: 200,
-    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    justifyContent: 'flex-end',
   },
   chartRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 40,
+    height: 20,
   },
   chartYAxis: {
     width: 36,
@@ -285,55 +256,52 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontFamily: FONT_REGULAR,
     textAlign: 'right',
-    marginRight: 8,
+    marginRight: 6,
   },
   chartGridLine: {
     flex: 1,
     height: 1,
     backgroundColor: '#E5E7EB',
-    opacity: 0.5,
-  },
-  chartBarsContainer: {
-    position: 'absolute',
-    left: 52,
-    bottom: 60,
-    right: 16,
-    height: 120,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    opacity: 0.7,
   },
   chartBarWrapper: {
-    flex: 1,
-    alignItems: 'center',
+    position: 'absolute',
+    left: 70,
+    bottom: 28,
+    width: 28,
+    height: 85,
     justifyContent: 'flex-end',
-    marginHorizontal: 2,
+    alignItems: 'center',
   },
   chartBar: {
-    width: 10,
-    
+    width: 28,
+    height: 85,
+    backgroundColor: '#22C55E',
+    borderRadius: 6,
+    opacity: 0.8,
   },
   chartXAxisRow: {
-    position: 'absolute',
-    left: 52,
-    bottom: 16,
-    right: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
+    marginLeft: 44,
+    marginRight: 8,
   },
   chartXAxisLabel: {
     fontSize: 11,
     color: '#9CA3AF',
     fontFamily: FONT_REGULAR,
+    width: 36,
     textAlign: 'center',
-    flex: 1,
   },
+
+  // Summary
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-    gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
+    gap: 6,
   },
   summaryDotGreen: {
     width: 8,
@@ -347,33 +315,35 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#111827',
-    marginLeft: 16,
+    marginLeft: 12,
     marginRight: 4,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
     fontFamily: FONT_REGULAR,
     marginRight: 2,
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#111111',
     fontFamily: FONT_BOLD,
     marginRight: 8,
   },
   lastUpdated: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
     fontFamily: FONT_REGULAR,
-    marginTop: 8,
+    marginTop: 6,
   },
+
+  // Equity
   equityValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: FONT_BOLD,
     color: '#111111',
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 6,
   },
 });
 

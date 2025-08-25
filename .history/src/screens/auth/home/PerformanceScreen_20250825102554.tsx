@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   chartBarsContainer: {
     position: 'absolute',
     left: 52,
-    bottom: 60,
+    bottom: 40,
     right: 16,
     height: 120,
     flexDirection: 'row',
@@ -307,11 +307,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginHorizontal: 2,
+    marginHorizontal: 20,
   },
   chartBar: {
-    width: 10,
-    
+    width: 20,
+    borderRadius: 4,
+    minHeight: 2,
   },
   chartXAxisRow: {
     position: 'absolute',

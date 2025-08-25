@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   chartBar: {
     width: 10,
-    
+    minHeight: 1,
   },
   chartXAxisRow: {
     position: 'absolute',

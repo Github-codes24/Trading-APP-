@@ -173,36 +173,34 @@ const TradeScreen: React.FC = () => {
           {tradingData.map((item) => (
             <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
               <View style={styles.instrumentLeft}>
-                <View style={[
-                  styles.instrumentIconCircle,
-                  { backgroundColor: getIconBackground(item.icon) }
-                ]}>
-                  {item.icon === 'bitcoin' ? (
-                    <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
-                  ) : (
-                    <Icon
-                      name={getIconName(item.icon) as any}
-                      size={14}
-                      color={getIconColor(item.icon)}
-                    />
-                  )}
-                </View>
                 <View style={styles.instrumentInfo}>
-                  {/* NEW: A row for the title and the sparkline chart */}
-                  <View style={styles.titleChartRow}>
-                    <Text style={styles.instrumentTitle}>{formatInstrumentName(item.name)}</Text>
-                    <View style={styles.instrumentMiddle}>
-                      <SparklineChart
-                        data={item.sparkline}
-                        color={item.changeColor}
-                        width={80}
-                        height={30}
-                      />
+                  <View style={styles.titleRow}>
+                    <View style={[
+                      styles.instrumentIconCircle,
+                      { backgroundColor: getIconBackground(item.icon) }
+                    ]}>
+                      {item.icon === 'bitcoin' ? (
+                        <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
+                      ) : (
+                        <Icon
+                          name={getIconName(item.icon) as any}
+                          size={14}
+                          color={getIconColor(item.icon)}
+                        />
+                      )}
                     </View>
+                    <Text style={styles.instrumentTitle}>{formatInstrumentName(item.name)}</Text>
                   </View>
-                  {/* Subtitle is now directly below the title/chart row */}
                   <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
                 </View>
+              </View>
+              <View style={styles.instrumentMiddle}>
+                <SparklineChart
+                  data={item.sparkline}
+                  color={item.changeColor}
+                  width={80}
+                  height={30}
+                />
               </View>
               <View style={styles.instrumentRight}>
                 <Text style={styles.instrumentPrice}>{item.price}</Text>
@@ -327,8 +325,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
 
     paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 18,
+    marginTop: 24,
+    marginBottom: 8,
   },
   sortChip: {
     flexDirection: 'row',
@@ -375,10 +373,10 @@ const styles = StyleSheet.create({
 
     marginBottom: 8,
   },
-instrumentLeft: {
+  instrumentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 2.5, 
+    flex: 1.5,
   },
   instrumentIconCircle: {
     width: 24,
@@ -387,30 +385,26 @@ instrumentLeft: {
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16
   },
   instrumentInfo: {
     flex: 1,
-    flexDirection: 'column'
   },
-  
-  titleChartRow: {
+  titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2, 
+    marginBottom: 2, // Add some space between title row and subtitle
   },
   instrumentTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: 500,
     color: '#000000',
   },
   instrumentSubtitle: {
     fontSize: 13,
     color: '#6B7280',
-    marginLeft:-30
   },
   instrumentMiddle: {
+
     alignItems: 'center',
   },
   instrumentRight: {
