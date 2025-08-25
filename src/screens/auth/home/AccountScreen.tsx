@@ -13,17 +13,17 @@ import TradeScreen from './TradeScreen';
 type PositionsTab = 'Open' | 'Pending' | 'Closed';
 
 const COLORS = {
-  bg: '#FAFAFA',
+  bg: '#f9f9f9', // Changed from #f6f6f6 to #f9f9f9
   text: '#111111',
   textMuted: '#6B7280',
   chipBg: '#EAF7EE',
   chipText: '#16A34A',
   card: '#FFFFFF',
-  circle: '#F5F6F8',
+  circle: '#efeff1',
   soft: '#F3F4F6',
   divider: '#E5E7EB',
   active: '#23272F',
-  actionActive: '#FFD100',
+  actionActive: '#fddf03',
 };
 
 const SIZES = {
@@ -103,8 +103,8 @@ const AccountCard: React.FC = () => (
         </Text>
         <View style={styles.chipsRow}>
           <Chip label="MT5" />
-          <Chip label="Zero" />
-          <Chip label="Demo" />
+          <Chip label="Standard" />
+          <Chip label="Real" />
         </View>
       </View>
       <View style={styles.circleSmall}>
@@ -200,6 +200,9 @@ const AccountsUI: React.FC = () => {
 
       <AccountCard />
 
+      {/* Add the subtle shadow line above the tabs */}
+      <View style={styles.tabTopShadow} />
+      
       <View style={styles.segmentRow}>
         <View style={styles.segmentTabs}>
           {['Open', 'Pending', 'Closed'].map((t) => {
@@ -248,26 +251,57 @@ const AccountScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  mainContent: { flex: 1, paddingHorizontal: 16 },
-  mainContentNoPad: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
+  mainContent: { flex: 1, paddingHorizontal: 16, backgroundColor: COLORS.bg }, // Added background color
+  mainContentNoPad: { flex: 1, backgroundColor: COLORS.bg }, // Added background color
+  scrollContent: { paddingBottom: 24, backgroundColor: COLORS.bg }, // Added background color
 
   topToolbar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingTop: 35, marginBottom: 8 },
-  bellWrapper: { position: 'relative',  marginRight: 8 },
+  bellWrapper: { position: 'relative', marginRight: 8 },
   badge: { position: 'absolute', top: -4, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF0000' },
 
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingBottom: 12 },
   headerTitle: { fontSize: SIZES.header, fontWeight: '700', color: COLORS.text, letterSpacing: 0.5 },
   circleIconButton: { width: 50, height: 50, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.circle },
 
-  accountCard: { backgroundColor: COLORS.card, borderRadius: 16, paddingVertical: 38, paddingHorizontal: 20, marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 },
+  accountCard: {     
+    backgroundColor: COLORS.card, 
+    borderRadius: 16, 
+    paddingVertical: 38, 
+    paddingHorizontal: 20, 
+    marginBottom: 18, 
+    marginHorizontal: 5,  
+    shadowColor: '#000',
+    shadowOpacity: 0.15, 
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  
+  // Updated shadow line style to extend full width
+  tabTopShadow: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 8,
+    // Extend beyond the container padding
+    marginLeft: -16,
+    marginRight: -16,
+    // Add padding to ensure shadow is visible at edges
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
+  
   accountHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   accountTitle: { fontSize: 15, fontWeight: '600', color: COLORS.text, letterSpacing: 0.2, marginBottom: 8 },
   hashGrey: { color: COLORS.textMuted, fontWeight: '500' },
   chipsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   chip: { backgroundColor: COLORS.chipBg, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 10 },
   chipText: { fontSize: SIZES.chip, fontWeight: '500', color: COLORS.chipText },
-  circleSmall: { marginLeft: 'auto', width: SIZES.chevronCircle, height: SIZES.chevronCircle, borderRadius: SIZES.chevronCircle / 2, backgroundColor: COLORS.circle, alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: -36 },
+  circleSmall: { marginLeft: 'auto', width: SIZES.chevronCircle, height: SIZES.chevronCircle, borderRadius: SIZES.chevronCircle / 2, backgroundColor: COLORS.circle, alignItems: 'center', justifyContent: 'center', marginRight: -5, marginTop: -50 },
   balanceText: { fontSize: SIZES.balance, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
 
   actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -25 },
@@ -282,7 +316,7 @@ const styles = StyleSheet.create({
   withdrawIcon: { width: 30, height: 30, alignSelf: 'center' },
   detailsIcon: { width: 25, height: 25, alignSelf: 'center' },
 
-  segmentRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 18 },
+  segmentRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 },
   segmentTabs: { flexDirection: 'row', alignItems: 'center', marginRight: 'auto' },
   segmentTabItem: { position: 'relative', paddingHorizontal: 14, paddingBottom: 8 },
   segmentLabel: { fontSize: SIZES.tab, color: COLORS.textMuted, fontWeight: '400' },
@@ -291,17 +325,17 @@ const styles = StyleSheet.create({
   sortButton: { width: 36, height: 30, alignItems: 'center', justifyContent: 'center' },
   belowTabsDivider: { height: 1, backgroundColor: COLORS.divider, marginTop: 8, marginBottom: 12 },
 
-  positionsWrap: { paddingTop: 4, alignItems: 'center', width: '100%' },
-  centeredBlock: { width: '100%', paddingHorizontal: 4, alignItems: 'center' },
+  positionsWrap: { paddingTop: 4, alignItems: 'center', width: '100%', backgroundColor: COLORS.bg }, // Added background color
+  centeredBlock: { width: '100%', paddingHorizontal: 4, alignItems: 'center', backgroundColor: COLORS.bg }, // Added background color
 
-  btcRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18, marginBottom: 16 },
+  btcRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF1', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18, marginBottom: 16 },
   btcIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F7931A', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   btcText: { fontSize: 18, fontWeight: '600', color: '#000000' },
 
   exploreMoreButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: 'transparent' },
   exploreMoreText: { fontSize: 16, fontWeight: '600', color: '#000000' },
 
-  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginBottom: 8 },
+  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginBottom: 8, backgroundColor: COLORS.bg }, // Added background color
   emptyTitle: { fontSize: 17, fontWeight: '500', color: '#23272F', textAlign: 'center' },
 });
 
