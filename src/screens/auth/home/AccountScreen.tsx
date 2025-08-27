@@ -1,5 +1,15 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
@@ -23,6 +33,7 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
+  modalBg: '#1a1a1a',
 };
 
 const SIZES = {
@@ -31,39 +42,65 @@ const SIZES = {
   chip: 12,
   tab: 16,
   actionIcon: 42,
-  chevronCircle: 35, // slightly reduced for better alignment
+  chevronCircle: 35,
   topIcon: 28,
-  
 };
 
+// ---------- CHIP ----------
 const Chip: React.FC<{ label: string }> = ({ label }) => (
   <View style={styles.chip}>
     <Text style={styles.chipText}>{label}</Text>
   </View>
 );
 
-const CircleButton: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <View style={styles.circleIconButton}>{children}</View>
-);
+const CircleButton: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <View style={styles.circleIconButton}>{children}</View>;
 
-const ActionItem: React.FC<{ icon: string; label: string; active?: boolean; verticalDots?: boolean }> = ({
-  icon,
-  label,
-  active,
-  verticalDots,
-}) => (
-  <View style={styles.actionItem}>
-    <View style={[styles.actionIconWrap, active ? styles.actionIconActive : styles.actionIconIdle]}>
+// ---------- ACTION ITEM ----------
+const ActionItem: React.FC<{
+  icon: string;
+  label: string;
+  active?: boolean;
+  verticalDots?: boolean;
+  onPress?: () => void;
+}> = ({ icon, label, active, verticalDots, onPress }) => (
+  <TouchableOpacity
+    style={styles.actionItem}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <View
+      style={[
+        styles.actionIconWrap,
+        active ? styles.actionIconActive : styles.actionIconIdle,
+      ]}
+    >
       {label === 'Trade' ? (
-        <Image source={require('../../../assets/images/tradeIconn.png')} style={styles.tradeIcon} resizeMode="contain" />
+        <Image
+          source={require('../../../assets/images/tradeIconn.png')}
+          style={styles.tradeIcon}
+          resizeMode="contain"
+        />
       ) : label === 'Deposit' ? (
-        <Image source={require('../../../assets/images/depositIcon.png')} style={styles.depositIcon} resizeMode="contain" />
+        <Image
+          source={require('../../../assets/images/depositIcon.png')}
+          style={styles.depositIcon}
+          resizeMode="contain"
+        />
       ) : label === 'Withdraw' ? (
-        <Image source={require('../../../assets/images/withdrawIconn.png')} style={styles.withdrawIcon} resizeMode="contain" />
+        <Image
+          source={require('../../../assets/images/withdrawIconn.png')}
+          style={styles.withdrawIcon}
+          resizeMode="contain"
+        />
       ) : label === 'Details' ? (
         <Image
           source={require('../../../assets/images/detailsIcon.png')}
-          style={[styles.detailsIcon, verticalDots && { transform: [{ rotate: '90deg' }] }]}
+          style={[
+            styles.detailsIcon,
+            verticalDots && { transform: [{ rotate: '90deg' }] },
+          ]}
           resizeMode="contain"
         />
       ) : (
@@ -71,10 +108,52 @@ const ActionItem: React.FC<{ icon: string; label: string; active?: boolean; vert
       )}
     </View>
     <Text style={styles.actionLabel}>{label}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
-const AccountCard: React.FC = () => (
+// ---------- MODAL ----------
+const PaymentMethodModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+}> = ({ visible, onClose }) => {
+  return (
+    <Modal transparent visible={visible} animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Choose payment method</Text>
+
+          <Pressable style={styles.modalOption}>
+            <Image
+              source={require('../../../assets/images/detailsIcon.png')}
+              style={{ width: 24, height: 24, marginRight: 12 }}
+            />
+            <Text style={styles.modalOptionText}>Crypto wallet</Text>
+            <Text style={styles.modalOptionAmount}>0.00 USD</Text>
+          </Pressable>
+
+          <Pressable style={styles.modalOption}>
+            <Feather
+              name="download"
+              size={22}
+              color="#fff"
+              style={{ marginRight: 12 }}
+            />
+            <Text style={styles.modalOptionText}>All payment methods</Text>
+          </Pressable>
+
+          <Pressable style={styles.closeButton} onPress={onClose}>
+            <Text style={{ color: '#fff', fontSize: 16 }}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ---------- ACCOUNT CARD ----------
+const AccountCard: React.FC<{ onDepositPress: () => void }> = ({
+  onDepositPress,
+}) => (
   <View style={styles.accountCard}>
     <View style={styles.accountHeaderRow}>
       <View>
@@ -96,30 +175,21 @@ const AccountCard: React.FC = () => (
 
     <View style={styles.actionsRow}>
       <ActionItem icon="activity" label="Trade" active />
-      <ActionItem icon="arrow-down-circle" label="Deposit" />
+      <ActionItem
+        icon="arrow-down-circle"
+        label="Deposit"
+        onPress={onDepositPress}
+      />
       <ActionItem icon="arrow-up-circle" label="Withdraw" />
       <ActionItem icon="more-horizontal" label="Details" verticalDots />
     </View>
   </View>
 );
 
-const BTCRow: React.FC = () => (
-  <TouchableOpacity activeOpacity={0.7} style={styles.btcRow}>
-    <View style={styles.btcIconWrap}>
-      <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
-    </View>
-    <Text style={styles.btcText}>BTC - Trade</Text>
-  </TouchableOpacity>
-);
-
-const ExploreMore: React.FC = () => (
-  <TouchableOpacity style={styles.exploreMoreButton} activeOpacity={0.7}>
-    <Feather name="menu" size={18} color="#23272F" />
-    <Text style={styles.exploreMoreText}>Explore more instruments</Text>
-  </TouchableOpacity>
-);
-
-const AccountsUI: React.FC = () => {
+// ---------- MAIN UI ----------
+const AccountsUI: React.FC<{ onDepositPress: () => void }> = ({
+  onDepositPress,
+}) => {
   const [positionsTab, setPositionsTab] = useState<PositionsTab>('Open');
 
   const positionsContent = useMemo(() => {
@@ -130,8 +200,21 @@ const AccountsUI: React.FC = () => {
             <Text style={styles.emptyTitle}>No open positions</Text>
           </View>
           <View style={styles.centeredBlock}>
-            <BTCRow />
-            <ExploreMore />
+            <TouchableOpacity activeOpacity={0.7} style={styles.btcRow}>
+              <View style={styles.btcIconWrap}>
+                <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.btcText}>BTC - Trade</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exploreMoreButton}
+              activeOpacity={0.7}
+            >
+              <Feather name="menu" size={18} color="#23272F" />
+              <Text style={styles.exploreMoreText}>
+                Explore more instruments
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       );
@@ -151,11 +234,19 @@ const AccountsUI: React.FC = () => {
   }, [positionsTab]);
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
       <View style={styles.topToolbar}>
         <Image
           source={require('../../../assets/images/clockIcon.png')}
-          style={{ width: SIZES.topIcon, height: SIZES.topIcon, marginRight: 16 }}
+          style={{
+            width: SIZES.topIcon,
+            height: SIZES.topIcon,
+            marginRight: 16,
+          }}
           resizeMode="contain"
         />
         <View style={styles.bellWrapper}>
@@ -176,16 +267,28 @@ const AccountsUI: React.FC = () => {
         </CircleButton>
       </View>
 
-      <AccountCard />
+      {/* Account card with Deposit */}
+      <AccountCard onDepositPress={onDepositPress} />
 
+      {/* Tabs */}
       <View style={styles.segmentRow}>
         <View style={styles.segmentTabs}>
-          {['Open', 'Pending', 'Closed'].map((t) => {
+          {['Open', 'Pending', 'Closed'].map(t => {
             const active = positionsTab === t;
             return (
-              <TouchableOpacity key={t} onPress={() => setPositionsTab(t as PositionsTab)}>
+              <TouchableOpacity
+                key={t}
+                onPress={() => setPositionsTab(t as PositionsTab)}
+              >
                 <View style={styles.segmentTabItem}>
-                  <Text style={[styles.segmentLabel, active && styles.segmentActive]}>{t}</Text>
+                  <Text
+                    style={[
+                      styles.segmentLabel,
+                      active && styles.segmentActive,
+                    ]}
+                  >
+                    {t}
+                  </Text>
                   {active && <View style={styles.segmentIndicator} />}
                 </View>
               </TouchableOpacity>
@@ -193,7 +296,11 @@ const AccountsUI: React.FC = () => {
           })}
         </View>
         <View style={styles.sortButton}>
-          <Image source={require('../../../assets/images/upDownArrow.png')} style={{ width: 18, height: 18 }} resizeMode="contain" />
+          <Image
+            source={require('../../../assets/images/upDownArrow.png')}
+            style={{ width: 18, height: 18 }}
+            resizeMode="contain"
+          />
         </View>
       </View>
 
@@ -204,18 +311,35 @@ const AccountsUI: React.FC = () => {
   );
 };
 
+// ---------- SCREEN ----------
 const AccountScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('accounts');
+  const [paymentVisible, setPaymentVisible] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={activeTab === 'accounts' ? styles.mainContent : styles.mainContentNoPad}>
-        {activeTab === 'accounts' && <AccountsUI />}
+      <View
+        style={
+          activeTab === 'accounts'
+            ? styles.mainContent
+            : styles.mainContentNoPad
+        }
+      >
+        {activeTab === 'accounts' && (
+          <AccountsUI onDepositPress={() => setPaymentVisible(true)} />
+        )}
         {activeTab === 'trade' && <TradeScreen />}
         {activeTab === 'performance' && <PerformanceScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </View>
+
       <BottomTabs activeTab={activeTab} onTabPress={setActiveTab} />
+
+      {/* Payment Modal */}
+      <PaymentMethodModal
+        visible={paymentVisible}
+        onClose={() => setPaymentVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -226,18 +350,49 @@ const styles = StyleSheet.create({
   mainContentNoPad: { flex: 1, backgroundColor: COLORS.bg },
   scrollContent: { paddingBottom: 24, backgroundColor: COLORS.bg },
 
-  topToolbar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingTop: 35, marginBottom: 8 },
+  topToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingTop: 35,
+    marginBottom: 8,
+  },
   bellWrapper: { position: 'relative', marginRight: 8 },
-  badge: { position: 'absolute', top: -4, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF0000' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF0000',
+  },
 
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingBottom: 12 },
-  headerTitle: { fontSize: SIZES.header, fontWeight: '600', color: COLORS.text, letterSpacing: 0.5 },
-  circleIconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.circle },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    fontSize: SIZES.header,
+    fontWeight: '600',
+    color: COLORS.text,
+    letterSpacing: 0.5,
+  },
+  circleIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.circle,
+  },
 
   accountCard: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    paddingVertical: 24, // increased for better height
+    paddingVertical: 24, 
     paddingHorizontal: 18,
     marginBottom: 18,
     marginHorizontal: 8,
@@ -248,11 +403,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  accountHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  accountHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   accountTitle: { fontSize: 14, fontWeight: '500', color: COLORS.text },
   hashGrey: { color: COLORS.textMuted, fontWeight: '400', fontSize: 13 },
   chipsRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
-  chip: { backgroundColor: COLORS.chipBg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
+  chip: {
+    backgroundColor: COLORS.chipBg,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
   chipText: { fontSize: SIZES.chip, fontWeight: '500', color: COLORS.chipText },
 
   circleSmall: {
@@ -263,18 +427,39 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.circle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom:16,
-    marginRight:5
+    marginBottom: 16,
+    marginRight: 5,
   },
 
-  balanceText: { fontSize: SIZES.balance, fontWeight: '600', color: COLORS.text, marginTop: 8, marginBottom: 16 },
+  balanceText: {
+    fontSize: SIZES.balance,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 8,
+    marginBottom: 16,
+  },
 
-  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -18 },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: -18,
+  },
   actionItem: { width: '25%', alignItems: 'center' },
-  actionIconWrap: { width: SIZES.actionIcon, height: SIZES.actionIcon, borderRadius: SIZES.actionIcon / 2, alignItems: 'center', justifyContent: 'center' },
+  actionIconWrap: {
+    width: SIZES.actionIcon,
+    height: SIZES.actionIcon,
+    borderRadius: SIZES.actionIcon / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actionIconIdle: { backgroundColor: COLORS.soft },
   actionIconActive: { backgroundColor: COLORS.actionActive },
-  actionLabel: { marginTop: 4, fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
+  actionLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontWeight: '500',
+  },
 
   tradeIcon: { width: 24, height: 24, alignSelf: 'center' },
   depositIcon: { width: 26, height: 26, alignSelf: 'center' },
@@ -282,16 +467,56 @@ const styles = StyleSheet.create({
   detailsIcon: { width: 26, height: 26, alignSelf: 'center' },
 
   segmentRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
-  segmentTabs: { flexDirection: 'row', alignItems: 'center', marginRight: 'auto' },
-  segmentTabItem: { position: 'relative', paddingHorizontal: 12, paddingBottom: 6 },
-  segmentLabel: { fontSize: SIZES.tab, color: COLORS.textMuted, fontWeight: '400' },
+  segmentTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 'auto',
+  },
+  segmentTabItem: {
+    position: 'relative',
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+  },
+  segmentLabel: {
+    fontSize: SIZES.tab,
+    color: COLORS.textMuted,
+    fontWeight: '400',
+  },
   segmentActive: { color: COLORS.active, fontWeight: '600' },
-  segmentIndicator: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, backgroundColor: COLORS.active, borderRadius: 1 },
-  sortButton: { width: 34, height: 28, alignItems: 'center', justifyContent: 'center' },
-  belowTabsDivider: { height: 1, backgroundColor: COLORS.divider, marginTop: 6, marginBottom: 10 },
+  segmentIndicator: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: COLORS.active,
+    borderRadius: 1,
+  },
+  sortButton: {
+    width: 34,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  belowTabsDivider: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginTop: 6,
+    marginBottom: 10,
+  },
 
-  positionsWrap: { paddingTop: 4, alignItems: 'center', width: '100%', backgroundColor: COLORS.bg },
-  centeredBlock: { width: '100%', paddingHorizontal: 4, alignItems: 'center', backgroundColor: COLORS.bg },
+  positionsWrap: {
+    paddingTop: 4,
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: COLORS.bg,
+  },
+  centeredBlock: {
+    width: '100%',
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    backgroundColor: COLORS.bg,
+  },
 
   btcRow: {
     width: '100%',
@@ -304,14 +529,81 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginBottom: 16,
   },
-  btcIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F7931A', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  btcIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F7931A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   btcText: { fontSize: 17, fontWeight: '600', color: '#000000' },
 
-  exploreMoreButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', paddingVertical: 14, borderRadius: 12 },
-  exploreMoreText: { fontSize: 15, fontWeight: '600', color: '#000000', marginLeft: 6 },
+  exploreMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  exploreMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+    marginLeft: 6,
+  },
 
-  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, marginBottom: 6, backgroundColor: COLORS.bg },
-  emptyTitle: { fontSize: 16, fontWeight: '500', color: '#23272F', textAlign: 'center' },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    marginBottom: 6,
+    backgroundColor: COLORS.bg,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#23272F',
+    textAlign: 'center',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  
+  modalContent: {
+    backgroundColor: COLORS.modalBg,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#333',
+  },
+  modalOptionText: { fontSize: 16, color: '#fff', flex: 1 },
+  modalOptionAmount: { fontSize: 14, color: '#aaa' },
+  closeButton: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: '#333',
+  },
 });
 
 export default AccountScreen;

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+// import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
+import Fontisto from 'react-native-vector-icons/Fontisto';
+
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
-import Fontisto from 'react-native-vector-icons/Fontisto';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
@@ -12,24 +13,47 @@ const TradeScreen: React.FC = () => {
   const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
-    // Initialize trading API connection
     tradingApiService.initializeConnection();
 
-    // Subscribe to real data from WS
     const handleLiveData = (data: TradingInstrument[]) => {
+      // console.log('data',data)
       if (Array.isArray(data) && data.length > 0) {
         setTradingData(data);
         setConnectionError(false);
       }
     };
+
     tradingApiService.subscribeToTradingData(handleLiveData);
 
     return () => {
-
       tradingApiService.removeAllListeners();
       tradingApiService.disconnect();
     };
   }, []);
+
+  // Tab Filters
+  const getFilteredData = () => {
+    switch (activeTab) {
+      case 'Favorites':
+        return tradingData.filter(item => item.isFavorite);
+
+      case 'Most traded':
+        // Simulate until volume provided by API
+        return [...tradingData].sort(() => Math.random() - 0.5).slice(0, 10);
+
+      case 'Top Movers':
+        return [...tradingData]
+          .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+          .slice(0, 10);
+
+      case 'Majors':
+        const majors = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCAD', 'XAUUSD'];
+        return tradingData.filter(item => majors.includes(item.symbol));
+
+      default:
+        return tradingData;
+    }
+  };
 
   const formatInstrumentName = (name: string) => {
     if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
@@ -81,7 +105,7 @@ const TradeScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Account Button - Centered above header */}
+      {/* Account Button */}
       <View style={styles.accountButtonContainer}>
         <TouchableOpacity style={styles.accountButton}>
           <View style={styles.realButton}>
@@ -92,7 +116,7 @@ const TradeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Header with title and clock icon */}
+      {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Trade</Text>
         <View style={styles.headerRight}>
@@ -102,7 +126,7 @@ const TradeScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Navigation Tabs */}
+      {/* Tabs */}
       <View style={styles.tabsRow}>
         <View style={styles.scrollWrapper}>
           <ScrollView
@@ -110,19 +134,23 @@ const TradeScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabsContainer}
           >
-            {['Favorites', 'Most traded', 'Top Movers', 'Majors'].map((tab) => (
+            {['Favorites', 'Most traded', 'Top Movers', 'Majors'].map(tab => (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
                 style={styles.tabContainer}
               >
-                <Text style={[
-                  styles.tabLabel,
-                  activeTab === tab && styles.tabActive
-                ]}>
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    activeTab === tab && styles.tabActive,
+                  ]}
+                >
                   {tab}
                 </Text>
-                {activeTab === tab && <View style={styles.activeTabUnderline} />}
+                {activeTab === tab && (
+                  <View style={styles.activeTabUnderline} />
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -132,9 +160,7 @@ const TradeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-
-
-      {/* Sort and Edit Controls */}
+      {/* Sort & Edit */}
       <View style={styles.sortRow}>
         <TouchableOpacity style={styles.sortChip}>
           <Text style={styles.sortChipText}>Sorted manually</Text>
@@ -145,14 +171,15 @@ const TradeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-
-
-      {/* Trading Instruments List or Error Message */}
+      {/* Data or Error */}
       {connectionError ? (
         <View style={styles.errorContainer}>
           <Icon name="wifi-off" size={48} color="#EF4444" />
           <Text style={styles.errorTitle}>Connection Error</Text>
-          <Text style={styles.errorMessage}>Unable to connect to trading server. Please check your internet connection and try again.</Text>
+          <Text style={styles.errorMessage}>
+            Unable to connect to trading server. Please check your internet
+            connection and try again.
+          </Text>
           <TouchableOpacity
             style={styles.retryButton}
             onPress={() => {
@@ -168,15 +195,16 @@ const TradeScreen: React.FC = () => {
         <ScrollView
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          style={styles.scrollView}
         >
-          {tradingData.map((item) => (
+          {getFilteredData().map(item => (
             <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
               <View style={styles.instrumentLeft}>
-                <View style={[
-                  styles.instrumentIconCircle,
-                  { backgroundColor: getIconBackground(item.icon) }
-                ]}>
+                <View
+                  style={[
+                    styles.instrumentIconCircle,
+                    { backgroundColor: getIconBackground(item.icon) },
+                  ]}
+                >
                   {item.icon === 'bitcoin' ? (
                     <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
                   ) : (
@@ -188,9 +216,10 @@ const TradeScreen: React.FC = () => {
                   )}
                 </View>
                 <View style={styles.instrumentInfo}>
-                  {/* NEW: A row for the title and the sparkline chart */}
                   <View style={styles.titleChartRow}>
-                    <Text style={styles.instrumentTitle}>{formatInstrumentName(item.name)}</Text>
+                    <Text style={styles.instrumentTitle}>
+                      {formatInstrumentName(item.name)}
+                    </Text>
                     <View style={styles.instrumentMiddle}>
                       <SparklineChart
                         data={item.sparkline}
@@ -200,13 +229,14 @@ const TradeScreen: React.FC = () => {
                       />
                     </View>
                   </View>
-                  {/* Subtitle is now directly below the title/chart row */}
                   <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
                 </View>
               </View>
               <View style={styles.instrumentRight}>
                 <Text style={styles.instrumentPrice}>{item.price}</Text>
-                <Text style={[styles.instrumentChange, { color: item.changeColor }]}>
+                <Text
+                  style={[styles.instrumentChange, { color: item.changeColor }]}
+                >
                   {item.change}
                 </Text>
               </View>
@@ -223,16 +253,8 @@ const TradeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9F9',
-  },
-  accountButtonContainer: {
-    alignItems: 'center',
-
-    paddingBottom: 8,
-
-  },
+  container: { flex: 1, backgroundColor: '#F8F9F9' },
+  accountButtonContainer: { alignItems: 'center', paddingBottom: 8 },
   accountButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,17 +272,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 6,
   },
-  accountButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111111',
-
-  },
-  accountBalance: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111111',
-  },
+  accountButtonText: { fontSize: 12, fontWeight: '600', color: '#111111' },
+  accountBalance: { fontSize: 14, fontWeight: '600', color: '#111111' },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,63 +282,41 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
-    marginLeft: 16,
-  },
+  headerTitle: { fontSize: 32, fontWeight: 'bold', color: '#000000' },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  iconButton: { marginLeft: 16 },
   tabsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 8,
-    borderBottomWidth: 1, // Optional: adds a faint line below the entire tab bar
+    borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  scrollWrapper: {
-    flex: 1, // Allows the scrollable area to take up all available horizontal space
-  },
-  tabsContainer: {
-    // This style applies to the content within the ScrollView
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  scrollWrapper: { flex: 1 },
+  tabsContainer: { flexDirection: 'row', alignItems: 'center' },
   tabContainer: {
-
-    paddingHorizontal: 12, // Increased horizontal padding for better spacing
-    alignItems: 'center', // Center the content (text and underline)
+    paddingHorizontal: 12,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   tabLabel: {
     fontSize: 16,
     color: '#6B7280',
     fontWeight: '500',
-    paddingBottom: 8
+    paddingBottom: 8,
   },
-  tabActive: {
-    color: '#000000',
-    fontWeight: 400,
-  },
+  tabActive: { color: '#000000', fontWeight: '600' },
   activeTabUnderline: {
     height: 3,
     backgroundColor: '#000000',
-    width: '100%', // Underline spans the full width of the tab container
-    marginTop: 5, // Space between text and underline
+    width: '100%',
+    marginTop: 5,
   },
-  searchButton: {
-    paddingHorizontal: 6,
-  },
+  searchButton: { paddingHorizontal: 6 },
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
-
     paddingHorizontal: 16,
     marginTop: 10,
     marginBottom: 18,
@@ -339,11 +330,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     paddingHorizontal: 12,
   },
-  sortChipText: {
-    color: '#9da2a5',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  sortChipText: { color: '#9da2a5', fontSize: 14, fontWeight: '500' },
   editChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,15 +343,9 @@ const styles = StyleSheet.create({
     color: '#555C61',
     fontSize: 14,
     fontWeight: '500',
-    marginRight: 6
+    marginRight: 6,
   },
-  scrollView: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
+  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
   instrumentCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,14 +353,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 14,
-
     marginBottom: 8,
   },
-instrumentLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 2.5, 
-  },
+  instrumentLeft: { flexDirection: 'row', alignItems: 'center', flex: 2.5 },
   instrumentIconCircle: {
     width: 24,
     height: 24,
@@ -387,45 +363,21 @@ instrumentLeft: {
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16
+    marginTop: -16,
   },
-  instrumentInfo: {
-    flex: 1,
-    flexDirection: 'column'
-  },
-  
+  instrumentInfo: { flex: 1, flexDirection: 'column' },
   titleChartRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2, 
+    marginBottom: 2,
   },
-  instrumentTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-  },
-  instrumentSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginLeft:-30
-  },
-  instrumentMiddle: {
-    alignItems: 'center',
-  },
-  instrumentRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  instrumentPrice: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-  },
-  instrumentChange: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  instrumentTitle: { fontSize: 16, fontWeight: '500', color: '#000000' },
+  instrumentSubtitle: { fontSize: 13, color: '#6B7280', marginLeft: -30 },
+  instrumentMiddle: { alignItems: 'center' },
+  instrumentRight: { flex: 1, alignItems: 'flex-end' },
+  instrumentPrice: { fontSize: 16, fontWeight: '500', color: '#000000' },
+  instrumentChange: { fontSize: 14, fontWeight: '500' },
   errorContainer: {
     flex: 1,
     alignItems: 'center',
@@ -451,20 +403,9 @@ instrumentLeft: {
     paddingHorizontal: 24,
     borderRadius: 8,
   },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
+  retryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontSize: 16, color: '#6B7280' },
 });
 
 export default TradeScreen;
