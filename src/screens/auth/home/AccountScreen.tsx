@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import BottomTabs from '../../../components/BottomTabs';
 import PerformanceScreen from './PerformanceScreen';
@@ -13,11 +12,11 @@ import TradeScreen from './TradeScreen';
 type PositionsTab = 'Open' | 'Pending' | 'Closed';
 
 const COLORS = {
-  bg: '#f9f9f9', // Changed from #f6f6f6 to #f9f9f9
+  bg: '#f9f9f9',
   text: '#111111',
   textMuted: '#6B7280',
-  chipBg: '#EAF7EE',
-  chipText: '#16A34A',
+  chipBg: '#F5F6F7',
+  chipText: '#6B7280',
   card: '#FFFFFF',
   circle: '#efeff1',
   soft: '#F3F4F6',
@@ -28,12 +27,13 @@ const COLORS = {
 
 const SIZES = {
   header: 38,
-  balance: 28,
-  chip: 14,
-  tab: 18,
-  actionIcon: 56,
-  chevronCircle: 54,
+  balance: 27,
+  chip: 12,
+  tab: 16,
+  actionIcon: 42,
+  chevronCircle: 35, // slightly reduced for better alignment
   topIcon: 28,
+  
 };
 
 const Chip: React.FC<{ label: string }> = ({ label }) => (
@@ -46,48 +46,28 @@ const CircleButton: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   <View style={styles.circleIconButton}>{children}</View>
 );
 
-const ActionItem: React.FC<{
-  icon: string;
-  label: string;
-  active?: boolean;
-  verticalDots?: boolean;
-}> = ({ icon, label, active, verticalDots }) => (
+const ActionItem: React.FC<{ icon: string; label: string; active?: boolean; verticalDots?: boolean }> = ({
+  icon,
+  label,
+  active,
+  verticalDots,
+}) => (
   <View style={styles.actionItem}>
-    <View
-      style={[
-        styles.actionIconWrap,
-        active ? styles.actionIconActive : styles.actionIconIdle,
-      ]}
-    >
+    <View style={[styles.actionIconWrap, active ? styles.actionIconActive : styles.actionIconIdle]}>
       {label === 'Trade' ? (
-        <Image
-          source={require('../../../assets/images/tradeIconn.png')}
-          style={styles.tradeIcon}
-          resizeMode="contain"
-        />
+        <Image source={require('../../../assets/images/tradeIconn.png')} style={styles.tradeIcon} resizeMode="contain" />
       ) : label === 'Deposit' ? (
-        <Image
-          source={require('../../../assets/images/depositIcon.png')}
-          style={styles.depositIcon}
-          resizeMode="contain"
-        />
+        <Image source={require('../../../assets/images/depositIcon.png')} style={styles.depositIcon} resizeMode="contain" />
       ) : label === 'Withdraw' ? (
-        <Image
-          source={require('../../../assets/images/withdrawIconn.png')}
-          style={styles.withdrawIcon}
-          resizeMode="contain"
-        />
+        <Image source={require('../../../assets/images/withdrawIconn.png')} style={styles.withdrawIcon} resizeMode="contain" />
       ) : label === 'Details' ? (
         <Image
           source={require('../../../assets/images/detailsIcon.png')}
-          style={[
-            styles.detailsIcon,
-            verticalDots && { transform: [{ rotate: '90deg' }] },
-          ]}
+          style={[styles.detailsIcon, verticalDots && { transform: [{ rotate: '90deg' }] }]}
           resizeMode="contain"
         />
       ) : (
-        <Feather name={icon} size={25} color={active ? '#fff' : '#000000'} />
+        <Feather name={icon} size={22} color={active ? '#fff' : '#000000'} />
       )}
     </View>
     <Text style={styles.actionLabel}>{label}</Text>
@@ -108,7 +88,7 @@ const AccountCard: React.FC = () => (
         </View>
       </View>
       <View style={styles.circleSmall}>
-        <Feather name="chevron-right" size={24} color={COLORS.textMuted} />
+        <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
       </View>
     </View>
 
@@ -196,13 +176,8 @@ const AccountsUI: React.FC = () => {
         </CircleButton>
       </View>
 
-      <View style={{ height: 12 }} />
-
       <AccountCard />
 
-      {/* Add the subtle shadow line above the tabs */}
-      <View style={styles.tabTopShadow} />
-      
       <View style={styles.segmentRow}>
         <View style={styles.segmentTabs}>
           {['Open', 'Pending', 'Closed'].map((t) => {
@@ -218,11 +193,7 @@ const AccountsUI: React.FC = () => {
           })}
         </View>
         <View style={styles.sortButton}>
-          <Image
-            source={require('../../../assets/images/upDownArrow.png')}
-            style={{ width: 20, height: 20 }}
-            resizeMode="contain"
-          />
+          <Image source={require('../../../assets/images/upDownArrow.png')} style={{ width: 18, height: 18 }} resizeMode="contain" />
         </View>
       </View>
 
@@ -251,92 +222,96 @@ const AccountScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  mainContent: { flex: 1, paddingHorizontal: 16, backgroundColor: COLORS.bg }, // Added background color
-  mainContentNoPad: { flex: 1, backgroundColor: COLORS.bg }, // Added background color
-  scrollContent: { paddingBottom: 24, backgroundColor: COLORS.bg }, // Added background color
+  mainContent: { flex: 1, paddingHorizontal: 16, backgroundColor: COLORS.bg },
+  mainContentNoPad: { flex: 1, backgroundColor: COLORS.bg },
+  scrollContent: { paddingBottom: 24, backgroundColor: COLORS.bg },
 
   topToolbar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingTop: 35, marginBottom: 8 },
   bellWrapper: { position: 'relative', marginRight: 8 },
   badge: { position: 'absolute', top: -4, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF0000' },
 
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingBottom: 12 },
-  headerTitle: { fontSize: SIZES.header, fontWeight: '700', color: COLORS.text, letterSpacing: 0.5 },
-  circleIconButton: { width: 50, height: 50, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.circle },
+  headerTitle: { fontSize: SIZES.header, fontWeight: '600', color: COLORS.text, letterSpacing: 0.5 },
+  circleIconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.circle },
 
-  accountCard: {     
-    backgroundColor: COLORS.card, 
-    borderRadius: 16, 
-    paddingVertical: 38, 
-    paddingHorizontal: 20, 
-    marginBottom: 18, 
-    marginHorizontal: 5,  
+  accountCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    paddingVertical: 24, // increased for better height
+    paddingHorizontal: 18,
+    marginBottom: 18,
+    marginHorizontal: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.15, 
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
   },
-  
-  // Updated shadow line style to extend full width
-  tabTopShadow: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    marginBottom: 8,
-    // Extend beyond the container padding
-    marginLeft: -16,
-    marginRight: -16,
-    // Add padding to ensure shadow is visible at edges
-    paddingLeft: 16,
-    paddingRight: 16,
-  },
-  
-  accountHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  accountTitle: { fontSize: 15, fontWeight: '600', color: COLORS.text, letterSpacing: 0.2, marginBottom: 8 },
-  hashGrey: { color: COLORS.textMuted, fontWeight: '500' },
-  chipsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  chip: { backgroundColor: COLORS.chipBg, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 10 },
+
+  accountHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  accountTitle: { fontSize: 14, fontWeight: '500', color: COLORS.text },
+  hashGrey: { color: COLORS.textMuted, fontWeight: '400', fontSize: 13 },
+  chipsRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  chip: { backgroundColor: COLORS.chipBg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
   chipText: { fontSize: SIZES.chip, fontWeight: '500', color: COLORS.chipText },
-  circleSmall: { marginLeft: 'auto', width: SIZES.chevronCircle, height: SIZES.chevronCircle, borderRadius: SIZES.chevronCircle / 2, backgroundColor: COLORS.circle, alignItems: 'center', justifyContent: 'center', marginRight: -5, marginTop: -50 },
-  balanceText: { fontSize: SIZES.balance, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
 
-  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -25 },
+  circleSmall: {
+    marginLeft: 'auto',
+    width: SIZES.chevronCircle,
+    height: SIZES.chevronCircle,
+    borderRadius: SIZES.chevronCircle / 2,
+    backgroundColor: COLORS.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom:16,
+    marginRight:5
+  },
+
+  balanceText: { fontSize: SIZES.balance, fontWeight: '600', color: COLORS.text, marginTop: 8, marginBottom: 16 },
+
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -18 },
   actionItem: { width: '25%', alignItems: 'center' },
   actionIconWrap: { width: SIZES.actionIcon, height: SIZES.actionIcon, borderRadius: SIZES.actionIcon / 2, alignItems: 'center', justifyContent: 'center' },
   actionIconIdle: { backgroundColor: COLORS.soft },
   actionIconActive: { backgroundColor: COLORS.actionActive },
-  actionLabel: { marginTop: 6, fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+  actionLabel: { marginTop: 4, fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
 
-  tradeIcon: { width: 25, height: 25, alignSelf: 'center' },
-  depositIcon: { width: 30, height: 30, alignSelf: 'center' },
-  withdrawIcon: { width: 30, height: 30, alignSelf: 'center' },
-  detailsIcon: { width: 25, height: 25, alignSelf: 'center' },
+  tradeIcon: { width: 24, height: 24, alignSelf: 'center' },
+  depositIcon: { width: 26, height: 26, alignSelf: 'center' },
+  withdrawIcon: { width: 26, height: 26, alignSelf: 'center' },
+  detailsIcon: { width: 26, height: 26, alignSelf: 'center' },
 
-  segmentRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 },
+  segmentRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
   segmentTabs: { flexDirection: 'row', alignItems: 'center', marginRight: 'auto' },
-  segmentTabItem: { position: 'relative', paddingHorizontal: 14, paddingBottom: 8 },
+  segmentTabItem: { position: 'relative', paddingHorizontal: 12, paddingBottom: 6 },
   segmentLabel: { fontSize: SIZES.tab, color: COLORS.textMuted, fontWeight: '400' },
   segmentActive: { color: COLORS.active, fontWeight: '600' },
   segmentIndicator: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, backgroundColor: COLORS.active, borderRadius: 1 },
-  sortButton: { width: 36, height: 30, alignItems: 'center', justifyContent: 'center' },
-  belowTabsDivider: { height: 1, backgroundColor: COLORS.divider, marginTop: 8, marginBottom: 12 },
+  sortButton: { width: 34, height: 28, alignItems: 'center', justifyContent: 'center' },
+  belowTabsDivider: { height: 1, backgroundColor: COLORS.divider, marginTop: 6, marginBottom: 10 },
 
-  positionsWrap: { paddingTop: 4, alignItems: 'center', width: '100%', backgroundColor: COLORS.bg }, // Added background color
-  centeredBlock: { width: '100%', paddingHorizontal: 4, alignItems: 'center', backgroundColor: COLORS.bg }, // Added background color
+  positionsWrap: { paddingTop: 4, alignItems: 'center', width: '100%', backgroundColor: COLORS.bg },
+  centeredBlock: { width: '100%', paddingHorizontal: 4, alignItems: 'center', backgroundColor: COLORS.bg },
 
-  btcRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF1', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 18, marginBottom: 16 },
+  btcRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEEFF1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+  },
   btcIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F7931A', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  btcText: { fontSize: 18, fontWeight: '600', color: '#000000' },
+  btcText: { fontSize: 17, fontWeight: '600', color: '#000000' },
 
-  exploreMoreButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: 'transparent' },
-  exploreMoreText: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  exploreMoreButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', paddingVertical: 14, borderRadius: 12 },
+  exploreMoreText: { fontSize: 15, fontWeight: '600', color: '#000000', marginLeft: 6 },
 
-  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginBottom: 8, backgroundColor: COLORS.bg }, // Added background color
-  emptyTitle: { fontSize: 17, fontWeight: '500', color: '#23272F', textAlign: 'center' },
+  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, marginBottom: 6, backgroundColor: COLORS.bg },
+  emptyTitle: { fontSize: 16, fontWeight: '500', color: '#23272F', textAlign: 'center' },
 });
 
 export default AccountScreen;
