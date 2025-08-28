@@ -1,22 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
-// import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
+import { RootState } from '../../../store';
+import { deposit, withdraw } from '../../../slices/balanceSlice';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
   const [activeTab, setActiveTab] = useState('Favorites');
   const [connectionError, setConnectionError] = useState(false);
+  const [tradeAmount, setTradeAmount] = useState<number>(0);
+
+  const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const balance = useSelector((state: RootState) => state.balance.amount);
 
   useEffect(() => {
     tradingApiService.initializeConnection();
 
     const handleLiveData = (data: TradingInstrument[]) => {
-      // console.log('data',data)
       if (Array.isArray(data) && data.length > 0) {
         setTradingData(data);
         setConnectionError(false);
@@ -38,7 +52,6 @@ const TradeScreen: React.FC = () => {
         return tradingData.filter(item => item.isFavorite);
 
       case 'Most traded':
-        // Simulate until volume provided by API
         return [...tradingData].sort(() => Math.random() - 0.5).slice(0, 10);
 
       case 'Top Movers':
@@ -101,6 +114,15 @@ const TradeScreen: React.FC = () => {
     }
   };
 
+  // Safe price renderer
+  const renderPrice = (price: any) => {
+    const num = Number(price);
+    if (isNaN(num)) return '0.0000';
+    // Block numbers >= 1e8 (10^8)
+    if (num >= 1e8) return '0.0000';
+    return num.toFixed(4);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -111,7 +133,9 @@ const TradeScreen: React.FC = () => {
           <View style={styles.realButton}>
             <Text style={styles.accountButtonText}>Real</Text>
           </View>
-          <Text style={styles.accountBalance}>0.00 USD</Text>
+          <Text style={styles.accountBalance}>
+            {balance.toFixed(2)} INR
+          </Text>
           <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
@@ -148,9 +172,7 @@ const TradeScreen: React.FC = () => {
                 >
                   {tab}
                 </Text>
-                {activeTab === tab && (
-                  <View style={styles.activeTabUnderline} />
-                )}
+                {activeTab === tab && <View style={styles.activeTabUnderline} />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -197,7 +219,13 @@ const TradeScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           {getFilteredData().map(item => (
-            <TouchableOpacity key={item.symbol} style={styles.instrumentCard}>
+            <TouchableOpacity
+              key={item.symbol}
+              style={styles.instrumentCard}
+              onPress={() =>
+                navigation.navigate('TradeDetail', { trade: item })
+              }
+            >
               <View style={styles.instrumentLeft}>
                 <View
                   style={[
@@ -233,7 +261,7 @@ const TradeScreen: React.FC = () => {
                 </View>
               </View>
               <View style={styles.instrumentRight}>
-                <Text style={styles.instrumentPrice}>{item.price}</Text>
+                <Text style={styles.instrumentPrice}>{renderPrice(item.price)}</Text>
                 <Text
                   style={[styles.instrumentChange, { color: item.changeColor }]}
                 >

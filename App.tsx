@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+=======
+import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
+>>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { Provider } from 'react-redux';   // ✅ Redux import
+import { store } from './src/store';      // ✅ aapne banaya hua store
+
 import MainScreen from './src/screens/auth/MainScreen';
 import RegisterScreen from './src/screens/auth/register/RegisterScreen';
 import EmailScreen from './src/screens/auth/register/EmailScreen';
@@ -13,15 +20,25 @@ import EnterPassScreen from './src/screens/auth/register/EnterPassScreen';
 import SignInScreen from './src/screens/auth/SignIn/SignInScreen';
 import AccountScreen from './src/screens/auth/home/AccountScreen';
 import PerformanceScreen from './src/screens/auth/home/PerformanceScreen';
+<<<<<<< HEAD
 import WithdrawScreen from './src/screens/auth/home/WithdrawScreen';
+=======
+import DepositScreen from './src/screens/DepositScreen';
+import WithdrawlScreen from './src/screens/WithdrawlScreen';
+import DepositStatusScreen from './src/screens/DepositStatusScreen';
+import WithdrawStatusScreen from './src/screens/WithdrawStatusScreen';
+import TradeDetailScreen from './src/screens/TradeDetailScreen';
+>>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <Provider store={store}>   {/* ✅ Wrap entire app */}
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <AppContent />
+      </Provider>
     </SafeAreaProvider>
   );
 }
@@ -40,7 +57,20 @@ function AppContent() {
         <Stack.Screen name="EnterPass" component={EnterPassScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Performance" component={PerformanceScreen} />
+<<<<<<< HEAD
         <Stack.Screen name="WithdrawScreen" component={WithdrawScreen} />
+=======
+        <Stack.Screen name="DepositScreen" component={DepositScreen} />
+        <Stack.Screen name="WithdrawlScreen" component={WithdrawlScreen} />
+        <Stack.Screen name="DepositStatus" component={DepositStatusScreen} />
+        <Stack.Screen name="WithdrawStatus" component={WithdrawStatusScreen} />
+        <Stack.Screen
+          name="TradeDetail"
+          component={TradeDetailScreen}
+          options={{ headerShown: false }}
+        />
+
+>>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
       </Stack.Navigator>
     </NavigationContainer>
   );
