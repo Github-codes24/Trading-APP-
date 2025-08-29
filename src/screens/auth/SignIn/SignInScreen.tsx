@@ -1,35 +1,73 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = React.useState<string>('');
   const [password, setPassword] = React.useState<string>('');
-  const [isPasswordHidden, setIsPasswordHidden] = React.useState<boolean>(true);
+  const [isPasswordHidden, setIsPasswordHidden] =
+    React.useState<boolean>(true);
+    
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter email and password");
+      return;
+    }
+
+    const token = "DUMMY_JWT_TOKEN";
+    await AsyncStorage.setItem("auth_token", token);
+    await AsyncStorage.setItem("current_user_email", email);
+
+    const savedPasscode = await AsyncStorage.getItem(`passcode_${email}`);
+    console.log("👉 Checking passcode for:", email, savedPasscode);
+
+    if (savedPasscode) {
+      navigation.replace("PasscodeLoginScreen" as never);
+    } else {
+      navigation.replace("SetPasscodeScreen" as never);
+    }
+  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        {/* Header */}
         <View style={styles.headerRow}>
-          <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
             <Icon name="chevron-left" size={28} color="#111111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sign In</Text>
           <View style={styles.grow} />
         </View>
 
+        {/* Body */}
         <View style={styles.body}>
-          <Text style={styles.helper}>Please enter your email address and password</Text>
+          <Text style={styles.helper}>
+            Please enter your email address and password
+          </Text>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Your email address</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder=""
+              placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
               style={styles.input}
@@ -42,7 +80,7 @@ export default function SignInScreen() {
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder=""
+                placeholder="Enter your password"
                 secureTextEntry={isPasswordHidden}
                 autoCapitalize="none"
                 style={[styles.input, styles.passwordInput]}
@@ -52,18 +90,30 @@ export default function SignInScreen() {
                 onPress={() => setIsPasswordHidden((v) => !v)}
                 style={styles.eyeButton}
               >
-                <Icon name={isPasswordHidden ? "eye" : "eye-off"} size={16} color="#6B7280" />
+                <Icon
+                  name={isPasswordHidden ? 'eye' : 'eye-off'}
+                  size={16}
+                  color="#6B7280"
+                />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={() => navigation.navigate('Account' as never)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.primaryButton}
+            onPress={handleSignIn}
+          >
             <Text style={styles.primaryButtonText}>Sign in</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.secondaryAction}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.secondaryAction}
+          >
             <Text style={styles.secondaryText}>I forgot my password</Text>
           </TouchableOpacity>
         </View>
@@ -130,8 +180,7 @@ const styles = StyleSheet.create({
   passwordRow: {
     position: 'relative',
   },
-  passwordInput: {
-  },
+  passwordInput: {},
   eyeButton: {
     position: 'absolute',
     right: 8,
@@ -169,5 +218,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-
-
