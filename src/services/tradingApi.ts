@@ -30,7 +30,7 @@ export interface HistoryResponse {
   data: Candle[];     
 }
 
-export const fetchHistory = async (
+export const FetchTradeDetails = async (
   symbol: string,
   days: number
 ): Promise<HistoryResponse | null> => {
