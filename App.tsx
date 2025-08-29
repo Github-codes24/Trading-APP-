@@ -1,4 +1,5 @@
-import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -20,6 +21,7 @@ import WithdrawlScreen from './src/screens/WithdrawlScreen';
 import DepositStatusScreen from './src/screens/DepositStatusScreen';
 import WithdrawStatusScreen from './src/screens/WithdrawStatusScreen';
 import TradeDetailScreen from './src/screens/TradeDetailScreen';
+import WithdrawScreen from './src/screens/auth/home/WithdrawScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -58,6 +60,7 @@ function AppContent() {
           options={{ headerShown: false }}
         />
 
+        <Stack.Screen name="WithdrawScreen" component={WithdrawScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
