@@ -23,7 +23,7 @@ import TradeDetailScreen from './src/screens/TradeDetailScreen';
 import SetPasscodeScreen from './src/screens/SetPasscodeScreen';
 import ReEnterPasscodeScreen from './src/screens/ReEnterPasscodeScreen';
 import PasscodeLoginScreen from './src/screens/PasscodeLoginScreen';
-import BiometricScreen from './src/screens/BiometricScreen';
+
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -59,7 +59,7 @@ function AppContent() {
         <Stack.Screen name="SetPasscodeScreen" component={SetPasscodeScreen} />
         <Stack.Screen name="ReEnterPasscodeScreen" component={ReEnterPasscodeScreen} />
         <Stack.Screen name="PasscodeLoginScreen" component={PasscodeLoginScreen} />
-        <Stack.Screen name="BiometricScreen" component={BiometricScreen} />
+
 
         <Stack.Screen
           name="TradeDetail"
