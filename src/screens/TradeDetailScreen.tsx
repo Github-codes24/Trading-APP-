@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,9 +8,11 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  PanResponder,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import { useSelector } from "react-redux";
+import { FetchTradeDetails, HistoryResponse } from "../services/tradingApi";
 
 const { width } = Dimensions.get("window");
 
@@ -41,68 +44,211 @@ const formatInstrumentName = (name) => {
   return name;
 };
 
-// API CALLING 
+// Time format for display
+const formatDate = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}`;
+};
 
-const callPostApi = async () => {
-    try {
-      const response = await fetch("http://13.201.33.113:8000/history", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          symbol: "EURUSD",
-          days: 7,
-        }),
-      });
+// Time format for tooltip
+const formatTimeForTooltip = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+};
 
-      const data = await response.json();
-      console.log("API Response:", data);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-
-// 🔹 Candle Data
-const candleData = [
-  { time: "12:45", open: 111510, high: 111600, low: 111500, close: 111530 },
-  { time: "12:46", open: 111510, high: 111680, low: 111420, close: 111000 },
-  { time: "12:50", open: 111530, high: 111540, low: 111430, close: 111450 },
-  { time: "12:55", open: 111450, high: 111500, low: 111410, close: 111480 },
-  { time: "13:00", open: 111480, high: 111600, low: 111480, close: 111590 },
-  { time: "13:05", open: 111590, high: 111610, low: 111500, close: 111566 },
-  { time: "13:10", open: 111566, high: 111700, low: 111500, close: 111470 },
-  { time: "13:15", open: 111470, high: 111600, low: 111450, close: 111400 },
-  { time: "13:20", open: 111400, high: 111410, low: 111250, close: 111220 },
-  { time: "13:25", open: 111220, high: 111300, low: 111000, close: 111060 },
-  { time: "13:30", open: 111060, high: 111100, low: 110800, close: 110650 },
-  { time: "13:35", open: 110650, high: 110700, low: 110220, close: 110245 },
-  { time: "13:40", open: 110245, high: 110500, low: 110200, close: 110223 },
-];
-
-// 🔹 Dynamic Candlestick Graph
-const DynamicGraph = ({ zoom }) => {
-  const data = candleData;
-  const maxPrice = Math.max(...data.map((d) => d.high));
-  const minPrice = Math.min(...data.map((d) => d.low));
-  const priceRange = maxPrice - minPrice || 1;
+// 🔹 Dynamic Candlestick Graph with pinch zoom
+const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
+  const [tradeData, setTradeData] = useState<HistoryResponse | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentValue, setCurrentValue] = useState(0);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
   const chartHeight = 400;
+  const scrollViewRef = useRef(null);
 
   // base candle width × zoom factor
   const candleSlotWidth = 30 * zoom;
   const barWidth = candleSlotWidth * 0.55;
 
-  // Levels for grid & labels
-  const levels = [maxPrice, (maxPrice + minPrice) / 2, minPrice];
+  // fetch trade data
+  useEffect(() => {
+    const loadHistory = async () => {
+      const res = await FetchTradeDetails("EURUSD", 7);
+      if (res) {
+        setTradeData(res);
+        // Set initial time and value
+        if (res.data && res.data.length > 0) {
+          setCurrentTime(formatTimeForTooltip(res.data[0].time));
+          setCurrentValue(res.data[0].close);
+        }
+      }
+    };
+    loadHistory();
+  }, []);
 
-  // ✅ total width depends on zoom
+  // 🔹 Gesture handler (Pinch for both horizontal and vertical zoom)
+  const lastDistance = useRef(0);
+  const lastCenterY = useRef(0);
+  const isVerticalZoom = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (evt, gestureState) => {
+        if (evt.nativeEvent.touches.length === 2) {
+          const touch1 = evt.nativeEvent.touches[0];
+          const touch2 = evt.nativeEvent.touches[1];
+          const dx = touch1.pageX - touch2.pageX;
+          const dy = touch1.pageY - touch2.pageY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Calculate center point
+          const centerY = (touch1.pageY + touch2.pageY) / 2;
+          
+          // Determine if this is primarily a vertical gesture
+          const isVertical = Math.abs(dy) > Math.abs(dx) * 1.5;
+          
+          if (lastDistance.current === 0) {
+            lastDistance.current = distance;
+            lastCenterY.current = centerY;
+            isVerticalZoom.current = isVertical;
+          } else {
+            const diff = distance - lastDistance.current;
+            
+            if (isVerticalZoom.current) {
+              // Vertical zoom (pinch with vertical movement)
+              if (Math.abs(diff) > 5) {
+                setVerticalZoom((vz) =>
+                  Math.max(0.5, Math.min(3, vz + diff / 300)) // clamp vertical zoom
+                );
+                lastDistance.current = distance;
+              }
+            } else {
+              // Horizontal zoom (regular pinch)
+              if (Math.abs(diff) > 5) {
+                setZoom((z) =>
+                  Math.max(0.5, Math.min(3, z + diff / 300)) // clamp zoom
+                );
+                lastDistance.current = distance;
+              }
+            }
+          }
+        } else if (evt.nativeEvent.touches.length === 1) {
+          // Single touch - show tooltip with time and value
+          const touchX = evt.nativeEvent.locationX;
+          const touchY = evt.nativeEvent.locationY;
+          
+          if (tradeData && tradeData.data) {
+            // Calculate which candle is being touched
+            const candleIndex = Math.floor(touchX / candleSlotWidth);
+            if (candleIndex >= 0 && candleIndex < tradeData.data.length) {
+              const candleData = tradeData.data[candleIndex];
+              setCurrentTime(formatTimeForTooltip(candleData.time));
+              setCurrentValue(candleData.close);
+              
+              // Calculate value based on Y position
+              const zoomedMax = calculateZoomedMax();
+              const zoomedMin = calculateZoomedMin();
+              const priceRange = zoomedMax - zoomedMin || 1;
+              const value = zoomedMax - (touchY / chartHeight) * priceRange;
+              
+              setCurrentValue(parseFloat(value.toFixed(5)));
+              setTooltipPosition({ x: touchX, y: touchY });
+              setShowTooltip(true);
+            }
+          }
+        }
+      },
+      onPanResponderRelease: () => {
+        lastDistance.current = 0;
+        isVerticalZoom.current = false;
+        setShowTooltip(false);
+      },
+      onPanResponderTerminate: () => {
+        setShowTooltip(false);
+      },
+    })
+  ).current;
+
+  // Helper functions for zoom calculations
+  const calculateZoomedMax = () => {
+    if (!tradeData || !tradeData.data) return 0;
+    
+    const maxPrice = Math.max(...tradeData.data.map((d) => d.high));
+    const minPrice = Math.min(...tradeData.data.map((d) => d.low));
+    const midPrice = (maxPrice + minPrice) / 2;
+    const baseRange = maxPrice - minPrice;
+    
+    return midPrice + (baseRange / verticalZoom) / 2;
+  };
+
+  const calculateZoomedMin = () => {
+    if (!tradeData || !tradeData.data) return 0;
+    
+    const maxPrice = Math.max(...tradeData.data.map((d) => d.high));
+    const minPrice = Math.min(...tradeData.data.map((d) => d.low));
+    const midPrice = (maxPrice + minPrice) / 2;
+    const baseRange = maxPrice - minPrice;
+    
+    return midPrice - (baseRange / verticalZoom) / 2;
+  };
+
+  // if no data yet
+  if (!tradeData || !tradeData.data || tradeData.data.length === 0) {
+    return (
+      <View
+        style={{
+          height: chartHeight,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        {...panResponder.panHandlers}
+      >
+        <Text style={{ color: "#999" }}>Loading chart...</Text>
+      </View>
+    );
+  }
+
+  const data = tradeData.data;
+
+  // Apply vertical zoom to the price range
+  const maxPrice = Math.max(...data.map((d) => d.high));
+  const minPrice = Math.min(...data.map((d) => d.low));
+  const midPrice = (maxPrice + minPrice) / 2;
+  const baseRange = maxPrice - minPrice;
+  
+  // Calculate zoomed range
+  const zoomedRange = baseRange / verticalZoom;
+  const zoomedMax = midPrice + zoomedRange / 2;
+  const zoomedMin = midPrice - zoomedRange / 2;
+  const priceRange = zoomedMax - zoomedMin || 1;
+
+  const levels = [zoomedMax, midPrice, zoomedMin];
   const totalWidth = data.length * candleSlotWidth + 60;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      {/* Price Labels on Right Side (fixed) */}
+    <View style={{ flex: 1, backgroundColor: "#fff" }} {...panResponder.panHandlers}>
+      {/* Current Time and Value Display */}
+      {/* <View style={styles.infoBar}>
+        <Text style={styles.infoText}>Time: {currentTime}</Text>
+        <Text style={styles.infoText}>Value: {currentValue.toFixed(5)}</Text>
+        <Text style={styles.infoText}>Zoom: {zoom.toFixed(1)}x</Text>
+        <Text style={styles.infoText}>V-Zoom: {verticalZoom.toFixed(1)}x</Text>
+      </View> */}
+
+      {/* Tooltip */}
+      {showTooltip && (
+        <View style={[styles.tooltip, { left: tooltipPosition.x, top: tooltipPosition.y }]}>
+          <Text style={styles.tooltipText}>{currentTime}</Text>
+          <Text style={styles.tooltipText}>{currentValue.toFixed(5)}</Text>
+        </View>
+      )}
+
+      {/* Price Labels on Right Side */}
       {levels.map((val, i) => {
-        const top = (i / (levels.length - 1)) * chartHeight;
+        const top = ((zoomedMax - val) / priceRange) * chartHeight;
         return (
           <Text
             key={`label-${i}`}
@@ -117,20 +263,36 @@ const DynamicGraph = ({ zoom }) => {
               zIndex: 2,
             }}
           >
-            {val.toFixed(2)}
+            {val.toFixed(5)}
           </Text>
         );
       })}
 
       {/* Scrollable Candles */}
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{
           height: chartHeight,
-          width: totalWidth, // ✅ zoom affects width
+          width: totalWidth,
         }}
+        onScroll={(event) => {
+          // Update time based on scroll position
+          const scrollX = event.nativeEvent.contentOffset.x;
+          const visibleStartIndex = Math.floor(scrollX / candleSlotWidth);
+          const visibleEndIndex = Math.min(
+            data.length - 1,
+            Math.floor((scrollX + width) / candleSlotWidth)
+          );
+          
+          if (visibleStartIndex >= 0 && visibleEndIndex < data.length) {
+            const midIndex = Math.floor((visibleStartIndex + visibleEndIndex) / 2);
+            setCurrentTime(formatTimeForTooltip(data[midIndex].time));
+          }
+        }}
+        scrollEventThrottle={16}
       >
         <View
           style={{
@@ -140,9 +302,9 @@ const DynamicGraph = ({ zoom }) => {
             position: "relative",
           }}
         >
-          {/* Grid Lines (stick behind candles) */}
-          {levels.map((_, i) => {
-            const top = (i / (levels.length - 1)) * chartHeight;
+          {/* Grid Lines */}
+          {levels.map((val, i) => {
+            const top = ((zoomedMax - val) / priceRange) * chartHeight;
             return (
               <View
                 key={`grid-${i}`}
@@ -162,14 +324,13 @@ const DynamicGraph = ({ zoom }) => {
           {data.map((item, idx) => {
             const isBull = item.close >= item.open;
             const bodyHeight =
-              Math.abs(((item.close - item.open) / priceRange) * chartHeight) ||
-              2;
+              Math.abs(((item.close - item.open) / priceRange) * chartHeight) || 2;
             const wickHeight =
               ((item.high - item.low) / priceRange) * chartHeight;
             const bottomWick =
-              ((item.low - minPrice) / priceRange) * chartHeight;
+              ((item.low - zoomedMin) / priceRange) * chartHeight;
             const bottomBody =
-              ((Math.min(item.open, item.close) - minPrice) / priceRange) *
+              ((Math.min(item.open, item.close) - zoomedMin) / priceRange) *
               chartHeight;
 
             return (
@@ -212,11 +373,15 @@ const DynamicGraph = ({ zoom }) => {
 
       {/* Fixed Time Labels at Bottom */}
       <View style={styles.timeLabels}>
-        {data.map((d, i) => (
-          <Text key={i} style={styles.timeLabel}>
-            {d.time}
-          </Text>
-        ))}
+        {data.map((d, i) => {
+          // Show fewer labels when zoomed out
+          const shouldShow = zoom > 1.5 || i % Math.ceil(3 / zoom) === 0;
+          return shouldShow ? (
+            <Text key={i} style={styles.timeLabel}>
+              {formatDate(d.time)}
+            </Text>
+          ) : null;
+        })}
       </View>
     </View>
   );
@@ -229,6 +394,7 @@ const TradeDetailScreen = ({ route }) => {
   const { sellPrice, buyPrice } = useLivePrice();
 
   const [zoom, setZoom] = useState(1);
+  const [verticalZoom, setVerticalZoom] = useState(1);
 
   const leftPercent = 14;
   const rightPercent = 86;
@@ -280,38 +446,28 @@ const TradeDetailScreen = ({ route }) => {
 
       {/* Chart */}
       <View style={styles.chartBox}>
-        <DynamicGraph zoom={zoom} />
+        <DynamicGraph 
+          zoom={zoom} 
+          setZoom={setZoom} 
+          verticalZoom={verticalZoom}
+          setVerticalZoom={setVerticalZoom}
+        />
       </View>
 
-      {/* Zoom Buttons */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          marginBottom: 8,
-        }}
-      >
-        <TouchableOpacity
-          style={styles.zoomBtn}
-          onPress={() => setZoom((z) => Math.max(0.5, z - 0.2))}
-        >
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>-</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.zoomBtn}
-          onPress={() => setZoom((z) => Math.min(3, z + 0.2))}
-        >
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Timeframe + Icons */}
+      {/* ✅ Tools Row */}
       <View style={styles.toolsRow}>
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
           <Icon name="sliders" size={16} color="#777" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-          <Text style={{ fontWeight: "600", color: "#444" }}>5 m</Text>
+        <TouchableOpacity 
+          style={styles.toolBtn} 
+          activeOpacity={0.7}
+          onPress={() => {
+            setZoom(1);
+            setVerticalZoom(1);
+          }}
+        >
+          <Text style={{ fontWeight: "600", color: "#444" }}>Reset Zoom</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
           <Icon name="bar-chart-2" size={16} color="#777" />
@@ -404,8 +560,8 @@ const styles = StyleSheet.create({
     marginRight: 18,
   },
   chartBox: {
-    height: 400,
-    marginBottom: 18,
+    height: "50%",
+    marginBottom: 30,
     marginHorizontal: 8,
     backgroundColor: "#fff",
   },
@@ -419,13 +575,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   timeLabel: { fontSize: 13, color: "#9b9b9b", fontWeight: "600" },
-  zoomBtn: {
-    marginHorizontal: 10,
-    backgroundColor: "#ececec",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+  infoBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 8,
+    backgroundColor: "#f8f9fa",
+    borderBottomWidth: 1,
+    borderColor: "#e9ecef",
   },
+  infoText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#495057",
+  },
+  tooltip: {
+    position: "absolute",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    padding: 8,
+    borderRadius: 4,
+    zIndex: 100,
+    transform: [{ translateX: -50 }, { translateY: -60 }],
+  },
+  tooltipText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+
   toolsRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -442,6 +618,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
   },
+
   bottomBar: {
     flexDirection: "row",
     position: "absolute",
