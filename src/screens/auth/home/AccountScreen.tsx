@@ -12,8 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
-import { useNavigation } from '@react-navigation/native';
-
 import BottomTabs from '../../../components/BottomTabs';
 import PerformanceScreen from './PerformanceScreen';
 import ProfileScreen from './ProfileScreen';
