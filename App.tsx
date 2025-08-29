@@ -6,6 +6,9 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { Provider } from 'react-redux';   // ✅ Redux import
+import { store } from './src/store';      // ✅ aapne banaya hua store
+
 import MainScreen from './src/screens/auth/MainScreen';
 import RegisterScreen from './src/screens/auth/register/RegisterScreen';
 import EmailScreen from './src/screens/auth/register/EmailScreen';
@@ -13,15 +16,21 @@ import EnterPassScreen from './src/screens/auth/register/EnterPassScreen';
 import SignInScreen from './src/screens/auth/SignIn/SignInScreen';
 import AccountScreen from './src/screens/auth/home/AccountScreen';
 import PerformanceScreen from './src/screens/auth/home/PerformanceScreen';
-import WithdrawScreen from './src/screens/auth/home/WithdrawScreen';
+import DepositScreen from './src/screens/DepositScreen';
+import WithdrawlScreen from './src/screens/WithdrawlScreen';
+import DepositStatusScreen from './src/screens/DepositStatusScreen';
+import WithdrawStatusScreen from './src/screens/WithdrawStatusScreen';
+import TradeDetailScreen from './src/screens/TradeDetailScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <Provider store={store}>   {/* ✅ Wrap entire app */}
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <AppContent />
+      </Provider>
     </SafeAreaProvider>
   );
 }
@@ -40,7 +49,16 @@ function AppContent() {
         <Stack.Screen name="EnterPass" component={EnterPassScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Performance" component={PerformanceScreen} />
-        <Stack.Screen name="WithdrawScreen" component={WithdrawScreen} />
+        <Stack.Screen name="DepositScreen" component={DepositScreen} />
+        <Stack.Screen name="WithdrawlScreen" component={WithdrawlScreen} />
+        <Stack.Screen name="DepositStatus" component={DepositStatusScreen} />
+        <Stack.Screen name="WithdrawStatus" component={WithdrawStatusScreen} />
+        <Stack.Screen
+          name="TradeDetail"
+          component={TradeDetailScreen}
+          options={{ headerShown: false }}
+        />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

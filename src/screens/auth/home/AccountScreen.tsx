@@ -8,18 +8,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Modal,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
-import { useNavigation } from '@react-navigation/native';
-
 import BottomTabs from '../../../components/BottomTabs';
 import PerformanceScreen from './PerformanceScreen';
 import ProfileScreen from './ProfileScreen';
 import TradeScreen from './TradeScreen';
+import InsightsScreen from './InsightsScreen';
+import { useNavigation } from '@react-navigation/native';
+
+// ✅ redux
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 
 type PositionsTab = 'Open' | 'Pending' | 'Closed';
 
@@ -35,7 +37,6 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
-  modalBg: '#FFFFFF',
 };
 
 const SIZES = {
@@ -113,108 +114,67 @@ const ActionItem: React.FC<{
   </TouchableOpacity>
 );
 
-// ---------- DEPOSIT MODAL ----------
-const PaymentMethodModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-}> = ({ visible, onClose }) => {
-  return (
-    <Modal transparent visible={visible} animationType="slide">
-      <Pressable
-        style={styles.modalOverlay}
-        onPress={onClose} // dismiss when tapping outside
-      >
-        {/* Prevent closing when tapping modal content */}
-        <Pressable style={styles.modalContent} onPress={() => {}}>
-          <Text style={styles.modalTitle}>Choose payment method</Text>
-
-          <View style={styles.boxViewOption}>
-            <Pressable style={styles.modalOptionWallet}>
-              <Image
-                source={require('../../../assets/images/wallet.png')}
-                style={{
-                  width: 20,
-                  height: 20,
-                  marginRight: 12,
-                }}
-              />
-              <Text style={styles.modalOptionText}>Crypto wallet</Text>
-              <Text style={styles.modalOptionAmount}>0.00 USD</Text>
-              <Feather
-                name="chevron-right"
-                size={22}
-                color={COLORS.textMuted}
-              />
-            </Pressable>
-
-            <Pressable style={styles.modalOptionPayment}>
-              <Feather
-                name="download"
-                size={22}
-                color="#111"
-                style={{ marginRight: 12 }}
-              />
-              <Text style={styles.modalOptionText}>All payment methods</Text>
-              <Feather
-                name="chevron-right"
-                size={22}
-                color={COLORS.textMuted}
-              />
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-};
-
 // ---------- ACCOUNT CARD ----------
 const AccountCard: React.FC<{
   onDepositPress: () => void;
-  onWithdrwPress: () => void;
-}> = ({ onDepositPress, onWithdrwPress }) => (
-  <View style={styles.accountCard}>
-    <View style={styles.accountHeaderRow}>
-      <View>
-        <Text style={styles.accountTitle}>
-          RISING TRADERS <Text style={styles.hashGrey}>#79555989</Text>
-        </Text>
-        <View style={styles.chipsRow}>
-          <Chip label="MT5" />
-          <Chip label="Standard" />
-          <Chip label="Real" />
+  onWithdrawPress: () => void;
+  navigation: any;
+}> = ({ onDepositPress, onWithdrawPress, navigation }) => {
+  const balance = useSelector((state: RootState) => state.balance.amount);
+
+  return (
+    <View style={styles.accountCard}>
+      <View style={styles.accountHeaderRow}>
+        <View>
+          <Text style={styles.accountTitle}>
+            RISING TRADERS <Text style={styles.hashGrey}>#79555989</Text>
+          </Text>
+          <View style={styles.chipsRow}>
+            <Chip label="MT5" />
+            <Chip label="Standard" />
+            <Chip label="Real" />
+          </View>
+        </View>
+        <View style={styles.circleSmall}>
+          <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
         </View>
       </View>
-      <View style={styles.circleSmall}>
-        <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
+
+      <Text style={styles.balanceText}>{balance.toFixed(2)} INR</Text>
+
+      <View style={styles.actionsRow}>
+        <ActionItem
+          icon="activity"
+          label="Trade"
+          active
+          onPress={() =>
+            navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
+          }
+        />
+        <ActionItem
+          icon="arrow-down-circle"
+          label="Deposit"
+          onPress={onDepositPress}
+        />
+        <ActionItem
+          icon="arrow-up-circle"
+          label="Withdraw"
+          onPress={onWithdrawPress}
+        />
+        <ActionItem icon="more-horizontal" label="Details" verticalDots />
       </View>
     </View>
-
-    <Text style={styles.balanceText}>16,152.83 INR</Text>
-
-    <View style={styles.actionsRow}>
-      <ActionItem icon="activity" label="Trade" active />
-      <ActionItem
-        icon="arrow-down-circle"
-        label="Deposit"
-        onPress={onDepositPress}
-      />
-      <ActionItem
-        icon="arrow-up-circle"
-        label="Withdraw"
-        onPress={onWithdrwPress}
-      />
-      <ActionItem icon="more-horizontal" label="Details" verticalDots />
-    </View>
-  </View>
-);
+  );
+};
 
 // ---------- MAIN UI ----------
 const AccountsUI: React.FC<{
   onDepositPress: () => void;
-  onWithdrwPress: () => void;
-}> = ({ onDepositPress, onWithdrwPress }) => {
+  onWithdrawPress: () => void;
+  setActiveTab: (tab: string) => void;
+}> = ({ onDepositPress, onWithdrawPress, setActiveTab }) => {
   const [positionsTab, setPositionsTab] = useState<PositionsTab>('Open');
+  const navigation = useNavigation();
 
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
@@ -224,15 +184,22 @@ const AccountsUI: React.FC<{
             <Text style={styles.emptyTitle}>No open positions</Text>
           </View>
           <View style={styles.centeredBlock}>
-            <TouchableOpacity activeOpacity={0.7} style={styles.btcRow}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.btcRow}
+              onPress={() =>
+                navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
+              }
+            >
               <View style={styles.btcIconWrap}>
                 <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
               </View>
-              <Text style={styles.btcText}>BTC - Trade</Text>
+              <Text style={styles.btcText}>XAU/USD - Trade</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.exploreMoreButton}
               activeOpacity={0.7}
+              onPress={() => setActiveTab('trade')}
             >
               <Feather name="menu" size={18} color="#23272F" />
               <Text style={styles.exploreMoreText}>
@@ -255,7 +222,7 @@ const AccountsUI: React.FC<{
         <Text style={styles.emptyTitle}>No closed orders</Text>
       </View>
     );
-  }, [positionsTab]);
+  }, [positionsTab, navigation, setActiveTab]);
 
   return (
     <ScrollView
@@ -291,10 +258,11 @@ const AccountsUI: React.FC<{
         </CircleButton>
       </View>
 
-      {/* Account card with Deposit */}
+      {/* ✅ Account card with Redux balance */}
       <AccountCard
         onDepositPress={onDepositPress}
-        onWithdrwPress={onWithdrwPress}
+        onWithdrawPress={onWithdrawPress}
+        navigation={navigation}
       />
 
       {/* Tabs */}
@@ -341,8 +309,8 @@ const AccountsUI: React.FC<{
 // ---------- SCREEN ----------
 const AccountScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('accounts');
-  const [paymentVisible, setPaymentVisible] = useState(false);
-  const navigation: any = useNavigation();
+  const navigation = useNavigation();
+
   return (
     <SafeAreaView style={styles.container}>
       <View
@@ -354,28 +322,23 @@ const AccountScreen: React.FC = () => {
       >
         {activeTab === 'accounts' && (
           <AccountsUI
-            onDepositPress={() => setPaymentVisible(true)}
-            onWithdrwPress={() => {
-              navigation.navigate('WithdrawScreen');
-            }}
+            onDepositPress={() => navigation.navigate('DepositScreen')}
+            onWithdrawPress={() => navigation.navigate('WithdrawlScreen')}
+            setActiveTab={setActiveTab} // pass setter for tab switching
           />
         )}
         {activeTab === 'trade' && <TradeScreen />}
         {activeTab === 'performance' && <PerformanceScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
+        {activeTab === 'insights' && <InsightsScreen />}
       </View>
 
       <BottomTabs activeTab={activeTab} onTabPress={setActiveTab} />
-
-      {/* Payment Modal */}
-      <PaymentMethodModal
-        visible={paymentVisible}
-        onClose={() => setPaymentVisible(false)}
-      />
     </SafeAreaView>
   );
 };
 
+// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   mainContent: { flex: 1, paddingHorizontal: 16, backgroundColor: COLORS.bg },
@@ -599,65 +562,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#23272F',
     textAlign: 'center',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-
-  modalContent: {
-    backgroundColor: COLORS.modalBg,
-    padding: 10,
-    height: '35%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 24,
-    color: '#111',
-    fontWeight: '600',
-    marginBottom: 16,
-    marginTop: 10,
-    marginLeft: 10,
-  },
-  modalOptionWallet: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#333',
-  },
-  modalOptionPayment: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-
-  boxViewOption: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    paddingVertical: 24,
-    paddingHorizontal: 15,
-    marginBottom: 18,
-    marginHorizontal: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 3,
-  },
-
-  modalOptionText: { fontSize: 16, color: '#111', flex: 1 },
-  modalOptionAmount: { fontSize: 14, color: '#111' },
-  closeButton: {
-    marginTop: 16,
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    backgroundColor: '#333',
   },
 });
 
