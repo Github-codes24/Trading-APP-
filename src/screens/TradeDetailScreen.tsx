@@ -1,135 +1,439 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from "react-native";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-native/no-inline-styles */
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  ScrollView,
+  PanResponder,
+} from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import { useSelector } from "react-redux";
+import { FetchTradeDetails, HistoryResponse } from "../services/tradingApi";
 
 const { width } = Dimensions.get("window");
 
+// 🔹 Live Buy/Sell Price Hook
 const useLivePrice = () => {
-  const [sellPrice, setSellPrice] = useState(1.1658);
-  const [buyPrice, setBuyPrice] = useState(1.1659);
+  const [sellPrice, setSellPrice] = useState(110223.61);
+  const [buyPrice, setBuyPrice] = useState(110245.21);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSellPrice(prev => parseFloat((prev + (Math.random() - 0.5) * 0.0001).toFixed(5)));
-      setBuyPrice(prev => parseFloat((prev + (Math.random() - 0.5) * 0.0001).toFixed(5)));
-    }, 1000);
+      setSellPrice((prev) =>
+        parseFloat((prev + (Math.random() - 0.5) * 20).toFixed(2))
+      );
+      setBuyPrice((prev) =>
+        parseFloat((prev + (Math.random() - 0.5) * 20).toFixed(2))
+      );
+    }, 1500);
     return () => clearInterval(interval);
   }, []);
 
   return { sellPrice, buyPrice };
 };
 
-const formatInstrumentName = (name: string) => {
+// 🔹 Format Pair Name
+const formatInstrumentName = (name) => {
   if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
     return `${name.slice(0, 3)}/${name.slice(3)}`;
   }
   return name;
 };
 
-const DynamicGraph = () => {
-  const data = [
-    { time: "03:25", open: 1.16280, high: 1.16280, low: 1.16280, close: 1.16280 },
-    { time: "07:35", open: 1.16460, high: 1.16460, low: 1.16460, close: 1.16460 },
-    { time: "11:45", open: 1.16550, high: 1.16550, low: 1.16550, close: 1.16550 },
-    { time: "15:55", open: 1.16586, high: 1.16586, low: 1.16586, close: 1.16586 },
-    { time: "20:05", open: 1.16595, high: 1.16595, low: 1.16595, close: 1.16595 },
-  ];
-  const maxPrice = Math.max(...data.map(d => d.high));
-  const minPrice = Math.min(...data.map(d => d.low));
-  const priceRange = maxPrice - minPrice;
-  const barWidth = (width - 32) / data.length - 8;
+// Time format for display
+const formatDate = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}`;
+};
+
+// Time format for tooltip
+const formatTimeForTooltip = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+};
+
+// 🔹 Dynamic Candlestick Graph with pinch zoom
+const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
+  const [tradeData, setTradeData] = useState<HistoryResponse | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentValue, setCurrentValue] = useState(0);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
+  const chartHeight = 400;
+  const scrollViewRef = useRef(null);
+
+  // base candle width × zoom factor
+  const candleSlotWidth = 30 * zoom;
+  const barWidth = candleSlotWidth * 0.55;
+
+  // fetch trade data
+  useEffect(() => {
+    const loadHistory = async () => {
+      const res = await FetchTradeDetails("EURUSD", 7);
+      if (res) {
+        setTradeData(res);
+        // Set initial time and value
+        if (res.data && res.data.length > 0) {
+          setCurrentTime(formatTimeForTooltip(res.data[0].time));
+          setCurrentValue(res.data[0].close);
+        }
+      }
+    };
+    loadHistory();
+  }, []);
+
+  // 🔹 Gesture handler (Pinch for both horizontal and vertical zoom)
+  const lastDistance = useRef(0);
+  const lastCenterY = useRef(0);
+  const isVerticalZoom = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (evt, gestureState) => {
+        if (evt.nativeEvent.touches.length === 2) {
+          const touch1 = evt.nativeEvent.touches[0];
+          const touch2 = evt.nativeEvent.touches[1];
+          const dx = touch1.pageX - touch2.pageX;
+          const dy = touch1.pageY - touch2.pageY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Calculate center point
+          const centerY = (touch1.pageY + touch2.pageY) / 2;
+          
+          // Determine if this is primarily a vertical gesture
+          const isVertical = Math.abs(dy) > Math.abs(dx) * 1.5;
+          
+          if (lastDistance.current === 0) {
+            lastDistance.current = distance;
+            lastCenterY.current = centerY;
+            isVerticalZoom.current = isVertical;
+          } else {
+            const diff = distance - lastDistance.current;
+            
+            if (isVerticalZoom.current) {
+              // Vertical zoom (pinch with vertical movement)
+              if (Math.abs(diff) > 5) {
+                setVerticalZoom((vz) =>
+                  Math.max(0.5, Math.min(3, vz + diff / 300)) // clamp vertical zoom
+                );
+                lastDistance.current = distance;
+              }
+            } else {
+              // Horizontal zoom (regular pinch)
+              if (Math.abs(diff) > 5) {
+                setZoom((z) =>
+                  Math.max(0.5, Math.min(3, z + diff / 300)) // clamp zoom
+                );
+                lastDistance.current = distance;
+              }
+            }
+          }
+        } else if (evt.nativeEvent.touches.length === 1) {
+          // Single touch - show tooltip with time and value
+          const touchX = evt.nativeEvent.locationX;
+          const touchY = evt.nativeEvent.locationY;
+          
+          if (tradeData && tradeData.data) {
+            // Calculate which candle is being touched
+            const candleIndex = Math.floor(touchX / candleSlotWidth);
+            if (candleIndex >= 0 && candleIndex < tradeData.data.length) {
+              const candleData = tradeData.data[candleIndex];
+              setCurrentTime(formatTimeForTooltip(candleData.time));
+              setCurrentValue(candleData.close);
+              
+              // Calculate value based on Y position
+              const zoomedMax = calculateZoomedMax();
+              const zoomedMin = calculateZoomedMin();
+              const priceRange = zoomedMax - zoomedMin || 1;
+              const value = zoomedMax - (touchY / chartHeight) * priceRange;
+              
+              setCurrentValue(parseFloat(value.toFixed(5)));
+              setTooltipPosition({ x: touchX, y: touchY });
+              setShowTooltip(true);
+            }
+          }
+        }
+      },
+      onPanResponderRelease: () => {
+        lastDistance.current = 0;
+        isVerticalZoom.current = false;
+        setShowTooltip(false);
+      },
+      onPanResponderTerminate: () => {
+        setShowTooltip(false);
+      },
+    })
+  ).current;
+
+  // Helper functions for zoom calculations
+  const calculateZoomedMax = () => {
+    if (!tradeData || !tradeData.data) return 0;
+    
+    const maxPrice = Math.max(...tradeData.data.map((d) => d.high));
+    const minPrice = Math.min(...tradeData.data.map((d) => d.low));
+    const midPrice = (maxPrice + minPrice) / 2;
+    const baseRange = maxPrice - minPrice;
+    
+    return midPrice + (baseRange / verticalZoom) / 2;
+  };
+
+  const calculateZoomedMin = () => {
+    if (!tradeData || !tradeData.data) return 0;
+    
+    const maxPrice = Math.max(...tradeData.data.map((d) => d.high));
+    const minPrice = Math.min(...tradeData.data.map((d) => d.low));
+    const midPrice = (maxPrice + minPrice) / 2;
+    const baseRange = maxPrice - minPrice;
+    
+    return midPrice - (baseRange / verticalZoom) / 2;
+  };
+
+  // if no data yet
+  if (!tradeData || !tradeData.data || tradeData.data.length === 0) {
+    return (
+      <View
+        style={{
+          height: chartHeight,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        {...panResponder.panHandlers}
+      >
+        <Text style={{ color: "#999" }}>Loading chart...</Text>
+      </View>
+    );
+  }
+
+  const data = tradeData.data;
+
+  // Apply vertical zoom to the price range
+  const maxPrice = Math.max(...data.map((d) => d.high));
+  const minPrice = Math.min(...data.map((d) => d.low));
+  const midPrice = (maxPrice + minPrice) / 2;
+  const baseRange = maxPrice - minPrice;
+  
+  // Calculate zoomed range
+  const zoomedRange = baseRange / verticalZoom;
+  const zoomedMax = midPrice + zoomedRange / 2;
+  const zoomedMin = midPrice - zoomedRange / 2;
+  const priceRange = zoomedMax - zoomedMin || 1;
+
+  const levels = [zoomedMax, midPrice, zoomedMin];
+  const totalWidth = data.length * candleSlotWidth + 60;
 
   return (
-    <View style={styles.chartContainer}>
-      <View style={styles.graphArea}>
-        {data.map((item, index) => {
-          const isBullish = item.close >= item.open;
-          const bodyHeight = Math.abs(((item.close - item.open) / priceRange) * 200);
-          const bottom = ((Math.min(item.open, item.close) - minPrice) / priceRange) * 200;
+    <View style={{ flex: 1, backgroundColor: "#fff" }} {...panResponder.panHandlers}>
+      {/* Current Time and Value Display */}
+      {/* <View style={styles.infoBar}>
+        <Text style={styles.infoText}>Time: {currentTime}</Text>
+        <Text style={styles.infoText}>Value: {currentValue.toFixed(5)}</Text>
+        <Text style={styles.infoText}>Zoom: {zoom.toFixed(1)}x</Text>
+        <Text style={styles.infoText}>V-Zoom: {verticalZoom.toFixed(1)}x</Text>
+      </View> */}
 
-          return (
-            <View key={index} style={styles.candleStickContainer}>
-              {/* Wick (High to Low) */}
-              <View
-                style={{
-                  height: ((item.high - item.low) / priceRange) * 200,
-                  backgroundColor: isBullish ? "#3b82f6" : "#ef4444",
-                  width: 2,
-                  alignSelf: "center",
-                  position: "absolute",
-                  bottom: ((item.low - minPrice) / priceRange) * 200,
-                }}
-              />
-              {/* Body */}
-              <View
-                style={{
-                  height: bodyHeight,
-                  backgroundColor: isBullish ? "#3b82f6" : "#ef4444",
-                  width: barWidth * 0.6,
-                  alignSelf: "center",
-                  position: "absolute",
-                  bottom,
-                }}
-              />
-            </View>
-          );
-        })}
-        {/* Grid Lines */}
-        {[maxPrice, ((maxPrice + minPrice) / 2), minPrice].map((price, index) => (
-          <View
-            key={index}
+      {/* Tooltip */}
+      {showTooltip && (
+        <View style={[styles.tooltip, { left: tooltipPosition.x, top: tooltipPosition.y }]}>
+          <Text style={styles.tooltipText}>{currentTime}</Text>
+          <Text style={styles.tooltipText}>{currentValue.toFixed(5)}</Text>
+        </View>
+      )}
+
+      {/* Price Labels on Right Side */}
+      {levels.map((val, i) => {
+        const top = ((zoomedMax - val) / priceRange) * chartHeight;
+        return (
+          <Text
+            key={`label-${i}`}
             style={{
               position: "absolute",
-              left: 0,
-              right: 0,
-              height: 1,
-              backgroundColor: "#e5e7eb",
-              top: `${(1 - (price - minPrice) / priceRange) * 100}%`,
+              right: 2,
+              top: top - 8,
+              fontSize: 12,
+              fontWeight: "600",
+              color: "#9b9b9b",
+              backgroundColor: "#fff",
+              zIndex: 2,
             }}
-          />
-        ))}
-      </View>
-      <View style={styles.priceLabelsRight}>
-        <Text style={styles.priceLabel}>{maxPrice.toFixed(5)}</Text>
-        <Text style={styles.priceLabel}>{((maxPrice + minPrice) / 2).toFixed(5)}</Text>
-        <Text style={styles.priceLabel}>{minPrice.toFixed(5)}</Text>
-      </View>
+          >
+            {val.toFixed(5)}
+          </Text>
+        );
+      })}
+
+      {/* Scrollable Candles */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          height: chartHeight,
+          width: totalWidth,
+        }}
+        onScroll={(event) => {
+          // Update time based on scroll position
+          const scrollX = event.nativeEvent.contentOffset.x;
+          const visibleStartIndex = Math.floor(scrollX / candleSlotWidth);
+          const visibleEndIndex = Math.min(
+            data.length - 1,
+            Math.floor((scrollX + width) / candleSlotWidth)
+          );
+          
+          if (visibleStartIndex >= 0 && visibleEndIndex < data.length) {
+            const midIndex = Math.floor((visibleStartIndex + visibleEndIndex) / 2);
+            setCurrentTime(formatTimeForTooltip(data[midIndex].time));
+          }
+        }}
+        scrollEventThrottle={16}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-end",
+            height: chartHeight,
+            position: "relative",
+          }}
+        >
+          {/* Grid Lines */}
+          {levels.map((val, i) => {
+            const top = ((zoomedMax - val) / priceRange) * chartHeight;
+            return (
+              <View
+                key={`grid-${i}`}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top,
+                  height: 1,
+                  backgroundColor: "#ececec",
+                }}
+              />
+            );
+          })}
+
+          {/* Candlesticks */}
+          {data.map((item, idx) => {
+            const isBull = item.close >= item.open;
+            const bodyHeight =
+              Math.abs(((item.close - item.open) / priceRange) * chartHeight) || 2;
+            const wickHeight =
+              ((item.high - item.low) / priceRange) * chartHeight;
+            const bottomWick =
+              ((item.low - zoomedMin) / priceRange) * chartHeight;
+            const bottomBody =
+              ((Math.min(item.open, item.close) - zoomedMin) / priceRange) *
+              chartHeight;
+
+            return (
+              <View
+                key={idx}
+                style={{
+                  width: candleSlotWidth,
+                  alignItems: "center",
+                  position: "relative",
+                  height: chartHeight,
+                }}
+              >
+                {/* Wick */}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: bottomWick,
+                    width: 2,
+                    height: wickHeight,
+                    backgroundColor: isBull ? "#1992FC" : "#ff5b5b",
+                    borderRadius: 2,
+                  }}
+                />
+                {/* Body */}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: bottomBody,
+                    width: barWidth,
+                    height: Math.max(bodyHeight, 4),
+                    backgroundColor: isBull ? "#1992FC" : "#ff5b5b",
+                    borderRadius: 2,
+                  }}
+                />
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Fixed Time Labels at Bottom */}
       <View style={styles.timeLabels}>
-        {data.map((item, index) => (
-          <Text key={index} style={styles.timeLabel}>{item.time}</Text>
-        ))}
+        {data.map((d, i) => {
+          // Show fewer labels when zoomed out
+          const shouldShow = zoom > 1.5 || i % Math.ceil(3 / zoom) === 0;
+          return shouldShow ? (
+            <Text key={i} style={styles.timeLabel}>
+              {formatDate(d.time)}
+            </Text>
+          ) : null;
+        })}
       </View>
     </View>
   );
 };
 
-const TradeDetailScreen = ({ route }: any) => {
-  const { trade } = route.params;
-  const walletBalance = useSelector((state: any) => state.balance?.amount ?? 0);
+// 🔹 Trade Detail Screen
+const TradeDetailScreen = ({ route }) => {
+  const { trade = { name: "BTCUSD" } } = route?.params || {};
+  const walletBalance = useSelector((state) => state.balance?.amount ?? 0);
   const { sellPrice, buyPrice } = useLivePrice();
+
+  const [zoom, setZoom] = useState(1);
+  const [verticalZoom, setVerticalZoom] = useState(1);
+
+  const leftPercent = 14;
+  const rightPercent = 86;
 
   return (
     <View style={styles.container}>
-      {/* Top Balance Capsule */}
+      {/* Top Bar */}
       <View style={styles.balanceBar}>
         <View style={styles.balanceBox}>
           <Text style={styles.demoBadge}>Real</Text>
           <Text style={styles.balanceAmount}>
-            {walletBalance ? `${walletBalance.toFixed(2)} INR` : "0.00 INR"}
+            {walletBalance ? `${walletBalance.toFixed(2)} USD` : "0.00 USD"}
           </Text>
-          <Icon name="more-vertical" size={14} color="#111" style={{ marginLeft: 4 }} />
+          <Icon
+            name="more-vertical"
+            size={14}
+            color="#111"
+            style={{ marginLeft: 4 }}
+          />
         </View>
-        <Icon name="more-horizontal" size={20} color="#111" />
       </View>
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.pairText}>{formatInstrumentName(trade.name)}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Icon
+            name="bitcoin"
+            size={22}
+            color="#FFA638"
+            style={{ marginRight: 7 }}
+          />
+          <Text style={styles.pairText}>
+            {formatInstrumentName(trade.name)}
+          </Text>
+        </View>
         <View style={styles.headerIcons}>
           <Icon name="clock" size={20} color="#111" style={styles.icon} />
-          <Icon name="settings" size={20} color="#111" style={styles.icon} />
           <Icon name="maximize" size={20} color="#111" style={styles.icon} />
+          <Icon name="settings" size={20} color="#111" style={styles.icon} />
           <Icon name="more-vertical" size={20} color="#111" />
         </View>
       </View>
@@ -140,43 +444,67 @@ const TradeDetailScreen = ({ route }: any) => {
         <Text style={styles.statusText}>Pending 0</Text>
       </View>
 
-      {/* Graph */}
+      {/* Chart */}
       <View style={styles.chartBox}>
-        <DynamicGraph />
+        <DynamicGraph 
+          zoom={zoom} 
+          setZoom={setZoom} 
+          verticalZoom={verticalZoom}
+          setVerticalZoom={setVerticalZoom}
+        />
       </View>
 
-      {/* Timeframe + Icons */}
+      {/* ✅ Tools Row */}
       <View style={styles.toolsRow}>
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-          <Icon name="sliders" size={16} color="#111" />
+          <Icon name="sliders" size={16} color="#777" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.toolBtn} 
+          activeOpacity={0.7}
+          onPress={() => {
+            setZoom(1);
+            setVerticalZoom(1);
+          }}
+        >
+          <Text style={{ fontWeight: "600", color: "#444" }}>Reset Zoom</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-          <Text style={{ fontWeight: "600" }}>5m</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-          <Icon name="bar-chart-2" size={16} color="#111" />
+          <Icon name="bar-chart-2" size={16} color="#777" />
         </TouchableOpacity>
       </View>
 
-      {/* Bottom Buy / Sell Bar */}
+      {/* Buy/Sell Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#ef4444" }]} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: "#ff5b5b" }]}
+          activeOpacity={0.85}
+        >
           <Text style={styles.actionTitle}>Sell</Text>
-          <Text style={styles.actionPrice}>{sellPrice}</Text>
-          <Text style={styles.actionSub}>62%</Text>
+          <Text style={styles.actionPrice}>{sellPrice.toFixed(2)}</Text>
+          <Text style={styles.actionSub}>{leftPercent}%</Text>
         </TouchableOpacity>
         <View style={styles.divider} />
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#3b82f6" }]} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: "#1992FC" }]}
+          activeOpacity={0.85}
+        >
           <Text style={styles.actionTitle}>Buy</Text>
-          <Text style={styles.actionPrice}>{buyPrice}</Text>
-          <Text style={styles.actionSub}>38%</Text>
+          <Text style={styles.actionPrice}>{buyPrice.toFixed(2)}</Text>
+          <Text style={styles.actionSub}>{rightPercent}%</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Buy/Sell % Bar */}
+      <View style={styles.percentBarWrapper}>
+        <View style={[styles.percentBarLeft, { flex: leftPercent }]} />
+        <View style={[styles.percentBarRight, { flex: rightPercent }]} />
       </View>
     </View>
   );
 };
 
-// Updated Styles
+// 🔹 Styles
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   balanceBar: {
@@ -191,7 +519,6 @@ const styles = StyleSheet.create({
   balanceBox: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
     backgroundColor: "#f3f4f6",
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -199,106 +526,131 @@ const styles = StyleSheet.create({
     maxWidth: 160,
   },
   demoBadge: {
-    backgroundColor: "#d1fae5",
-    color: "#059669",
+    backgroundColor: "#edeff5",
+    color: "#999",
     fontWeight: "700",
-    fontSize: 12,
-    marginRight: 4,
-    paddingHorizontal: 4,
+    fontSize: 13,
+    marginRight: 7,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 7,
   },
-  balanceAmount: { fontWeight: "600", fontSize: 14 },
+  balanceAmount: { fontWeight: "600", fontSize: 16, color: "#222" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
+    paddingVertical: 10,
     justifyContent: "space-between",
+    backgroundColor: "#fff",
   },
-  pairText: { fontSize: 18, fontWeight: "600" },
+  pairText: { fontSize: 18, fontWeight: "700", color: "#222" },
   headerIcons: { flexDirection: "row", alignItems: "center" },
   icon: { marginLeft: 14 },
   statusRow: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    paddingHorizontal: 19,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
+    backgroundColor: "#fff",
   },
-  statusText: { fontSize: 14, fontWeight: "500", marginRight: 20 },
-  chartContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
-    position: "relative",
+  statusText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#a2a8b4",
+    marginRight: 18,
   },
-  graphArea: {
-    flexDirection: "row",
-    height: 200,
-    alignItems: "flex-end",
-    position: "relative",
+  chartBox: {
+    height: "50%",
+    marginBottom: 30,
+    marginHorizontal: 8,
+    backgroundColor: "#fff",
   },
-  candleStickContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "flex-end",
-  },
-  priceLabelsRight: {
-    flexDirection: "column",
-    justifyContent: "space-between",
-    height: 200,
-    position: "absolute",
-    right: 0,
-    paddingRight: 4,
-  },
-  priceLabel: { fontSize: 12, color: "#6b7280" },
   timeLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     position: "absolute",
-    bottom: 0,
-    width: width - 32,
+    bottom: -24,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 2,
   },
-  timeLabel: { fontSize: 12, color: "#6b7280" },
+  timeLabel: { fontSize: 13, color: "#9b9b9b", fontWeight: "600" },
+  infoBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 8,
+    backgroundColor: "#f8f9fa",
+    borderBottomWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  infoText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#495057",
+  },
+  tooltip: {
+    position: "absolute",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    padding: 8,
+    borderRadius: 4,
+    zIndex: 100,
+    transform: [{ translateX: -50 }, { translateY: -60 }],
+  },
+  tooltipText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+
   toolsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
+    paddingVertical: 9,
+    backgroundColor: "#fff",
+    marginBottom: 4,
   },
   toolBtn: {
-    marginHorizontal: 12,
-    backgroundColor: "#f9fafb",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    marginHorizontal: 10,
+    backgroundColor: "#ececec",
+    paddingVertical: 7,
+    paddingHorizontal: 23,
     borderRadius: 8,
+    alignItems: "center",
+    flexDirection: "row",
   },
+
   bottomBar: {
     flexDirection: "row",
     position: "absolute",
-    bottom: 0,
+    bottom: 32,
     width: "100%",
-    borderTopWidth: 1,
-    borderColor: "#e5e7eb",
-    height: 60,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 6,
+    height: 54,
     alignItems: "center",
-    justifyContent: "center",
   },
-  actionTitle: { fontSize: 12, fontWeight: "700", color: "#fff" },
-  actionPrice: { fontSize: 14, fontWeight: "700", color: "#fff", marginVertical: 1 },
-  actionSub: { fontSize: 10, fontWeight: "500", color: "#fff" },
-  divider: { width: 1, backgroundColor: "#fff" },
+  actionBtn: { flex: 1, alignItems: "center", paddingVertical: 8 },
+  actionTitle: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  actionPrice: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  actionSub: { fontSize: 12, fontWeight: "500", color: "#fff", marginTop: 2 },
+  divider: { width: 1, backgroundColor: "#fff", height: "80%" },
+  percentBarWrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 10,
+    height: 5,
+    flexDirection: "row",
+    width: "100%",
+  },
+  percentBarLeft: {
+    backgroundColor: "#ff5b5b",
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  percentBarRight: {
+    backgroundColor: "#1992FC",
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+  },
 });
 
 export default TradeDetailScreen;

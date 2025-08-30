@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,15 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import Icon from "react-native-vector-icons/Feather";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Feather';
 
-const FONT_BOLD = "Satoshi-Bold";
-const FONT_REGULAR = "Satoshi-Regular";
-const FONT_MEDIUM = "Satoshi-Medium";
+const FONT_BOLD = 'Satoshi-Bold';
+const FONT_REGULAR = 'Satoshi-Regular';
+const FONT_MEDIUM = 'Satoshi-Medium';
 
-const TABS = [{ label: "Summary" }, { label: "Exness benefits" }];
+const TABS = [{ label: 'Summary' }, { label: 'Exness benefits' }];
 
 // ✅ Generate profit & loss for N days
 const getLastNDays = (n: number) => {
@@ -27,9 +27,9 @@ const getLastNDays = (n: number) => {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
 
-    const day = d.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
+    const day = d.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
     });
 
     const profit = +(Math.random() * 20).toFixed(2);
@@ -43,7 +43,7 @@ const getLastNDays = (n: number) => {
 
 // ✅ Extract only 7 evenly spaced points
 const getSevenBars = (
-  data: { date: string; profit: number; loss: number }[]
+  data: { date: string; profit: number; loss: number }[],
 ) => {
   if (data.length <= 7) return data;
 
@@ -59,19 +59,31 @@ const getSevenBars = (
   return selected;
 };
 
-const getXAxisLabels = ( data: { date: string; profit: number; loss: number }[] ) => { if (data.length <= 7) return data.map((d) => d.date); const step = Math.floor(data.length / 6); const labels: string[] = []; for (let i = 0; i < data.length; i += step) { labels.push(data[i].date); if (labels.length === 6) break; } labels.push(data[data.length - 1].date); return labels; };
+const getXAxisLabels = (
+  data: { date: string; profit: number; loss: number }[],
+) => {
+  if (data.length <= 7) return data.map(d => d.date);
+  const step = Math.floor(data.length / 6);
+  const labels: string[] = [];
+  for (let i = 0; i < data.length; i += step) {
+    labels.push(data[i].date);
+    if (labels.length === 6) break;
+  }
+  labels.push(data[data.length - 1].date);
+  return labels;
+};
 
 const PerformanceScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedRange, setSelectedRange] = useState("Last 7 days");
+  const [selectedRange, setSelectedRange] = useState('Last 7 days');
   const [chartData, setChartData] = useState(getLastNDays(7));
 
   // ✅ Reduce chart data to max 7 bars
   const displayedData = getSevenBars(chartData);
 
-  const maxProfit = Math.max(...displayedData.map((d) => d.profit), 0);
-  const maxLoss = Math.max(...displayedData.map((d) => d.loss), 0);
+  const maxProfit = Math.max(...displayedData.map(d => d.profit), 0);
+  const maxLoss = Math.max(...displayedData.map(d => d.loss), 0);
 
   const chartHeight = 200;
   const halfHeight = chartHeight / 2;
@@ -88,8 +100,8 @@ const PerformanceScreen: React.FC = () => {
   const totalProfit = chartData.reduce((sum, d) => sum + d.profit, 0);
   const totalLoss = chartData.reduce((sum, d) => sum + d.loss, 0);
   const netResult = totalProfit - totalLoss;
-  const formattedProfit = `${netResult >= 0 ? "+" : ""}${netResult.toFixed(
-    2
+  const formattedProfit = `${netResult >= 0 ? '+' : ''}${netResult.toFixed(
+    2,
   )} USD`;
 
   // ✅ Handle date range selection
@@ -98,8 +110,8 @@ const PerformanceScreen: React.FC = () => {
     setModalVisible(false);
 
     let days = 7;
-    if (range === "Last 30 days") days = 30;
-    if (range === "Last 90 days") days = 90;
+    if (range === 'Last 30 days') days = 30;
+    if (range === 'Last 90 days') days = 90;
 
     setChartData(getLastNDays(days));
   };
@@ -173,7 +185,7 @@ const PerformanceScreen: React.FC = () => {
           <View style={styles.chartContainer}>
             {/* ✅ Y-axis */}
             <View style={styles.chartYAxisContainer}>
-              {yAxisValues.map((val) => (
+              {yAxisValues.map(val => (
                 <View key={val} style={styles.chartRow}>
                   <Text style={styles.chartYAxis}>{val.toFixed(2)}</Text>
                   <View style={styles.chartGridLine} />
@@ -183,7 +195,7 @@ const PerformanceScreen: React.FC = () => {
 
             {/* ✅ Bars (anchored at 0-line) */}
             <View style={styles.chartBarsContainer}>
-              {displayedData.map((item) => {
+              {displayedData.map(item => {
                 const profitHeight =
                   (item.profit / (maxProfit || 1)) * halfHeight;
                 const lossHeight = (item.loss / (maxLoss || 1)) * halfHeight;
@@ -195,9 +207,9 @@ const PerformanceScreen: React.FC = () => {
                       style={{
                         width: 12,
                         height: profitHeight,
-                        backgroundColor: "#4ADE80",
+                        backgroundColor: '#4ADE80',
                         borderRadius: 3,
-                        position: "absolute",
+                        position: 'absolute',
                         bottom: halfHeight,
                       }}
                     />
@@ -206,9 +218,9 @@ const PerformanceScreen: React.FC = () => {
                       style={{
                         width: 12,
                         height: lossHeight,
-                        backgroundColor: "#111827",
+                        backgroundColor: '#111827',
                         borderRadius: 3,
-                        position: "absolute",
+                        position: 'absolute',
                         top: halfHeight,
                       }}
                     />
@@ -216,8 +228,16 @@ const PerformanceScreen: React.FC = () => {
                 );
               })}
             </View>
-            
-            <View style={styles.chartXAxisRow}> {xAxisLabels.map((date) => ( <Text key={date} style={styles.chartXAxisLabel}> {date} </Text> ))} </View>
+
+            <View style={styles.chartXAxisRow}>
+              {' '}
+              {xAxisLabels.map(date => (
+                <Text key={date} style={styles.chartXAxisLabel}>
+                  {' '}
+                  {date}{' '}
+                </Text>
+              ))}{' '}
+            </View>
           </View>
 
           {/* Summary */}
@@ -230,9 +250,7 @@ const PerformanceScreen: React.FC = () => {
 
             <View style={styles.summaryDotDark} />
             <Text style={styles.summaryLabel}>Loss</Text>
-            <Text style={styles.summaryValue}>
-              -{totalLoss.toFixed(2)} USD
-            </Text>
+            <Text style={styles.summaryValue}>-{totalLoss.toFixed(2)} USD</Text>
           </View>
         </View>
 
@@ -246,7 +264,7 @@ const PerformanceScreen: React.FC = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Select Range</Text>
-              {["Last 7 days", "Last 30 days", "Last 90 days"].map((range) => (
+              {['Last 7 days', 'Last 30 days', 'Last 90 days'].map(range => (
                 <TouchableOpacity
                   key={range}
                   style={[
@@ -280,24 +298,24 @@ const PerformanceScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F9FA" },
+  container: { flex: 1, backgroundColor: '#F7F9FA' },
   header: { paddingHorizontal: 24 },
   headerTitle: {
     fontSize: 34,
     fontFamily: FONT_BOLD,
-    color: "#111111",
-    fontWeight: "800",
+    color: '#111111',
+    fontWeight: '800',
   },
-  tabsRow: { flexDirection: "row", marginTop: 16, marginHorizontal: 24 },
-  tab: { flex: 1, alignItems: "center", paddingBottom: 12 },
-  tabActive: { borderBottomWidth: 3, borderBottomColor: "#111111" },
+  tabsRow: { flexDirection: 'row', marginTop: 16, marginHorizontal: 24 },
+  tab: { flex: 1, alignItems: 'center', paddingBottom: 12 },
+  tabActive: { borderBottomWidth: 3, borderBottomColor: '#111111' },
   tabText: {
     fontSize: 18,
     color: "#6B7280",
     fontFamily: FONT_MEDIUM,
-    fontWeight: "700",
+    fontWeight: '700',
   },
-  tabTextActive: { color: "#111111", fontFamily: FONT_BOLD },
+  tabTextActive: { color: '#111111', fontFamily: FONT_BOLD },
   tabDivider: {
     height: 1,
     backgroundColor: "#E5E7EB",
@@ -305,18 +323,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
   },
   chartXAxisRow: {
-    position: "absolute",
+    position: 'absolute',
     left: 52,
     bottom: 0,
     right: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   chartXAxisLabel: {
     fontSize: 11,
-    color: "#9CA3AF",
+    color: '#9CA3AF',
     fontFamily: FONT_REGULAR,
-    textAlign: "center",
+    textAlign: 'center',
     flex: 1,
   },
   filtersRow: {
@@ -377,8 +395,8 @@ const styles = StyleSheet.create({
   profitValue: {
     fontSize: 24,
     fontFamily: FONT_BOLD,
-    color: "#111111",
-    fontWeight: "800",
+    color: '#111111',
+    fontWeight: '800',
   },
   chartContainer: {
     height: 280,
@@ -392,9 +410,9 @@ const styles = StyleSheet.create({
     left: 0,
     width: "100%",
     height: 200,
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
-  chartRow: { flexDirection: "row", alignItems: "center", height: 40 },
+  chartRow: { flexDirection: 'row', alignItems: 'center', height: 40 },
   chartYAxis: {
     width: 36,
     fontSize: 12,
@@ -415,14 +433,14 @@ const styles = StyleSheet.create({
     bottom: 40,
     right: 16,
     height: 200,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   chartBarWrapper: {
-    alignItems: "center",
+    alignItems: 'center',
     width: 30,
     height: 200,
-    position: "relative",
+    position: 'relative',
   },
   summaryRow: {
     flexDirection: "row",
@@ -460,11 +478,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 20,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -473,14 +491,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: FONT_BOLD,
     marginBottom: 12,
-    color: "#111",
+    color: '#111',
   },
   modalOption: { paddingVertical: 12 },
-  modalOptionActive: { backgroundColor: "#F3F4F6", borderRadius: 8 },
-  modalOptionText: { fontSize: 16, fontFamily: FONT_REGULAR, color: "#111" },
-  modalOptionTextActive: { fontFamily: FONT_BOLD, color: "#2563EB" },
-  modalCloseButton: { marginTop: 16, alignSelf: "flex-end" },
-  modalCloseText: { fontSize: 16, color: "#EF4444", fontFamily: FONT_BOLD },
+  modalOptionActive: { backgroundColor: '#F3F4F6', borderRadius: 8 },
+  modalOptionText: { fontSize: 16, fontFamily: FONT_REGULAR, color: '#111' },
+  modalOptionTextActive: { fontFamily: FONT_BOLD, color: '#2563EB' },
+  modalCloseButton: { marginTop: 16, alignSelf: 'flex-end' },
+  modalCloseText: { fontSize: 16, color: '#EF4444', fontFamily: FONT_BOLD },
 });
 
 export default PerformanceScreen;

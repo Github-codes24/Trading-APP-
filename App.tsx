@@ -1,9 +1,7 @@
-<<<<<<< HEAD
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-=======
-import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
->>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -20,15 +18,16 @@ import EnterPassScreen from './src/screens/auth/register/EnterPassScreen';
 import SignInScreen from './src/screens/auth/SignIn/SignInScreen';
 import AccountScreen from './src/screens/auth/home/AccountScreen';
 import PerformanceScreen from './src/screens/auth/home/PerformanceScreen';
-<<<<<<< HEAD
-import WithdrawScreen from './src/screens/auth/home/WithdrawScreen';
-=======
 import DepositScreen from './src/screens/DepositScreen';
 import WithdrawlScreen from './src/screens/WithdrawlScreen';
 import DepositStatusScreen from './src/screens/DepositStatusScreen';
 import WithdrawStatusScreen from './src/screens/WithdrawStatusScreen';
 import TradeDetailScreen from './src/screens/TradeDetailScreen';
->>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
+import SetPasscodeScreen from './src/screens/SetPasscodeScreen';
+import ReEnterPasscodeScreen from './src/screens/ReEnterPasscodeScreen';
+import PasscodeLoginScreen from './src/screens/PasscodeLoginScreen';
+
+
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -57,20 +56,24 @@ function AppContent() {
         <Stack.Screen name="EnterPass" component={EnterPassScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Performance" component={PerformanceScreen} />
-<<<<<<< HEAD
-        <Stack.Screen name="WithdrawScreen" component={WithdrawScreen} />
-=======
+
         <Stack.Screen name="DepositScreen" component={DepositScreen} />
         <Stack.Screen name="WithdrawlScreen" component={WithdrawlScreen} />
         <Stack.Screen name="DepositStatus" component={DepositStatusScreen} />
         <Stack.Screen name="WithdrawStatus" component={WithdrawStatusScreen} />
+
+        <Stack.Screen name="SetPasscodeScreen" component={SetPasscodeScreen} />
+        <Stack.Screen name="ReEnterPasscodeScreen" component={ReEnterPasscodeScreen} />
+        <Stack.Screen name="PasscodeLoginScreen" component={PasscodeLoginScreen} />
+
+
+
         <Stack.Screen
           name="TradeDetail"
           component={TradeDetailScreen}
           options={{ headerShown: false }}
         />
 
->>>>>>> cd3ff35 (accounts screen icon working , trade screen trade details working)
       </Stack.Navigator>
     </NavigationContainer>
   );

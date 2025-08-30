@@ -1,14 +1,28 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Platform 
+} from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
+import { useNavigation } from '@react-navigation/native';
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
 const FONT_SEMIBOLD = Platform.select({ ios: 'Hartwell-Semibold', android: 'hartwell_semibold' });
 const FONT_MEDIUM = Platform.select({ ios: 'Hartwell-Medium', android: 'hartwell_medium' });
 const FONT_REGULAR = Platform.select({ ios: 'Hartwell-Regular', android: 'hartwell_regular' });
 
-const ListItem: React.FC<{ icon: string; title: string; subtitle?: string; rightText?: string; badge?: boolean; customRightTextStyle?: any }>
- = ({ icon, title, subtitle, rightText, badge, customRightTextStyle }) => (
+const ListItem: React.FC<{ 
+  icon: string; 
+  title: string; 
+  subtitle?: string; 
+  rightText?: string; 
+  badge?: boolean; 
+  customRightTextStyle?: any 
+}> = ({ icon, title, subtitle, rightText, badge, customRightTextStyle }) => (
   <TouchableOpacity style={styles.listItem} activeOpacity={0.8}>
     <View style={styles.itemLeft}>
       <View style={styles.itemIconWrap}>
@@ -22,7 +36,9 @@ const ListItem: React.FC<{ icon: string; title: string; subtitle?: string; right
     <View style={styles.itemRight}>
       {rightText ? (
         badge ? (
-          <View style={styles.badge}><Text style={styles.badgeText}>{rightText}</Text></View>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{rightText}</Text>
+          </View>
         ) : (
           <Text style={customRightTextStyle || styles.rightText}>{rightText}</Text>
         )
@@ -33,6 +49,18 @@ const ListItem: React.FC<{ icon: string; title: string; subtitle?: string; right
 );
 
 const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation();
+
+  const handleLogout = () => {
+    // clear AsyncStorage if needed
+    // await AsyncStorage.clear();
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Main" }], // 👈 matches your App.tsx <Stack.Screen name="Main" />
+    });
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -44,7 +72,6 @@ const ProfileScreen: React.FC = () => {
         </View>
 
         <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Verification</Text>
-
         <ListItem icon="user" title="Verification progress" rightText="Not verified" badge />
 
         <View style={styles.banner}>
@@ -53,7 +80,9 @@ const ProfileScreen: React.FC = () => {
               <Feather name="user" size={20} color="#111518" />
             </View>
             <View style={styles.bannerTextWrap}>
-              <Text style={styles.bannerTitle}>Hello. Fill in your account details to make your first deposit</Text>
+              <Text style={styles.bannerTitle}>
+                Hello. Fill in your account details to make your first deposit
+              </Text>
             </View>
           </View>
           <TouchableOpacity style={styles.bannerButton}>
@@ -67,7 +96,12 @@ const ProfileScreen: React.FC = () => {
         <ListItem icon="server" title="Virtual Private Server" />
 
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Crypto wallet</Text>
-        <ListItem icon="credit-card" title="Balance" rightText="0.00 USD" customRightTextStyle={styles.balanceText} />
+        <ListItem 
+          icon="credit-card" 
+          title="Balance" 
+          rightText="0.00 USD" 
+          customRightTextStyle={styles.balanceText} 
+        />
 
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Referral program</Text>
         <ListItem icon="users" title="Friends" />
@@ -78,7 +112,9 @@ const ProfileScreen: React.FC = () => {
           </View>
           <View style={styles.cardTextWrap}>
             <Text style={styles.cardTitle}>For investors</Text>
-            <Text style={styles.cardSubtitle}>Copy successful strategies of other traders</Text>
+            <Text style={styles.cardSubtitle}>
+              Copy successful strategies of other traders
+            </Text>
           </View>
           <Feather name="chevron-right" size={22} color="#9CA3AF" />
         </View>
@@ -102,7 +138,8 @@ const ProfileScreen: React.FC = () => {
           <ListItem icon="info" title="About the app" />
         </View>
 
-        <View style={styles.logoutCard}>
+        {/* 🔴 Updated Logout */}
+        <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.8}>
           <View style={styles.logoutLeft}>
             <View style={styles.logoutIconWrap}>
               <Feather name="log-out" size={20} color="#DC2626" />
@@ -113,231 +150,48 @@ const ProfileScreen: React.FC = () => {
             </View>
           </View>
           <Feather name="chevron-right" size={22} color="#9CA3AF" />
-        </View>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-   paddingBottom:10,
-    backgroundColor: '#FFFFFF',
-  },
-  headerRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 18,
-    paddingBottom: 8,
-  },
-  settingsBtn: {
-    alignSelf: 'flex-end',
-    paddingVertical: 6,
-  },
-  headerTitle: {
-    fontSize: 34,
-    paddingBottom:20,
-    color: '#111518',
-    fontFamily: FONT_BOLD,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#0F172A',
-    paddingHorizontal: 18,
-    marginTop: 12,
-    marginBottom: 8,
-    fontFamily: FONT_SEMIBOLD,
-  },
-  sectionTitleFirst: {
-    marginTop: 0,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  itemIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemTitle: {
-    fontSize: 16,
-    color: '#111518',
-    fontFamily: FONT_MEDIUM,
-  },
-  itemSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-    fontFamily: FONT_REGULAR,
-  },
-  itemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rightText: {
-    color: '#6B7280',
-    fontSize: 12,
-    fontFamily: FONT_MEDIUM,
-  },
-  balanceText: {
-    color: '#000000',
-    fontSize: 14,
-    fontFamily: FONT_BOLD,
-  },
-  badge: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 4,
-  },
-  badgeText: {
-    color: '#B91C1C',
-    fontSize: 12,
-    fontFamily: FONT_MEDIUM,
-  },
-  banner: {
-    marginHorizontal: 18,
-    marginTop: 8,
-    backgroundColor: '#FFF5CC',
-    borderRadius: 10,
-    padding: 14,
-  },
-  bannerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
-  },
-  bannerIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFEFA6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerTextWrap: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: 14,
-    color: '#111518',
-    lineHeight: 20,
-    fontFamily: FONT_REGULAR,
-  },
-  bannerButton: {
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#FFD100',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerButtonText: {
-    fontSize: 16,
-    color: '#111518',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  cardRow: {
-    marginTop: 16,
-    marginHorizontal: 18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  cardIconGreen: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E6FFFA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTextWrap: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    color: '#0F172A',
-    fontFamily: FONT_MEDIUM,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-    fontFamily: FONT_REGULAR,
-  },
-  group: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginHorizontal: 18,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginLeft: 18 + 36 + 12, // align under text after icon
-  },
-  logoutCard: {
-    marginTop: 18,
-    marginHorizontal: 18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  logoutLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoutIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF1F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutTitle: {
-    fontSize: 16,
-    color: '#0F172A',
-    fontFamily: FONT_MEDIUM,
-  },
-  logoutEmail: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-    fontFamily: FONT_REGULAR,
-  },
+  container: { flex: 1, paddingBottom: 10, backgroundColor: '#FFFFFF' },
+  headerRow: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', paddingHorizontal: 18, paddingBottom: 8 },
+  settingsBtn: { alignSelf: 'flex-end', paddingVertical: 6 },
+  headerTitle: { fontSize: 34, paddingBottom: 20, color: '#111518', fontFamily: FONT_BOLD },
+  sectionTitle: { fontSize: 20, color: '#0F172A', paddingHorizontal: 18, marginTop: 12, marginBottom: 8, fontFamily: FONT_SEMIBOLD },
+  sectionTitleFirst: { marginTop: 0 },
+  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
+  itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  itemTitle: { fontSize: 16, color: '#111518', fontFamily: FONT_MEDIUM },
+  itemSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: FONT_REGULAR },
+  itemRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rightText: { color: '#6B7280', fontSize: 12, fontFamily: FONT_MEDIUM },
+  balanceText: { color: '#000000', fontSize: 14, fontFamily: FONT_BOLD },
+  badge: { backgroundColor: '#FEE2E2', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, marginRight: 4 },
+  badgeText: { color: '#B91C1C', fontSize: 12, fontFamily: FONT_MEDIUM },
+  banner: { marginHorizontal: 18, marginTop: 8, backgroundColor: '#FFF5CC', borderRadius: 10, padding: 14 },
+  bannerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  bannerIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFEFA6', alignItems: 'center', justifyContent: 'center' },
+  bannerTextWrap: { flex: 1 },
+  bannerTitle: { fontSize: 14, color: '#111518', lineHeight: 20, fontFamily: FONT_REGULAR },
+  bannerButton: { height: 44, borderRadius: 8, backgroundColor: '#FFD100', alignItems: 'center', justifyContent: 'center' },
+  bannerButtonText: { fontSize: 16, color: '#111518', fontFamily: FONT_SEMIBOLD },
+  cardRow: { marginTop: 16, marginHorizontal: 18, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  cardIconGreen: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E6FFFA', alignItems: 'center', justifyContent: 'center' },
+  cardTextWrap: { flex: 1 },
+  cardTitle: { fontSize: 16, color: '#0F172A', fontFamily: FONT_MEDIUM },
+  cardSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: FONT_REGULAR },
+  group: { backgroundColor: '#FFFFFF', borderRadius: 12, marginHorizontal: 18, paddingVertical: 4, borderWidth: 1, borderColor: '#F1F5F9' },
+  separator: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 18 + 36 + 12 },
+  logoutCard: { marginTop: 18, marginHorizontal: 18, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#F1F5F9' },
+  logoutLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logoutIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF1F2', alignItems: 'center', justifyContent: 'center' },
+  logoutTitle: { fontSize: 16, color: '#0F172A', fontFamily: FONT_MEDIUM },
+  logoutEmail: { fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: FONT_REGULAR },
 });
 
 export default ProfileScreen;
-
-
