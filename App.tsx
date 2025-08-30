@@ -1,4 +1,7 @@
-import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -23,6 +26,7 @@ import TradeDetailScreen from './src/screens/TradeDetailScreen';
 import SetPasscodeScreen from './src/screens/SetPasscodeScreen';
 import ReEnterPasscodeScreen from './src/screens/ReEnterPasscodeScreen';
 import PasscodeLoginScreen from './src/screens/PasscodeLoginScreen';
+
 
 
 function App() {
@@ -52,13 +56,16 @@ function AppContent() {
         <Stack.Screen name="EnterPass" component={EnterPassScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Performance" component={PerformanceScreen} />
+
         <Stack.Screen name="DepositScreen" component={DepositScreen} />
         <Stack.Screen name="WithdrawlScreen" component={WithdrawlScreen} />
         <Stack.Screen name="DepositStatus" component={DepositStatusScreen} />
         <Stack.Screen name="WithdrawStatus" component={WithdrawStatusScreen} />
+
         <Stack.Screen name="SetPasscodeScreen" component={SetPasscodeScreen} />
         <Stack.Screen name="ReEnterPasscodeScreen" component={ReEnterPasscodeScreen} />
         <Stack.Screen name="PasscodeLoginScreen" component={PasscodeLoginScreen} />
+
 
 
         <Stack.Screen
