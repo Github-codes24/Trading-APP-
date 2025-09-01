@@ -65,7 +65,7 @@ class TradingApiService {
       };
 
       this.socket.onmessage = (event) => {
-        console.log('📥 Raw message received:', event.data);
+        // console.log('📥 Raw message received:', event.data);
         try {
           const data = JSON.parse(event.data);
           console.log('📥 Parsed JSON:', data);

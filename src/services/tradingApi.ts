@@ -15,46 +15,6 @@ export interface TradingInstrument {
   isFavorite: boolean;
 }
 
-export interface Candle {
-  time: string;   
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  tick_volume: number;
-}
-
-export interface HistoryResponse {
-  symbol: string;  
-  days: number;      
-  data: Candle[];     
-}
-
-export const FetchTradeDetails = async (
-  symbol: string,
-  days: number
-): Promise<HistoryResponse | null> => {
-  try {
-    const response = await fetch("http://13.201.33.113:8000/history", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ symbol, days }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: HistoryResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching history:", error);
-    return null;
-  }
-};
-
 const SOCKET_URL = 'ws://13.201.33.113:5000';
 
 class TradingApiService {
@@ -105,10 +65,10 @@ class TradingApiService {
       };
 
       this.socket.onmessage = (event) => {
-        console.log('📥 Raw message received:', event.data);
+        // console.log('📥 Raw message received:', event.data);
         try {
           const data = JSON.parse(event.data);
-          console.log('📥 Parsed JSON:', data);
+          // console.log('📥 Parsed JSON:', data);
           
           // Normalize different possible payload shapes into 'tradingData'
           if (Array.isArray(data)) {
