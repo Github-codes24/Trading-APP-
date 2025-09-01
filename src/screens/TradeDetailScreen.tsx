@@ -9,6 +9,8 @@ import {
   Dimensions,
   ScrollView,
   PanResponder,
+  Modal,
+  FlatList,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import { useSelector } from "react-redux";
@@ -18,8 +20,8 @@ const { width } = Dimensions.get("window");
 
 // 🔹 Live Buy/Sell Price Hook
 const useLivePrice = () => {
-  const [sellPrice, setSellPrice] = useState(110223.61);
-  const [buyPrice, setBuyPrice] = useState(110245.21);
+  const [sellPrice, setSellPrice] = useState(109889.55);
+  const [buyPrice, setBuyPrice] = useState(109972.48);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -56,8 +58,73 @@ const formatTimeForTooltip = (dateStr: string): string => {
   return `${day}/${month}/${year.slice(2)}`;
 };
 
-// 🔹 Dynamic Candlestick Graph with pinch zoom
-const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
+// Time frame options
+const timeFrames = [
+  // { label: "1 minute", value: 1 },
+  // { label: "5 minutes", value: 5 },
+  // { label: "15 minutes", value: 15 },
+  // { label: "30 minutes", value: 30 },
+  // { label: "1 hour", value: 60 },
+  // { label: "4 hours", value: 240 },
+  { label: "1 day", value: 1 },
+  { label: "1 week", value: 7 },
+  { label: "1 month", value: 30 },
+];
+
+// 🔹 Time Frame Modal Component
+const TimeFrameModal = ({ visible, onClose, onSelect, selectedTimeFrame }) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Time Frame</Text>
+          <FlatList
+            data={timeFrames}
+            keyExtractor={(item) => item.value.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.timeFrameItem,
+                  selectedTimeFrame === item.value && styles.selectedTimeFrame,
+                ]}
+                onPress={() => onSelect(item.value)}
+              >
+                <Text
+                  style={[
+                    styles.timeFrameText,
+                    selectedTimeFrame === item.value && styles.selectedTimeFrameText,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+// 🔹 Dynamic Candlestick Graph with pinch zoom and buy/sell lines
+const DynamicGraph = ({ 
+  zoom, 
+  setZoom, 
+  verticalZoom, 
+  setVerticalZoom, 
+  sellPrice, 
+  buyPrice,
+  timeFrame 
+}) => {
   const [tradeData, setTradeData] = useState<HistoryResponse | null>(null);
   const [currentTime, setCurrentTime] = useState("");
   const [currentValue, setCurrentValue] = useState(0);
@@ -74,7 +141,7 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
   // fetch trade data
   useEffect(() => {
     const loadHistory = async () => {
-      const res = await FetchTradeDetails("EURUSD", 7);
+      const res = await FetchTradeDetails("EURUSD", timeFrame);
       if (res) {
         setTradeData(res);
         // Set initial time and value
@@ -85,7 +152,7 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
       }
     };
     loadHistory();
-  }, []);
+  }, [timeFrame]);
 
   // 🔹 Gesture handler (Pinch for both horizontal and vertical zoom)
   const lastDistance = useRef(0);
@@ -94,8 +161,14 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        // Only become the responder for multi-touch events (pinch)
+        return evt.nativeEvent.touches.length === 2;
+      },
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only become the responder for multi-touch events (pinch)
+        return evt.nativeEvent.touches.length === 2;
+      },
       onPanResponderMove: (evt, gestureState) => {
         if (evt.nativeEvent.touches.length === 2) {
           const touch1 = evt.nativeEvent.touches[0];
@@ -135,39 +208,15 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
               }
             }
           }
-        } else if (evt.nativeEvent.touches.length === 1) {
-          // Single touch - show tooltip with time and value
-          const touchX = evt.nativeEvent.locationX;
-          const touchY = evt.nativeEvent.locationY;
-          
-          if (tradeData && tradeData.data) {
-            // Calculate which candle is being touched
-            const candleIndex = Math.floor(touchX / candleSlotWidth);
-            if (candleIndex >= 0 && candleIndex < tradeData.data.length) {
-              const candleData = tradeData.data[candleIndex];
-              setCurrentTime(formatTimeForTooltip(candleData.time));
-              setCurrentValue(candleData.close);
-              
-              // Calculate value based on Y position
-              const zoomedMax = calculateZoomedMax();
-              const zoomedMin = calculateZoomedMin();
-              const priceRange = zoomedMax - zoomedMin || 1;
-              const value = zoomedMax - (touchY / chartHeight) * priceRange;
-              
-              setCurrentValue(parseFloat(value.toFixed(5)));
-              setTooltipPosition({ x: touchX, y: touchY });
-              setShowTooltip(true);
-            }
-          }
         }
       },
       onPanResponderRelease: () => {
         lastDistance.current = 0;
         isVerticalZoom.current = false;
-        setShowTooltip(false);
       },
       onPanResponderTerminate: () => {
-        setShowTooltip(false);
+        lastDistance.current = 0;
+        isVerticalZoom.current = false;
       },
     })
   ).current;
@@ -204,7 +253,6 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
           justifyContent: "center",
           alignItems: "center",
         }}
-        {...panResponder.panHandlers}
       >
         <Text style={{ color: "#999" }}>Loading chart...</Text>
       </View>
@@ -225,19 +273,23 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
   const zoomedMin = midPrice - zoomedRange / 2;
   const priceRange = zoomedMax - zoomedMin || 1;
 
+  // Calculate positions for buy and sell lines
+  const buyLinePosition = ((zoomedMax - buyPrice) / priceRange) * chartHeight;
+  const sellLinePosition = ((zoomedMax - sellPrice) / priceRange) * chartHeight;
+
   const levels = [zoomedMax, midPrice, zoomedMin];
   const totalWidth = data.length * candleSlotWidth + 60;
 
+  // Get the last candle data
+  const lastCandle = data[data.length - 1];
+  const isLastCandleBull = lastCandle.close >= lastCandle.open;
+  const lastCandleBottomBody = ((Math.min(lastCandle.open, lastCandle.close) - zoomedMin) / priceRange) * chartHeight;
+  const lastCandleBodyHeight = Math.abs(((lastCandle.close - lastCandle.open) / priceRange) * chartHeight) || 2;
+  const lastCandleCenterX = (data.length - 1) * candleSlotWidth + candleSlotWidth / 2;
+  const lastCandleTop = ((zoomedMax - Math.max(lastCandle.open, lastCandle.close)) / priceRange) * chartHeight;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }} {...panResponder.panHandlers}>
-      {/* Current Time and Value Display */}
-      {/* <View style={styles.infoBar}>
-        <Text style={styles.infoText}>Time: {currentTime}</Text>
-        <Text style={styles.infoText}>Value: {currentValue.toFixed(5)}</Text>
-        <Text style={styles.infoText}>Zoom: {zoom.toFixed(1)}x</Text>
-        <Text style={styles.infoText}>V-Zoom: {verticalZoom.toFixed(1)}x</Text>
-      </View> */}
-
       {/* Tooltip */}
       {showTooltip && (
         <View style={[styles.tooltip, { left: tooltipPosition.x, top: tooltipPosition.y }]}>
@@ -258,15 +310,72 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
               top: top - 8,
               fontSize: 12,
               fontWeight: "600",
-              color: "#9b9b9b",
-              backgroundColor: "#fff",
+              color: "white",
+              backgroundColor: "rgba(0,0,0,0.5)",
               zIndex: 2,
+              paddingHorizontal: 4,
+              borderRadius: 3,
             }}
           >
             {val.toFixed(5)}
           </Text>
         );
       })}
+
+      {/* Buy and Sell Price Labels */}
+      <Text
+        style={{
+          position: "absolute",
+          right: 2,
+          top: buyLinePosition - 8,
+          fontSize: 12,
+          fontWeight: "600",
+          color: "#1992FC",
+          backgroundColor: "rgba(0,0,0,0.5)",
+          zIndex: 2,
+          paddingHorizontal: 4,
+          borderRadius: 3,
+        }}
+      >
+        {buyPrice.toFixed(2)}
+      </Text>
+      <Text
+        style={{
+          position: "absolute",
+          right: 2,
+          top: sellLinePosition - 8,
+          fontSize: 12,
+          fontWeight: "600",
+          color: "#ff5b5b",
+          backgroundColor: "rgba(0,0,0,0.5)",
+          zIndex: 2,
+          paddingHorizontal: 4,
+          borderRadius: 3,
+        }}
+      >
+        {sellPrice.toFixed(2)}
+      </Text>
+
+      {/* Last Candle Price Info - Simple version like in the image */}
+      <View
+        style={{
+          position: "absolute",
+          left: lastCandleCenterX - 45,
+          top: lastCandleTop - 45,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          padding: 6,
+          borderRadius: 4,
+          zIndex: 10,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>
+          109926.35
+        </Text>
+        <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>
+          109904.75
+        </Text>
+      </View>
 
       {/* Scrollable Candles */}
       <ScrollView
@@ -302,6 +411,32 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
             position: "relative",
           }}
         >
+          {/* Buy Line (Blue) */}
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: buyLinePosition,
+              height: 1,
+              backgroundColor: "#1992FC",
+              zIndex: 1,
+            }}
+          />
+          
+          {/* Sell Line (Red) */}
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: sellLinePosition,
+              height: 1,
+              backgroundColor: "rgba(255, 91, 91, 0.7)",
+              zIndex: 1,
+            }}
+          />
+
           {/* Grid Lines */}
           {levels.map((val, i) => {
             const top = ((zoomedMax - val) / priceRange) * chartHeight;
@@ -389,15 +524,27 @@ const DynamicGraph = ({ zoom, setZoom, verticalZoom, setVerticalZoom }) => {
 
 // 🔹 Trade Detail Screen
 const TradeDetailScreen = ({ route }) => {
-  const { trade = { name: "BTCUSD" } } = route?.params || {};
+  const { trade = { name: "EURUSD" } } = route?.params || {};
   const walletBalance = useSelector((state) => state.balance?.amount ?? 0);
   const { sellPrice, buyPrice } = useLivePrice();
 
   const [zoom, setZoom] = useState(1);
   const [verticalZoom, setVerticalZoom] = useState(1);
+  const [timeFrame, setTimeFrame] = useState(5); // Default to 5 minutes
+  const [showTimeFrameModal, setShowTimeFrameModal] = useState(false);
 
-  const leftPercent = 14;
-  const rightPercent = 86;
+  const leftPercent = 31;
+  const rightPercent = 69;
+
+  const handleTimeFrameSelect = (selectedTimeFrame) => {
+    setTimeFrame(selectedTimeFrame);
+    setShowTimeFrameModal(false);
+  };
+
+  const getTimeFrameLabel = () => {
+    const selected = timeFrames.find(tf => tf.value === timeFrame);
+    return selected ? selected.label.split(' ')[1] : '5m';
+  };
 
   return (
     <View style={styles.container}>
@@ -421,9 +568,9 @@ const TradeDetailScreen = ({ route }) => {
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Icon
-            name="bitcoin"
+            name="dollar-sign"
             size={22}
-            color="#FFA638"
+            color="#1992FC"
             style={{ marginRight: 7 }}
           />
           <Text style={styles.pairText}>
@@ -451,6 +598,9 @@ const TradeDetailScreen = ({ route }) => {
           setZoom={setZoom} 
           verticalZoom={verticalZoom}
           setVerticalZoom={setVerticalZoom}
+          sellPrice={sellPrice}
+          buyPrice={buyPrice}
+          timeFrame={timeFrame}
         />
       </View>
 
@@ -459,20 +609,26 @@ const TradeDetailScreen = ({ route }) => {
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
           <Icon name="sliders" size={16} color="#777" />
         </TouchableOpacity>
+
         <TouchableOpacity 
           style={styles.toolBtn} 
           activeOpacity={0.7}
-          onPress={() => {
-            setZoom(1);
-            setVerticalZoom(1);
-          }}
+          onPress={() => setShowTimeFrameModal(true)}
         >
-          <Text style={{ fontWeight: "600", color: "#444" }}>Reset Zoom</Text>
+          <Text style={{ fontWeight: "600", color: "#444" }}>{getTimeFrameLabel()}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
           <Icon name="bar-chart-2" size={16} color="#777" />
         </TouchableOpacity>
       </View>
+
+      {/* Time Frame Modal */}
+      <TimeFrameModal
+        visible={showTimeFrameModal}
+        onClose={() => setShowTimeFrameModal(false)}
+        onSelect={handleTimeFrameSelect}
+        selectedTimeFrame={timeFrame}
+      />
 
       {/* Buy/Sell Bar */}
       <View style={styles.bottomBar}>
@@ -575,19 +731,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   timeLabel: { fontSize: 13, color: "#9b9b9b", fontWeight: "600" },
-  infoBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 8,
-    backgroundColor: "#f8f9fa",
-    borderBottomWidth: 1,
-    borderColor: "#e9ecef",
-  },
-  infoText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#495057",
-  },
   tooltip: {
     position: "absolute",
     backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -601,7 +744,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
   },
-
   toolsRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -618,7 +760,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
   },
-
   bottomBar: {
     flexDirection: "row",
     position: "absolute",
@@ -650,6 +791,45 @@ const styles = StyleSheet.create({
     backgroundColor: "#1992FC",
     borderTopLeftRadius: 4,
     borderBottomLeftRadius: 4,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    width: "80%",
+    maxHeight: "70%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+    color: "#333",
+  },
+  timeFrameItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  selectedTimeFrame: {
+    backgroundColor: "#1992FC",
+    borderRadius: 6,
+  },
+  timeFrameText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  selectedTimeFrameText: {
+    color: "white",
+    fontWeight: "600",
   },
 });
 
