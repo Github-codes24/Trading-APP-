@@ -1,35 +1,85 @@
-import React from 'react';
-import { Image, TouchableOpacity, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  View,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import CountryPicker, { Country } from 'react-native-country-picker-modal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 export default function RegisterScreen() {
-  const [isConfirmedNonUSTaxResident, setIsConfirmedNonUSTaxResident] = React.useState<boolean>(false);
+  const [isConfirmedNonUSTaxResident, setIsConfirmedNonUSTaxResident] = useState(false);
+  const [country, setCountry] = useState<Country | null>(null);
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   const navigation = useNavigation();
+
+  // Dummy credentials for registration
+  const dummyEmail = 'user' + Math.floor(Math.random() * 10000) + '@example.com';
+  const dummyPassword = 'Password123';
+
+  const handleRegister = async () => {
+    if (!isConfirmedNonUSTaxResident || !country) {
+      Alert.alert('Error', 'Please select country and confirm tax status');
+      return;
+    }
+
+  await AsyncStorage.setItem('user_country', country?.name?.toString() || '');
+  await AsyncStorage.setItem('user_tax_status', isConfirmedNonUSTaxResident ? 'true' : 'false');
+  navigation.navigate('Email' as never);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
-          <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="chevron-left" size={28} color="#111111" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Your residence</Text>
+          <Text style={styles.headerTitle}>Register</Text>
           <View style={styles.grow} />
         </View>
 
         <View style={styles.body}>
           <Text style={styles.subtitle}>Select your residence</Text>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.selectorRow}>
+          {/* Country Picker */}
+          <TouchableOpacity style={styles.selectorRow} onPress={() => setIsPickerVisible(true)}>
             <Icon name="globe" size={18} color="#111111" style={styles.selectorIcon} />
-            <Text style={styles.selectorText}>Country / region</Text>
+            <Text style={styles.selectorText}>
+              {country && typeof country.name === 'string' ? country.name : 'Country / region'}
+            </Text>
             <View style={styles.grow} />
             <Icon name="chevron-right" size={22} color="#9CA3AF" />
           </TouchableOpacity>
+
+          {isPickerVisible && (
+            <CountryPicker
+              countryCode={country?.cca2 || 'IN'}
+              visible={isPickerVisible}
+              withFilter
+              withFlag
+              withAlphaFilter
+              withCallingCode={false}
+              withEmoji
+              onSelect={(c: Country) => {
+                setCountry(c);
+                setIsPickerVisible(false);
+              }}
+              onClose={() => setIsPickerVisible(false)}
+            />
+          )}
         </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
             accessibilityRole="checkbox"
@@ -41,23 +91,23 @@ export default function RegisterScreen() {
               {isConfirmedNonUSTaxResident ? <Icon name="check" size={14} color="#111111" /> : null}
             </View>
             <Text style={styles.checkboxLabel}>
-              I declare and confirm that I am not a citizen or
-              {'\n'}resident of the US for tax purposes.
+              I declare and confirm that I am not a citizen or resident of the US for tax purposes.
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            accessibilityRole="button"
-            disabled={!isConfirmedNonUSTaxResident}
-            style={[styles.primaryButton, !isConfirmedNonUSTaxResident && styles.primaryButtonDisabled]}
-            onPress={() => navigation.navigate('Email' as never)}
+            disabled={!isConfirmedNonUSTaxResident || !country || isLoading}
+            style={[
+              styles.primaryButton,
+              (!isConfirmedNonUSTaxResident || !country || isLoading) && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleRegister}
           >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity accessibilityRole="button" style={styles.secondaryAction}>
-            <Icon name="users" size={14} color="#6B7280" />
-            <Text style={styles.secondaryText}>Partner code (Optional)</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#111111" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -66,118 +116,23 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  container: {
-    flex: 1,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111111',
-  },
-  grow: {
-    flex: 1,
-  },
-  body: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  selectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    height: 48,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#F2F4F7',
-  },
-  selectorIcon: {
-    marginRight: 12,
-  },
-  selectorText: {
-    fontSize: 16,
-    color: '#111111',
-  },
-  footer: {
-    marginTop: 'auto',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#C7C7CC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  checkboxChecked: {
-    backgroundColor: '#FFD100',
-    borderColor: '#FFD100',
-  },
-  checkboxLabel: {
-    flex: 1,
-    color: '#111111',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  primaryButton: {
-    backgroundColor: '#FFD100',
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonDisabled: {
-    backgroundColor: '#FFEFB3',
-  },
-  primaryButtonText: {
-    color: '#111111',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 8,
-  },
-  secondaryText: {
-    color: '#6B7280',
-    fontSize: 14,
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#111111' },
+  grow: { flex: 1 },
+  body: { paddingHorizontal: 16, paddingTop: 12 },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 16 },
+  selectorRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', height: 48, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#F2F4F7' },
+  selectorIcon: { marginRight: 12 },
+  selectorText: { fontSize: 16, color: '#111111' },
+  footer: { marginTop: 'auto', paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1, borderColor: '#C7C7CC', alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: '#FFFFFF' },
+  checkboxChecked: { backgroundColor: '#FFD100', borderColor: '#FFD100' },
+  checkboxLabel: { flex: 1, color: '#111111', fontSize: 14, lineHeight: 20 },
+  primaryButton: { backgroundColor: '#FFD100', height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonDisabled: { backgroundColor: '#FFEFB3' },
+  primaryButtonText: { color: '#111111', fontSize: 16, fontWeight: '600' },
 });
-
-

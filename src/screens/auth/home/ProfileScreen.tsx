@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Platform 
+  Platform, 
+  Alert 
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
+import auth from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
 const FONT_SEMIBOLD = Platform.select({ ios: 'Hartwell-Semibold', android: 'hartwell_semibold' });
@@ -50,16 +53,38 @@ const ListItem: React.FC<{
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const handleLogout = () => {
-    // clear AsyncStorage if needed
+  useEffect(() => {
+    const currentUser = auth().currentUser;
+    if (currentUser) {
+      setUserEmail(currentUser.email);
+    }
+  }, []);
+
+const handleLogout = async () => {
+  try {
+    await auth().signOut();
+
+    // 🔑 Get current email before clearing session
+    const currentUserEmail = userEmail;
+
+    // ❌ Don't clear everything
     // await AsyncStorage.clear();
+
+    // ✅ Sirf current user email remove karo
+    await AsyncStorage.removeItem('current_user_email');
+
+    // ⚠️ IMPORTANT: Don't touch isPasscodeSet_${email}, woh hamesha saved rahe
 
     navigation.reset({
       index: 0,
-      routes: [{ name: "Main" }], // 👈 matches your App.tsx <Stack.Screen name="Main" />
+      routes: [{ name: "Main" }], // Replace "Main" with your SignIn/Welcome screen
     });
-  };
+  } catch (error: any) {
+    Alert.alert('Error', error.message || 'Failed to log out');
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -138,7 +163,7 @@ const ProfileScreen: React.FC = () => {
           <ListItem icon="info" title="About the app" />
         </View>
 
-        {/* 🔴 Updated Logout */}
+        {/* Logout */}
         <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.8}>
           <View style={styles.logoutLeft}>
             <View style={styles.logoutIconWrap}>
@@ -146,7 +171,7 @@ const ProfileScreen: React.FC = () => {
             </View>
             <View>
               <Text style={styles.logoutTitle}>Log Out</Text>
-              <Text style={styles.logoutEmail}>anujvermaa4030@gmail.com</Text>
+              <Text style={styles.logoutEmail}>{userEmail || ''}</Text>
             </View>
           </View>
           <Feather name="chevron-right" size={22} color="#9CA3AF" />

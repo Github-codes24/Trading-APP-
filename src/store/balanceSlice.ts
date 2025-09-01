@@ -18,8 +18,12 @@ const balanceSlice = createSlice({
     withdraw: (state, action: PayloadAction<number>) => {
       state.amount -= action.payload;
     },
+    
+    resetBalance: (state) => {
+      state.amount = 0;
+    },
   },
 });
 
-export const { deposit, withdraw } = balanceSlice.actions;
+export const { deposit, withdraw, resetBalance } = balanceSlice.actions;
 export default balanceSlice.reducer;

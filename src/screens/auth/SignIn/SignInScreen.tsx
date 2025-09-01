@@ -11,34 +11,53 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = React.useState<string>('');
   const [password, setPassword] = React.useState<string>('');
-  const [isPasswordHidden, setIsPasswordHidden] =
-    React.useState<boolean>(true);
-    
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
-      return;
-    }
+  const [isPasswordHidden, setIsPasswordHidden] = React.useState<boolean>(true);
 
-    const token = "DUMMY_JWT_TOKEN";
-    await AsyncStorage.setItem("auth_token", token);
-    await AsyncStorage.setItem("current_user_email", email);
-
-    const savedPasscode = await AsyncStorage.getItem(`passcode_${email}`);
-    console.log("👉 Checking passcode for:", email, savedPasscode);
-
-    if (savedPasscode) {
-      navigation.replace("PasscodeLoginScreen" as never);
-    } else {
-      navigation.replace("SetPasscodeScreen" as never);
+  const getFriendlyError = (code: string) => {
+    switch (code) {
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/user-not-found':
+        return 'No account found with this email.';
+      case 'auth/wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled.';
+      default:
+        return 'Something went wrong. Please try again.';
     }
   };
 
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+
+    try {
+      // ✅ Firebase login
+      await auth().signInWithEmailAndPassword(email, password);
+
+      // ✅ Save current user in AsyncStorage
+      await AsyncStorage.setItem('current_user_email', email);
+
+      // ✅ Check if passcode is set for this user
+      const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${email}`);
+      if (isPasscodeSet === 'true') {
+        navigation.navigate('PasscodeLoginScreen' as never);
+      } else {
+        navigation.navigate('SetPasscodeScreen' as never);
+      }
+    } catch (error: any) {
+      Alert.alert('Login Failed', getFriendlyError(error.code));
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -46,7 +65,6 @@ export default function SignInScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity
-            accessibilityRole="button"
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -86,7 +104,6 @@ export default function SignInScreen() {
                 style={[styles.input, styles.passwordInput]}
               />
               <TouchableOpacity
-                accessibilityRole="button"
                 onPress={() => setIsPasswordHidden((v) => !v)}
                 style={styles.eyeButton}
               >
@@ -103,17 +120,13 @@ export default function SignInScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
-            accessibilityRole="button"
             style={styles.primaryButton}
             onPress={handleSignIn}
           >
             <Text style={styles.primaryButtonText}>Sign in</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={styles.secondaryAction}
-          >
+          <TouchableOpacity style={styles.secondaryAction}>
             <Text style={styles.secondaryText}>I forgot my password</Text>
           </TouchableOpacity>
         </View>

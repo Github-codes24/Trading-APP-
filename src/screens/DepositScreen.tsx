@@ -1,4 +1,3 @@
-// src/screens/DepositScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -12,15 +11,13 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 
 export default function DepositScreen() {
   const navigation = useNavigation();
-  const [amount, setAmount] = useState("0");
+  const [amount, setAmount] = useState("");
 
   const handleContinue = () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       alert("Please enter a valid amount");
       return;
     }
-
-    // Navigate to DepositStatus screen with amount
     navigation.navigate("DepositStatus", { amount });
   };
 
@@ -44,13 +41,13 @@ export default function DepositScreen() {
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
+            placeholder="0"
+            placeholderTextColor="#999"
           />
           <Text style={styles.currency}>USD</Text>
         </View>
 
-        <Text style={styles.rangeText}>
-          0.00 – 10,000,000,000.00 USD
-        </Text>
+        <Text style={styles.rangeText}>0.00 – 10,000,000,000.00 USD</Text>
       </View>
 
       {/* Bottom Button */}
@@ -116,7 +113,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: "#FFD700", // Yellow
+    backgroundColor: "#FFD700",
     paddingVertical: 14,
     borderRadius: 4,
     alignItems: "center",

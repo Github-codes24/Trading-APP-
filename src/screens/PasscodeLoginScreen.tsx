@@ -14,12 +14,16 @@ const PasscodeLoginScreen = () => {
   const navigation = useNavigation();
   const [passcode, setPasscode] = useState("");
   const [savedPasscode, setSavedPasscode] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
-    // 🔹 fetch saved passcode from storage
     const loadPasscode = async () => {
-      const code = await AsyncStorage.getItem("user_passcode");
-      if (code) setSavedPasscode(code);
+      const userEmail = await AsyncStorage.getItem("current_user_email");
+      if (userEmail) {
+        setEmail(userEmail.trim());
+        const code = await AsyncStorage.getItem(`passcode_${userEmail.trim()}`);
+        if (code) setSavedPasscode(code);
+      }
     };
     loadPasscode();
   }, []);
@@ -32,8 +36,7 @@ const PasscodeLoginScreen = () => {
       if (newCode.length === 6) {
         setTimeout(() => {
           if (newCode === savedPasscode) {
-            // ✅ Passcode matched → navigate to AccountsScreen
-            navigation.replace("AccountsScreen" as never);
+            navigation.navigate("Account" as never);
           } else {
             Alert.alert("Wrong Passcode", "Please try again.");
             setPasscode("");
@@ -49,6 +52,7 @@ const PasscodeLoginScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Header Title */}
       <Text style={styles.title}>Enter Passcode</Text>
       <Text style={styles.subtitle}>Login securely using your passcode</Text>
 
@@ -66,27 +70,38 @@ const PasscodeLoginScreen = () => {
       </View>
 
       {/* Keypad */}
-      <View style={styles.keypad}>
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-          <TouchableOpacity
-            key={num}
-            style={styles.key}
-            onPress={() => handleNumberPress(num)}
-          >
-            <Text style={styles.keyText}>{num}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.keypadWrapper}>
+        <View style={styles.keypad}>
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+            <TouchableOpacity
+              key={num}
+              style={styles.key}
+              onPress={() => handleNumberPress(num)}
+            >
+              <Text style={styles.keyText}>{num}</Text>
+            </TouchableOpacity>
+          ))}
 
-        <View style={styles.key} />
-        <TouchableOpacity
-          style={styles.key}
-          onPress={() => handleNumberPress("0")}
-        >
-          <Text style={styles.keyText}>0</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.key} onPress={handleDelete}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
+          {/* Empty placeholder left-bottom */}
+          <View style={styles.key} />
+
+          {/* Zero key */}
+          <TouchableOpacity
+            style={styles.key}
+            onPress={() => handleNumberPress("0")}
+          >
+            <Text style={styles.keyText}>0</Text>
+          </TouchableOpacity>
+
+          {/* Delete only if passcode entered */}
+          {passcode.length > 0 ? (
+            <TouchableOpacity style={styles.key} onPress={handleDelete}>
+              <Ionicons name="arrow-back" size={28} color="#000" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.key} /> // placeholder when empty
+          )}
+        </View>
       </View>
     </View>
   );
@@ -95,16 +110,35 @@ const PasscodeLoginScreen = () => {
 export default PasscodeLoginScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20, justifyContent: "center" },
-  title: { fontSize: 22, fontWeight: "600", color: "#000", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#555", textAlign: "center", marginBottom: 40 },
-  dotsContainer: { flexDirection: "row", justifyContent: "center", marginVertical: 20 },
+  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
+  title: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#000",
+    textAlign: "center", // 🔹 title aligned left
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 10,
+    marginBottom: 30,
+    textAlign: "center", // 🔹 subtitle centered
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: 40,
+  },
   dot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 6 },
+  keypadWrapper: {
+    flex: 1,
+    justifyContent: "flex-end", // 🔹 push keypad to bottom
+    marginBottom: 20,
+  },
   keypad: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    marginTop: 30,
   },
   key: {
     width: "30%",
