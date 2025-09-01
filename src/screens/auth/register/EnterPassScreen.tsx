@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EnterPassScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -17,12 +19,41 @@ const EnterPassScreen: React.FC = () => {
   const [isPasswordHidden, setIsPasswordHidden] = useState(true);
 
   const passwordLength = password.length;
- 
+
   const meetsLength = useMemo(() => passwordLength >= 8 && passwordLength <= 15, [passwordLength]);
   const hasUpperAndLower = useMemo(() => /[a-z]/.test(password) && /[A-Z]/.test(password), [password]);
   const hasNumbersOrSpecial = useMemo(() => /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password), [password]);
 
   const isFormValid = meetsLength && hasUpperAndLower && hasNumbersOrSpecial;
+
+  // Handle registration
+  const handleContinue = async () => {
+    if (!isFormValid) return;
+
+    try {
+      // Get email from AsyncStorage (set during previous registration step)
+      const currentEmail = await AsyncStorage.getItem('current_user_email');
+      if (!currentEmail) {
+        Alert.alert("Error", "No email found! Go back and enter your email first.");
+        return;
+      }
+
+      // Save user email and password (in production, hash password!)
+      await AsyncStorage.setItem(`user_${currentEmail}`, JSON.stringify({
+        email: currentEmail,
+        password,
+      }));
+
+      // Save auth token to simulate login
+      await AsyncStorage.setItem('auth_token', 'DUMMY_JWT_TOKEN');
+
+      // Navigate to main screen
+      navigation.replace('Main' as never); // change 'MainScreen' to your actual main screen name
+    } catch (error) {
+      console.log("Error registering user:", error);
+      Alert.alert("Error", "Failed to register. Please try again.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,8 +79,6 @@ const EnterPassScreen: React.FC = () => {
             autoCorrect={false}
           />
           <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={isPasswordHidden ? 'Show password' : 'Hide password'}
             onPress={() => setIsPasswordHidden(prev => !prev)}
             style={styles.eyeButton}
           >
@@ -80,123 +109,37 @@ const EnterPassScreen: React.FC = () => {
       <TouchableOpacity
         disabled={!isFormValid}
         style={[styles.continueButton, !isFormValid ? styles.continueButtonDisabled : styles.continueButtonEnabled]}
-        onPress={() => {}}
+        onPress={handleContinue}
       >
-        <Text style={[styles.continueButtonText, !isFormValid ? styles.continueTextDisabled : styles.continueTextEnabled]}>Continue</Text>
+        <Text style={[styles.continueButtonText, !isFormValid ? styles.continueTextDisabled : styles.continueTextEnabled]}>
+          Continue
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    padding: 5,
-    marginRight: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: '#7A7F85',
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    position: 'relative',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#E5E7EA',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    paddingRight: 44,
-    fontSize: 16,
-    color: '#000000',
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 8,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 36,
-  },
-  rulesContainer: {
-    marginTop: 12,
-    gap: 8,
-  },
-  ruleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: '#AEB3B9',
-    marginTop: 7,
-    marginRight: 8,
-  },
-  ruleText: {
-    color: '#52565A',
-    fontSize: 13,
-    flexShrink: 1,
-  },
-  counterText: {
-    color: '#9BA1A6',
-    fontSize: 12,
-    marginLeft: 8,
-  },
-  continueButton: {
-    paddingVertical: 14,
-    marginHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#F7F8FA',
-    borderColor: '#E5E7EA',
-  },
-  continueButtonEnabled: {
-    backgroundColor: '#FFD600',
-    borderColor: '#FFD600',
-  },
-  continueButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  continueTextDisabled: {
-    color: '#B7BCC2',
-  },
-  continueTextEnabled: {
-    color: '#000000',
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', paddingVertical: 15, paddingHorizontal: 16 },
+  backButton: { padding: 5, marginRight: 8 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000000' },
+  contentContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+  inputLabel: { fontSize: 14, color: '#7A7F85', marginBottom: 8 },
+  inputWrapper: { position: 'relative' },
+  textInput: { borderWidth: 1, borderColor: '#E5E7EA', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 16, paddingRight: 44, fontSize: 16, color: '#000000' },
+  eyeButton: { position: 'absolute', right: 8, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', width: 36 },
+  rulesContainer: { marginTop: 12, gap: 8 },
+  ruleRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  bullet: { width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: '#AEB3B9', marginTop: 7, marginRight: 8 },
+  ruleText: { color: '#52565A', fontSize: 13, flexShrink: 1 },
+  counterText: { color: '#9BA1A6', fontSize: 12, marginLeft: 8 },
+  continueButton: { paddingVertical: 14, marginHorizontal: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 1 },
+  continueButtonDisabled: { backgroundColor: '#F7F8FA', borderColor: '#E5E7EA' },
+  continueButtonEnabled: { backgroundColor: '#FFD600', borderColor: '#FFD600' },
+  continueButtonText: { fontSize: 16, fontWeight: '600' },
+  continueTextDisabled: { color: '#B7BCC2' },
+  continueTextEnabled: { color: '#000000' },
 });
 
 export default EnterPassScreen;
-
-

@@ -1,24 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SetPasscodeScreen() {
   const navigation = useNavigation();
   const [passcode, setPasscode] = useState("");
+  const [email, setEmail] = useState("");
+
+  // ✅ Load current user email from AsyncStorage
+  useEffect(() => {
+    const fetchEmail = async () => {
+      const userEmail = await AsyncStorage.getItem("current_user_email");
+      if (userEmail) setEmail(userEmail.trim());
+    };
+    fetchEmail();
+  }, []);
 
   const handleNumberPress = (num: string) => {
     if (passcode.length < 6) {
       const newCode = passcode + num;
       setPasscode(newCode);
+
       if (newCode.length === 6) {
+        if (!email) {
+          Alert.alert("Error", "User email not loaded yet");
+          return;
+        }
         setTimeout(() => {
-          navigation.navigate("ReEnterPasscodeScreen", { passcode: newCode });
+          navigation.navigate("ReEnterPasscodeScreen", {
+            passcode: newCode,
+            email,
+          });
         }, 200);
       }
     }
@@ -30,7 +50,6 @@ export default function SetPasscodeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={26} color="#000" />
@@ -43,7 +62,6 @@ export default function SetPasscodeScreen() {
         Set a passcode now to access your account quickly and securely
       </Text>
 
-      {/* Passcode dots */}
       <View style={styles.dotsContainer}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View
@@ -56,9 +74,8 @@ export default function SetPasscodeScreen() {
         ))}
       </View>
 
-      {/* Keypad */}
       <View style={styles.keypad}>
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+        {["1","2","3","4","5","6","7","8","9"].map((num) => (
           <TouchableOpacity
             key={num}
             style={styles.key}
@@ -68,15 +85,10 @@ export default function SetPasscodeScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* Empty placeholder for alignment */}
         <View style={styles.key} />
-
-        {/* Zero */}
         <TouchableOpacity style={styles.key} onPress={() => handleNumberPress("0")}>
           <Text style={styles.keyText}>0</Text>
         </TouchableOpacity>
-
-        {/* Backspace */}
         <TouchableOpacity style={styles.key} onPress={handleDelete}>
           <Ionicons name="arrow-back" size={28} color="#000" />
         </TouchableOpacity>

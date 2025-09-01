@@ -1,18 +1,27 @@
-import React from 'react';
-import { Image, TouchableOpacity, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { TouchableOpacity, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import CountryPicker, { Country } from 'react-native-country-picker-modal';
 
 export default function RegisterScreen() {
-  const [isConfirmedNonUSTaxResident, setIsConfirmedNonUSTaxResident] = React.useState<boolean>(false);
+  const [isConfirmedNonUSTaxResident, setIsConfirmedNonUSTaxResident] = useState(false);
+  const [country, setCountry] = useState<Country | null>(null);
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+
   const navigation = useNavigation();
+
+  const onSelectCountry = (selectedCountry: Country) => {
+    setCountry(selectedCountry);
+    setIsPickerVisible(false);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
-          <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="chevron-left" size={28} color="#111111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Your residence</Text>
@@ -22,12 +31,31 @@ export default function RegisterScreen() {
         <View style={styles.body}>
           <Text style={styles.subtitle}>Select your residence</Text>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.selectorRow}>
+          <TouchableOpacity
+            style={styles.selectorRow}
+            onPress={() => setIsPickerVisible(true)}
+          >
             <Icon name="globe" size={18} color="#111111" style={styles.selectorIcon} />
-            <Text style={styles.selectorText}>Country / region</Text>
+            <Text style={styles.selectorText}>
+              {country ? country.name : 'Country / region'}
+            </Text>
             <View style={styles.grow} />
             <Icon name="chevron-right" size={22} color="#9CA3AF" />
           </TouchableOpacity>
+
+          {/* Country Picker Modal */}
+          {isPickerVisible && (
+            <CountryPicker
+              visible={isPickerVisible}
+              withFilter
+              withFlag
+              withAlphaFilter
+              withCallingCode={false}
+              withEmoji
+              onSelect={onSelectCountry}
+              onClose={() => setIsPickerVisible(false)}
+            />
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -47,15 +75,14 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            accessibilityRole="button"
-            disabled={!isConfirmedNonUSTaxResident}
-            style={[styles.primaryButton, !isConfirmedNonUSTaxResident && styles.primaryButtonDisabled]}
-            onPress={() => navigation.navigate('Email' as never)}
+            disabled={!isConfirmedNonUSTaxResident || !country}
+            style={[styles.primaryButton, (!isConfirmedNonUSTaxResident || !country) && styles.primaryButtonDisabled]}
+            onPress={() => navigation.navigate('Email' as never, { country: country?.name })}
           >
             <Text style={styles.primaryButtonText}>Continue</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.secondaryAction}>
+          <TouchableOpacity style={styles.secondaryAction}>
             <Icon name="users" size={14} color="#6B7280" />
             <Text style={styles.secondaryText}>Partner code (Optional)</Text>
           </TouchableOpacity>
@@ -64,6 +91,7 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
