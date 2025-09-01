@@ -1,3 +1,4 @@
+// src/screens/WithdrawStatusScreen.tsx
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -19,11 +20,16 @@ export default function WithdrawStatusScreen() {
     }
   }, [amount, dispatch]);
 
+  const handleClose = () => {
+    // Navigate directly to Account screen
+    navigation.navigate("Account");
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={handleClose}>
           <Ionicons name="close" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Withdraw Status</Text>

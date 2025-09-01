@@ -11,7 +11,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 
 export default function WithdrawScreen() {
   const navigation = useNavigation();
-  const [amount, setAmount] = useState("0");
+  const [amount, setAmount] = useState("");
 
   const handleContinue = () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -43,6 +43,8 @@ export default function WithdrawScreen() {
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
+            placeholder="0"
+            placeholderTextColor="#999"
           />
           <Text style={styles.currency}>USD</Text>
         </View>
