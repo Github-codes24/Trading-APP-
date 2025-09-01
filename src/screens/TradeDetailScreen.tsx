@@ -1,12 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  useCallback,
-} from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,12 +13,14 @@ import {
   FlatList,
   LayoutChangeEvent,
   Platform,
+  TextInput,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
-
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface Candle {
@@ -35,6 +31,7 @@ export interface Candle {
   close: number;
   tick_volume: number;
 }
+
 export interface HistoryResponse {
   symbol: string;
   days: number;
@@ -59,69 +56,16 @@ const formatTimeForTooltip = (dateStr: string): string => {
   return `${day}/${month}/${year.slice(2)}`;
 };
 
-const clamp = (v: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, v));
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-//  TIMEFRAMES
+// TIMEFRAMES
 const timeFrames = [
   { label: '1 day', value: 1 },
   { label: '1 week', value: 7 },
   { label: '1 month', value: 30 },
 ];
 
-// LIVE BUY/SELL PRICE HOOK (1s updates)
-
-const useLivePrice = (symbol: string) => {
-  const [sellPrice, setSellPrice] = useState(109889.55);
-  const [buyPrice, setBuyPrice] = useState(109972.48);
-
-  useEffect(() => {
-    let volatility = 20;
-    let baseSell = 109889.55;
-    let baseBuy = 109972.48;
-
-    if (symbol === 'ETHUSD') {
-      baseSell = 2898.55;
-      baseBuy = 2902.48;
-      volatility = 5;
-    } else if (symbol === 'XAUUSD') {
-      baseSell = 2189.55;
-      baseBuy = 2192.48;
-      volatility = 8;
-    } else if (symbol === 'EURUSD') {
-      baseSell = 1.0889;
-      baseBuy = 1.0897;
-      volatility = 0.002;
-    }
-
-    setSellPrice(baseSell);
-    setBuyPrice(baseBuy);
-
-    const interval = setInterval(() => {
-      setSellPrice(prev =>
-        parseFloat(
-          (prev + (Math.random() - 0.5) * volatility).toFixed(
-            symbol === 'EURUSD' ? 4 : 2,
-          ),
-        ),
-      );
-      setBuyPrice(prev =>
-        parseFloat(
-          (prev + (Math.random() - 0.5) * volatility).toFixed(
-            symbol === 'EURUSD' ? 4 : 2,
-          ),
-        ),
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [symbol]);
-
-  return { sellPrice, buyPrice };
-};
-
 // FETCH HISTORY VIA WS (one-shot)
-
 export const FetchTradeDetails = async (
   symbol: string,
   days: number,
@@ -129,11 +73,9 @@ export const FetchTradeDetails = async (
   return new Promise((resolve, reject) => {
     try {
       const socket = new WebSocket(WS_URL_HISTORY);
-
       socket.onopen = () => {
         socket.send(JSON.stringify({ symbol, days }));
       };
-
       socket.onmessage = event => {
         try {
           const data: HistoryResponse = JSON.parse(event.data);
@@ -144,11 +86,9 @@ export const FetchTradeDetails = async (
           socket.close();
         }
       };
-
       socket.onerror = err => {
         reject(err);
       };
-
       socket.onclose = () => {};
     } catch (error) {
       reject(error);
@@ -157,13 +97,13 @@ export const FetchTradeDetails = async (
 };
 
 // TIME FRAME MODAL
-
 interface TimeFrameModalProps {
   visible: boolean;
   onClose: () => void;
   onSelect: (v: number) => void;
   selectedTimeFrame: number;
 }
+
 const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
   visible,
   onClose,
@@ -171,17 +111,8 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
   selectedTimeFrame,
 }) => {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} >
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} >
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Select Time Frame</Text>
           <FlatList
@@ -198,8 +129,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
                 <Text
                   style={[
                     styles.timeFrameText,
-                    selectedTimeFrame === item.value &&
-                      styles.selectedTimeFrameText,
+                    selectedTimeFrame === item.value && styles.selectedTimeFrameText,
                   ]}
                 >
                   {item.label}
@@ -213,8 +143,153 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
   );
 };
 
-// LIVE CANDLE ENGINE (synthetic per-second updates)
+// TRADE MODAL
+interface TradeModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell') => void;
+  tradeType: 'buy' | 'sell';
+  currentPrice: number;
+  symbol: string;
+}
 
+const TradeModal: React.FC<TradeModalProps> = ({
+  visible,
+  onClose,
+  onConfirm,
+  tradeType,
+  currentPrice,
+  symbol,
+}) => {
+  const [lotSize, setLotSize] = useState<string>('1');
+  const [calculatedValues, setCalculatedValues] = useState<{
+    profit: number;
+    points: number;
+    rsc: number;
+  } | null>(null);
+
+  const calculateTradeValues = useCallback((size: string) => {
+    const lot = parseFloat(size) || 0;
+    if (lot <= 0) {
+      setCalculatedValues(null);
+      return;
+    }
+
+    const baseSymbol = symbol.substring(0, 3).toUpperCase();
+    
+    let profit = 0;
+    let points = 0;
+    let rsc = 0;
+
+    if (baseSymbol === 'VAL') {
+
+      points = lot * 100;
+      profit = points * 1;
+      rsc = profit * 0.05;
+    }
+
+    else if (['FUN', 'GEN', 'USO'].includes(baseSymbol)) {
+      const unitSize = 100000;
+      points = lot * unitSize;
+      
+      if (baseSymbol === 'FUN' || baseSymbol === 'GEN') {
+        profit = points * 0.004;
+      } else if (baseSymbol === 'USO') {
+        profit = points * 0.02; 
+      }
+      
+      rsc = profit * 0.15;
+    }
+    
+    else if (symbol === 'BTCUSD') {
+      
+      rsc = lot;
+      profit = rsc * currentPrice;
+      points = profit / 0.01; 
+    }
+    else {
+      points = lot * 100;
+      profit = points * 0.01;
+      rsc = profit * 0.1;
+    }
+
+  }, [symbol, currentPrice]);
+
+  useEffect(() => {
+    calculateTradeValues(lotSize);
+  }, [lotSize, calculateTradeValues]);
+
+  const handleConfirm = () => {
+    const size = parseFloat(lotSize);
+    if (size <= 0 || isNaN(size)) {
+      Alert.alert('Error', 'Please enter a valid lot size');
+      return;
+    }
+    onConfirm(size, tradeType);
+    setLotSize('1');
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.tradeModalContent}>
+          <Text style={styles.tradeModalTitle}>
+            {tradeType === 'buy' ? 'Buy' : 'Sell'} {formatInstrumentName(symbol)}
+          </Text>
+          
+          <Text style={styles.currentPriceText}>
+            Current Price: {currentPrice.toFixed(symbol === 'EURUSD' ? 4 : 2)}
+          </Text>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Lot Size:</Text>
+            <TextInput
+              style={styles.input}
+              value={lotSize}
+              onChangeText={setLotSize}
+              keyboardType="numeric"
+              placeholder="Enter lot size"
+            />
+          </View>
+          
+          {calculatedValues && (
+            <View style={styles.calculatedValues}>
+              <Text style={styles.calculatedText}>
+                Estimated Profit: ${calculatedValues.profit}
+              </Text>
+              <Text style={styles.calculatedText}>
+                Points: {calculatedValues.points}
+              </Text>
+              <Text style={styles.calculatedText}>
+                RSC: {calculatedValues.rsc}
+              </Text>
+            </View>
+          )}
+          
+          <View style={styles.tradeModalButtons}>
+            <TouchableOpacity
+              style={[styles.tradeModalButton, styles.cancelButton]}
+              onPress={onClose}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.tradeModalButton, tradeType === 'buy' ? styles.buyButton : styles.sellButton]}
+              onPress={handleConfirm}
+            >
+              <Text style={styles.buttonText}>
+                Confirm {tradeType === 'buy' ? 'Buy' : 'Sell'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// LIVE CANDLE ENGINE (synthetic per-second updates)
 const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
   const [candles, setCandles] = useState<Candle[]>(initial || []);
 
@@ -223,18 +298,15 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
     else setCandles([]);
   }, [initial?.length, symbol]);
 
-
   useEffect(() => {
     if (!candles || candles.length === 0) return;
 
     const pricePrecision = symbol === 'EURUSD' ? 4 : 2;
-
     const interval = setInterval(() => {
       setCandles(prev => {
         if (prev.length === 0) return prev;
         const next = [...prev];
         const last = { ...next[next.length - 1] };
-
         const spread = Math.max(
           last.close * 0.0003,
           symbol === 'EURUSD' ? 0.0002 : 0.2,
@@ -243,11 +315,9 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
         const newClose = parseFloat(
           (last.close + delta).toFixed(pricePrecision),
         );
-
         last.close = newClose;
         if (newClose > last.high) last.high = newClose;
         if (newClose < last.low) last.low = newClose;
-
         next[next.length - 1] = last;
 
         // optionally, every ~25s start a fresh candle to simulate stream
@@ -267,11 +337,9 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
           // keep memory reasonable
           if (next.length > 400) next.shift();
         }
-
         return next;
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, [symbol, candles.length]);
 
@@ -279,16 +347,14 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
 };
 
 // DYNAMIC GRAPH
-
 interface GraphProps {
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   verticalZoom: number;
   setVerticalZoom: React.Dispatch<React.SetStateAction<number>>;
-  sellPrice: number;
-  buyPrice: number;
   timeFrame: number;
   symbol: string;
+  onCurrentPriceChange: (price: number) => void;
 }
 
 const DynamicGraph: React.FC<GraphProps> = ({
@@ -296,10 +362,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
   setZoom,
   verticalZoom,
   setVerticalZoom,
-  sellPrice,
-  buyPrice,
   timeFrame,
   symbol,
+  onCurrentPriceChange,
 }) => {
   const [history, setHistory] = useState<Candle[] | null>(null);
   const [chartHeight, setChartHeight] = useState(
@@ -308,8 +373,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
   const [showCandleDetails, setShowCandleDetails] = useState(false);
-
-  const candleSlotWidth = 30 * zoom; 
+  const candleSlotWidth = 30 * zoom;
   const barWidth = candleSlotWidth * 0.55;
 
   useEffect(() => {
@@ -327,17 +391,22 @@ const DynamicGraph: React.FC<GraphProps> = ({
 
   const liveCandles = useLiveCandles(history, symbol);
 
+  // Update current price when candles change
+  useEffect(() => {
+    if (liveCandles && liveCandles.length > 0) {
+      const currentPrice = liveCandles[liveCandles.length - 1].close;
+      onCurrentPriceChange(currentPrice);
+    }
+  }, [liveCandles, onCurrentPriceChange]);
+
   // pinch zoom (horizontal vs vertical) with PanResponder
   const lastDistance = useRef(0);
   const isVerticalZoomRef = useRef(false);
-
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: evt =>
-          evt.nativeEvent.touches.length === 2,
-        onMoveShouldSetPanResponder: evt =>
-          evt.nativeEvent.touches.length === 2,
+        onStartShouldSetPanResponder: evt => evt.nativeEvent.touches.length === 2,
+        onMoveShouldSetPanResponder: evt => evt.nativeEvent.touches.length === 2,
         onPanResponderMove: evt => {
           if (evt.nativeEvent.touches.length === 2) {
             const [t1, t2] = evt.nativeEvent.touches as any;
@@ -387,17 +456,20 @@ const DynamicGraph: React.FC<GraphProps> = ({
   }, [setZoom, setVerticalZoom]);
 
   // Handle candle tap for showing details
-  const handleCandleTap = useCallback((candle: Candle) => {
-    if (selectedCandle === candle && showCandleDetails) {
-      // If the same candle is tapped again, hide the details
-      setShowCandleDetails(false);
-      setSelectedCandle(null);
-    } else {
-      // Show details for the tapped candle
-      setSelectedCandle(candle);
-      setShowCandleDetails(true);
-    }
-  }, [selectedCandle, showCandleDetails]);
+  const handleCandleTap = useCallback(
+    (candle: Candle) => {
+      if (selectedCandle === candle && showCandleDetails) {
+        // If the same candle is tapped again, hide the details
+        setShowCandleDetails(false);
+        setSelectedCandle(null);
+      } else {
+        // Show details for the tapped candle
+        setSelectedCandle(candle);
+        setShowCandleDetails(true);
+      }
+    },
+    [selectedCandle, showCandleDetails],
+  );
 
   const onChartLayout = (e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
@@ -413,7 +485,6 @@ const DynamicGraph: React.FC<GraphProps> = ({
   }
 
   const data = liveCandles;
-
   // compute zoomed price range
   const maxPrice = Math.max(...data.map(d => d.high));
   const minPrice = Math.min(...data.map(d => d.low));
@@ -424,13 +495,13 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const zoomedMin = midPrice - zoomedRange / 2;
   const priceRange = Math.max(1e-9, zoomedMax - zoomedMin);
 
-  // buy/sell overlay Y positions
-  const buyLineY = ((zoomedMax - buyPrice) / priceRange) * chartHeight;
-  const sellLineY = ((zoomedMax - sellPrice) / priceRange) * chartHeight;
+  // Get current price for buy/sell lines
+  const currentPrice = data[data.length - 1].close;
+  const buyLineY = ((zoomedMax - currentPrice) / priceRange) * chartHeight;
+  const sellLineY = ((zoomedMax - currentPrice) / priceRange) * chartHeight;
 
   const levels = [zoomedMax, midPrice, zoomedMin];
   const totalWidth = data.length * candleSlotWidth + 60;
-
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
 
   return (
@@ -482,7 +553,13 @@ const DynamicGraph: React.FC<GraphProps> = ({
 
       {/* BUY/SELL BADGES (RIGHT) */}
       <View
-        style={{ position: 'absolute', right: 2, top: 0, bottom: 0, zIndex: 4 }}
+        style={{
+          position: 'absolute',
+          right: 2,
+          top: 0,
+          bottom: 0,
+          zIndex: 4,
+        }}
         pointerEvents="none"
       >
         <View
@@ -512,7 +589,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               borderRadius: 3,
             }}
           >
-            {buyPrice.toFixed(priceDigits)}
+            {currentPrice.toFixed(priceDigits)}
           </Text>
         </View>
         <View
@@ -542,7 +619,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               borderRadius: 3,
             }}
           >
-            {sellPrice.toFixed(priceDigits)}
+            {currentPrice.toFixed(priceDigits)}
           </Text>
         </View>
       </View>
@@ -616,13 +693,10 @@ const DynamicGraph: React.FC<GraphProps> = ({
                   4,
                   Math.abs(((c.close - c.open) / priceRange) * chartHeight),
                 );
-                const wickHeight =
-                  ((c.high - c.low) / priceRange) * chartHeight;
-                const bottomWick =
-                  ((c.low - zoomedMin) / priceRange) * chartHeight;
+                const wickHeight = ((c.high - c.low) / priceRange) * chartHeight;
+                const bottomWick = ((c.low - zoomedMin) / priceRange) * chartHeight;
                 const bottomBody =
-                  ((Math.min(c.open, c.close) - zoomedMin) / priceRange) *
-                  chartHeight;
+                  ((Math.min(c.open, c.close) - zoomedMin) / priceRange) * chartHeight;
 
                 return (
                   <TouchableOpacity
@@ -658,7 +732,6 @@ const DynamicGraph: React.FC<GraphProps> = ({
                         borderRadius: 2,
                       }}
                     />
-                    
                     {(() => {
                       const step = Math.max(1, Math.ceil(8 / zoom));
                       if (idx % step === 0) {
@@ -690,9 +763,12 @@ const DynamicGraph: React.FC<GraphProps> = ({
 };
 
 // SCREEN
-
 interface TradeDetailScreenProps {
-  route?: { params?: { trade?: { name: string } } };
+  route?: {
+    params?: {
+      trade?: { name: string };
+    };
+  };
 }
 
 const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
@@ -700,13 +776,15 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const walletBalance = useSelector(
     (state: any) => state?.balance?.amount ?? 0,
   );
-  const { sellPrice, buyPrice } = useLivePrice(trade.name);
-
+  
   const [zoom, setZoom] = useState(1);
   const [verticalZoom, setVerticalZoom] = useState(1);
   const [timeFrame, setTimeFrame] = useState(60);
   const [showTimeFrameModal, setShowTimeFrameModal] = useState(false);
-
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  
   const leftPercent = 31;
   const rightPercent = 69;
 
@@ -718,6 +796,49 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const getTimeFrameLabel = () =>
     timeFrames.find(tf => tf.value === timeFrame)?.label || '7d';
 
+  const handleCurrentPriceChange = useCallback((price: number) => {
+    setCurrentPrice(price);
+  }, []);
+
+  const handleTradeAction = (type: 'buy' | 'sell') => {
+    setTradeType(type);
+    setShowTradeModal(true);
+  };
+
+  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
+  try {
+    const tradeData = {
+      id: Date.now().toString(),
+      symbol: trade.name,
+      formattedSymbol: formatInstrumentName(trade.name),
+      type,
+      lotSize,
+      price: currentPrice,
+      timestamp: new Date().toISOString(),
+      status: 'executed'
+    };
+
+    const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+    const existingTrades = existingTradesJSON ? JSON.parse(existingTradesJSON) : [];
+    
+    const updatedTrades = [tradeData, ...existingTrades];
+    
+    await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
+
+    Alert.alert(
+      'Trade Executed',
+      `Successfully ${type === 'buy' ? 'bought' : 'sold'} ${lotSize} lots of ${formatInstrumentName(trade.name)} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`
+    );
+    
+    setShowTradeModal(false);
+  } catch (error) {
+    console.error('Error saving trade:', error);
+    Alert.alert('Error', 'Failed to save trade to history');
+  }
+};
+
+  const priceDigits = trade.name === 'EURUSD' ? 4 : 2;
+
   return (
     <View style={styles.container}>
       {/* TOP (BALANCE BAR) */}
@@ -725,28 +846,16 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         <View style={styles.balanceBox}>
           <Text style={styles.demoBadge}>Real</Text>
           <Text style={styles.balanceAmount}>
-            {walletBalance
-              ? `${Number(walletBalance).toFixed(2)} USD`
-              : '0.00 USD'}
+            {walletBalance ? `$${Number(walletBalance).toFixed(2)} USD` : '0.00 USD'}
           </Text>
-          <Icon
-            name="more-vertical"
-            size={14}
-            color="#111"
-            style={{ marginLeft: 4 }}
-          />
+          <Icon name="more-vertical" size={14} color="#111" style={{ marginLeft: 4 }} />
         </View>
       </View>
 
       {/* HEADER */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Icon
-            name="dollar-sign"
-            size={22}
-            color="#1992FC"
-            style={{ marginRight: 7 }}
-          />
+          <Icon name="dollar-sign" size={22} color="#1992FC" style={{ marginRight: 7 }} />
           <Text style={styles.pairText}>
             {formatInstrumentName(trade.name)}
           </Text>
@@ -772,20 +881,15 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           setZoom={setZoom}
           verticalZoom={verticalZoom}
           setVerticalZoom={setVerticalZoom}
-          sellPrice={sellPrice}
-          buyPrice={buyPrice}
           timeFrame={timeFrame}
           symbol={trade.name}
+          onCurrentPriceChange={handleCurrentPriceChange}
         />
       </View>
 
       {/* TOOLS ROW - FIXED */}
       <View style={styles.toolsRow}>
-        <TouchableOpacity
-          style={styles.toolBtn}
-          activeOpacity={0.7}
-          onPress={() => {}}
-        >
+        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7} onPress={() => {}} >
           <Icon name="sliders" size={16} color="#777" />
         </TouchableOpacity>
         <TouchableOpacity
@@ -797,11 +901,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             {getTimeFrameLabel()}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.toolBtn}
-          activeOpacity={0.7}
-          onPress={() => {}}
-        >
+        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7} onPress={() => {}} >
           <Icon name="bar-chart-2" size={16} color="#777" />
         </TouchableOpacity>
       </View>
@@ -814,15 +914,26 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         selectedTimeFrame={timeFrame}
       />
 
+      {/* TRADE MODAL */}
+      <TradeModal
+        visible={showTradeModal}
+        onClose={() => setShowTradeModal(false)}
+        onConfirm={handleTradeConfirm}
+        tradeType={tradeType}
+        currentPrice={currentPrice}
+        symbol={trade.name}
+      />
+
       {/* BUY / SELL ACTIONS */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: '#ff5b5b' }]}
           activeOpacity={0.85}
+          onPress={() => handleTradeAction('sell')}
         >
           <Text style={styles.actionTitle}>Sell</Text>
           <Text style={styles.actionPrice}>
-            {sellPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}
+            {currentPrice.toFixed(priceDigits)}
           </Text>
           <Text style={styles.actionSub}>{leftPercent}%</Text>
         </TouchableOpacity>
@@ -830,10 +941,11 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: '#1992FC' }]}
           activeOpacity={0.85}
+          onPress={() => handleTradeAction('buy')}
         >
           <Text style={styles.actionTitle}>Buy</Text>
           <Text style={styles.actionPrice}>
-            {buyPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}
+            {currentPrice.toFixed(priceDigits)}
           </Text>
           <Text style={styles.actionSub}>{rightPercent}%</Text>
         </TouchableOpacity>
@@ -849,7 +961,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 };
 
 // STYLES
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   balanceBar: {
@@ -934,11 +1045,32 @@ const styles = StyleSheet.create({
     height: 54,
     alignItems: 'center',
   },
-  actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  actionTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  actionPrice: { fontSize: 17, fontWeight: '700', color: '#fff' },
-  actionSub: { fontSize: 12, fontWeight: '500', color: '#fff', marginTop: 2 },
-  divider: { width: 1, backgroundColor: '#fff', height: '80%' },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  actionPrice: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  actionSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#fff',
+    marginTop: 2,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: '#fff',
+    height: '80%',
+  },
   percentBarWrapper: {
     position: 'absolute',
     left: 0,
@@ -958,7 +1090,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 4,
     borderBottomLeftRadius: 4,
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -985,10 +1116,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  selectedTimeFrame: { backgroundColor: '#1992FC', borderRadius: 6 },
-  timeFrameText: { fontSize: 16, color: '#333' },
-  selectedTimeFrameText: { color: 'white', fontWeight: '600' },
-  
+  selectedTimeFrame: {
+    backgroundColor: '#1992FC',
+    borderRadius: 6,
+  },
+  timeFrameText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedTimeFrameText: {
+    color: 'white',
+    fontWeight: '600',
+  },
   // Candle Details Box Styles
   candleDetailsBox: {
     position: 'absolute',
@@ -1004,6 +1143,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
+  },
+  // Trade Modal Styles
+  tradeModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxHeight: '70%',
+  },
+  tradeModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  currentPriceText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#555',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  calculatedValues: {
+    backgroundColor: '#f9f9f9',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  calculatedText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  tradeModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tradeModalButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+  },
+  buyButton: {
+    backgroundColor: '#1992FC',
+  },
+  sellButton: {
+    backgroundColor: '#ff5b5b',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
