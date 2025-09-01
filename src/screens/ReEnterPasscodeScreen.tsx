@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,10 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function ReEnterPasscodeScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { passcode: initialPasscode, email } = route.params as {
-    passcode: string;
-    email: string;
-  };
+  const { passcode: initialPasscode, email } = route.params as { passcode: string; email: string };
 
   const [passcode, setPasscode] = useState("");
 
@@ -42,8 +39,10 @@ export default function ReEnterPasscodeScreen() {
     }
 
     if (enteredPasscode === initialPasscode) {
+      // ✅ Save passcode in AsyncStorage
       await AsyncStorage.setItem(`passcode_${email}`, enteredPasscode);
-      await AsyncStorage.setItem(`isPasscodeSet_${email}`, "true");
+      // Mark passcode as set for this user
+      await AsyncStorage.setItem(`isPasscodeSet_${email}`, 'true');
       Alert.alert("Success", "Passcode set successfully", [
         {
           text: "OK",
@@ -58,7 +57,6 @@ export default function ReEnterPasscodeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={26} color="#000" />
@@ -67,10 +65,10 @@ export default function ReEnterPasscodeScreen() {
         <View style={{ width: 26 }} />
       </View>
 
-      {/* Subtitle */}
-      <Text style={styles.subtitle}>Re-enter the passcode to confirm</Text>
+      <Text style={styles.subtitle}>
+        Re-enter the passcode to confirm
+      </Text>
 
-      {/* Dots */}
       <View style={styles.dotsContainer}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View
@@ -83,34 +81,24 @@ export default function ReEnterPasscodeScreen() {
         ))}
       </View>
 
-      {/* Keypad */}
-      <View style={styles.keypadWrapper}>
-        <View style={styles.keypad}>
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-            <TouchableOpacity
-              key={num}
-              style={styles.key}
-              onPress={() => handleNumberPress(num)}
-            >
-              <Text style={styles.keyText}>{num}</Text>
-            </TouchableOpacity>
-          ))}
-
-          <View style={styles.key} />
+      <View style={styles.keypad}>
+        {["1","2","3","4","5","6","7","8","9"].map((num) => (
           <TouchableOpacity
+            key={num}
             style={styles.key}
-            onPress={() => handleNumberPress("0")}
+            onPress={() => handleNumberPress(num)}
           >
-            <Text style={styles.keyText}>0</Text>
+            <Text style={styles.keyText}>{num}</Text>
           </TouchableOpacity>
-          {passcode.length > 0 ? (
-            <TouchableOpacity style={styles.key} onPress={handleDelete}>
-              <Ionicons name="arrow-back" size={28} color="#000" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.key} />
-          )}
-        </View>
+        ))}
+
+        <View style={styles.key} />
+        <TouchableOpacity style={styles.key} onPress={() => handleNumberPress("0")}>
+          <Text style={styles.keyText}>0</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.key} onPress={handleDelete}>
+          <Ionicons name="arrow-back" size={28} color="#000" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -141,15 +129,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginHorizontal: 6,
   },
-  keypadWrapper: {
-    flex: 1,
-    justifyContent: "flex-end", // push keypad down
-    marginBottom: 20,
-  },
   keypad: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
+    marginTop: 40,
   },
   key: {
     width: "30%",
