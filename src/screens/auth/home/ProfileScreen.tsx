@@ -11,6 +11,7 @@ import {
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
@@ -57,34 +58,35 @@ const ProfileScreen: React.FC = () => {
 
   useEffect(() => {
     const currentUser = auth().currentUser;
-    if (currentUser) {
-      setUserEmail(currentUser.email);
-    }
+    if (currentUser) setUserEmail(currentUser.email);
   }, []);
 
-const handleLogout = async () => {
-  try {
-    await auth().signOut();
+  const handleLogout = async () => {
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) return;
 
-    // 🔑 Get current email before clearing session
-    const currentUserEmail = userEmail;
+      // 🔹 Mark user logged out in Firestore
+      await firestore().collection('users').doc(currentUser.uid).set(
+        { isLoggedIn: false, deviceId: null },
+        { merge: true }
+      );
 
-    // ❌ Don't clear everything
-    // await AsyncStorage.clear();
+      // 🔹 Firebase sign out
+      await auth().signOut();
 
-    // ✅ Sirf current user email remove karo
-    await AsyncStorage.removeItem('current_user_email');
+      // 🔹 Remove only current user email, preserve passcode and other settings
+      await AsyncStorage.removeItem('current_user_email');
 
-    // ⚠️ IMPORTANT: Don't touch isPasscodeSet_${email}, woh hamesha saved rahe
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Main" }], // Replace "Main" with your SignIn/Welcome screen
-    });
-  } catch (error: any) {
-    Alert.alert('Error', error.message || 'Failed to log out');
-  }
-};
+      // 🔹 Navigate to SignIn/Main screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to log out');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -130,19 +132,6 @@ const handleLogout = async () => {
 
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Referral program</Text>
         <ListItem icon="users" title="Friends" />
-
-        <View style={styles.cardRow}>
-          <View style={styles.cardIconGreen}>
-            <Feather name="briefcase" size={20} color="#0F766E" />
-          </View>
-          <View style={styles.cardTextWrap}>
-            <Text style={styles.cardTitle}>For investors</Text>
-            <Text style={styles.cardSubtitle}>
-              Copy successful strategies of other traders
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={22} color="#9CA3AF" />
-        </View>
 
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Support</Text>
         <View style={styles.group}>
