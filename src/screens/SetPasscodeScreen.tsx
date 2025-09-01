@@ -50,48 +50,60 @@ export default function SetPasscodeScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={26} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Set passcode</Text>
-        <View style={{ width: 26 }} />
       </View>
 
+      {/* Subtitle */}
       <Text style={styles.subtitle}>
         Set a passcode now to access your account quickly and securely
       </Text>
 
-      <View style={styles.dotsContainer}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              { backgroundColor: i < passcode.length ? "#FFD700" : "#E0E0E0" },
-            ]}
-          />
-        ))}
+      {/* Dots (centered vertically) */}
+      <View style={styles.flexSpacer}>
+        <View style={styles.dotsContainer}>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                { backgroundColor: i < passcode.length ? "#FFD700" : "#E0E0E0" },
+              ]}
+            />
+          ))}
+        </View>
       </View>
 
-      <View style={styles.keypad}>
-        {["1","2","3","4","5","6","7","8","9"].map((num) => (
-          <TouchableOpacity
-            key={num}
-            style={styles.key}
-            onPress={() => handleNumberPress(num)}
-          >
-            <Text style={styles.keyText}>{num}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* Keypad pinned bottom */}
+      <View style={styles.keypadContainer}>
+        <View style={styles.keypad}>
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+            <TouchableOpacity
+              key={num}
+              style={styles.key}
+              onPress={() => handleNumberPress(num)}
+            >
+              <Text style={styles.keyText}>{num}</Text>
+            </TouchableOpacity>
+          ))}
 
-        <View style={styles.key} />
-        <TouchableOpacity style={styles.key} onPress={() => handleNumberPress("0")}>
-          <Text style={styles.keyText}>0</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.key} onPress={handleDelete}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
+          <View style={styles.key} />
+          <TouchableOpacity style={styles.key} onPress={() => handleNumberPress("0")}>
+            <Text style={styles.keyText}>0</Text>
+          </TouchableOpacity>
+
+          {passcode.length > 0 ? (
+            <TouchableOpacity style={styles.key} onPress={handleDelete}>
+              <Ionicons name="arrow-back" size={28} color="#000" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.key} />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -102,19 +114,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
   },
-  headerTitle: { fontSize: 20, fontWeight: "600", color: "#000" },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000",
+    marginLeft: 10,
+  },
   subtitle: {
-    marginTop: 20,
-    textAlign: "center",
+    marginTop: 15, // 🔹 more spacing like screenshot
+    textAlign: "left",
     fontSize: 14,
     color: "#555",
+  },
+  flexSpacer: {
+    flex: 1,
+    justifyContent: "center", // 🔹 dots vertically centered
   },
   dotsContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginVertical: 40,
   },
   dot: {
     width: 12,
@@ -122,11 +141,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginHorizontal: 6,
   },
+  keypadContainer: {
+    justifyContent: "flex-end",
+    paddingBottom: 50, // 🔹 pushes keypad to bottom like screenshot
+  },
   keypad: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    marginTop: 40,
   },
   key: {
     width: "30%",

@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 const EnterPassScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -27,33 +28,46 @@ const EnterPassScreen: React.FC = () => {
   const isFormValid = meetsLength && hasUpperAndLower && hasNumbersOrSpecial;
 
   // Handle registration
-  const handleContinue = async () => {
-    if (!isFormValid) return;
+// Handle registration
+const handleContinue = async () => {
+  if (!isFormValid) return;
 
-    try {
-      // Get email from AsyncStorage (set during previous registration step)
-      const currentEmail = await AsyncStorage.getItem('current_user_email');
-      if (!currentEmail) {
-        Alert.alert("Error", "No email found! Go back and enter your email first.");
-        return;
-      }
-
-      // Save user email and password (in production, hash password!)
-      await AsyncStorage.setItem(`user_${currentEmail}`, JSON.stringify({
-        email: currentEmail,
-        password,
-      }));
-
-      // Save auth token to simulate login
-      await AsyncStorage.setItem('auth_token', 'DUMMY_JWT_TOKEN');
-
-      // Navigate to main screen
-      navigation.replace('Main' as never); // change 'MainScreen' to your actual main screen name
-    } catch (error) {
-      console.log("Error registering user:", error);
-      Alert.alert("Error", "Failed to register. Please try again.");
+  try {
+    const currentEmail = await AsyncStorage.getItem('current_user_email');
+    if (!currentEmail) {
+      Alert.alert("Error", "No email found! Go back and enter your email first.");
+      return;
     }
-  };
+
+    // Firebase registration
+    await auth().createUserWithEmailAndPassword(currentEmail, password);
+
+    // Save locally
+    await AsyncStorage.setItem(
+      `user_${currentEmail}`,
+      JSON.stringify({ email: currentEmail, password })
+    );
+
+    // Navigate to set passcode
+    navigation.navigate('SetPasscodeScreen' as never, { email: currentEmail });
+
+  } catch (error: any) {
+    console.log("Error registering user:", error);
+
+    let message = "Failed to register. Please try again.";
+
+    if (error.code === 'auth/email-already-in-use') {
+      message = "This email is already registered. Please try signing in.";
+    } else if (error.code === 'auth/invalid-email') {
+      message = "The email address is invalid.";
+    } else if (error.code === 'auth/weak-password') {
+      message = "Password is too weak. Use a stronger password.";
+    }
+
+    Alert.alert("Error", message);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
