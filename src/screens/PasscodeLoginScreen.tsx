@@ -9,26 +9,60 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import ReactNativeBiometrics from "react-native-biometrics";
 
 const PasscodeLoginScreen = () => {
   const navigation = useNavigation();
   const [passcode, setPasscode] = useState("");
   const [savedPasscode, setSavedPasscode] = useState("");
   const [email, setEmail] = useState("");
+  const [biometricDone, setBiometricDone] = useState(false); // track biometric
 
   useEffect(() => {
-    const loadPasscode = async () => {
-      const userEmail = await AsyncStorage.getItem("current_user_email");
-      if (userEmail) {
-        setEmail(userEmail.trim());
-        const code = await AsyncStorage.getItem(`passcode_${userEmail.trim()}`);
+    const init = async () => {
+      try {
+        const userEmail = await AsyncStorage.getItem("current_user_email");
+        if (!userEmail) return;
+        const trimmedEmail = userEmail.trim();
+        setEmail(trimmedEmail);
+
+        const code = await AsyncStorage.getItem(`passcode_${trimmedEmail}`);
         if (code) setSavedPasscode(code);
+
+        // 🔹 Trigger biometric only if passcode exists
+        if (code) {
+          const rnBiometrics = new ReactNativeBiometrics();
+          const { available } = await rnBiometrics.isSensorAvailable();
+
+          if (available) {
+            const { success } = await rnBiometrics.simplePrompt({
+              promptMessage: "Login with fingerprint",
+            });
+
+            if (success) {
+              navigation.navigate("Account" as never);
+              return; // skip keypad if biometric succeeds
+            } else {
+              console.log("Biometric canceled or failed");
+            }
+          } else {
+            console.log("Biometric not available");
+          }
+        }
+      } catch (error) {
+        console.log("Biometric init error:", error);
+      } finally {
+        // allow keypad after biometric attempt
+        setBiometricDone(true);
       }
     };
-    loadPasscode();
+
+    init();
   }, []);
 
   const handleNumberPress = (num: string) => {
+    if (!biometricDone) return; // wait until biometric is done
+
     if (passcode.length < 6) {
       const newCode = passcode + num;
       setPasscode(newCode);
@@ -47,16 +81,15 @@ const PasscodeLoginScreen = () => {
   };
 
   const handleDelete = () => {
+    if (!biometricDone) return;
     setPasscode(passcode.slice(0, -1));
   };
 
   return (
     <View style={styles.container}>
-      {/* Header Title */}
       <Text style={styles.title}>Enter Passcode</Text>
       <Text style={styles.subtitle}>Login securely using your passcode</Text>
 
-      {/* Passcode Dots */}
       <View style={styles.dotsContainer}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View
@@ -69,40 +102,37 @@ const PasscodeLoginScreen = () => {
         ))}
       </View>
 
-      {/* Keypad */}
-      <View style={styles.keypadWrapper}>
-        <View style={styles.keypad}>
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+      {biometricDone && (
+        <View style={styles.keypadWrapper}>
+          <View style={styles.keypad}>
+            {["1","2","3","4","5","6","7","8","9"].map((num) => (
+              <TouchableOpacity
+                key={num}
+                style={styles.key}
+                onPress={() => handleNumberPress(num)}
+              >
+                <Text style={styles.keyText}>{num}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.key} />
             <TouchableOpacity
-              key={num}
               style={styles.key}
-              onPress={() => handleNumberPress(num)}
+              onPress={() => handleNumberPress("0")}
             >
-              <Text style={styles.keyText}>{num}</Text>
+              <Text style={styles.keyText}>0</Text>
             </TouchableOpacity>
-          ))}
 
-          {/* Empty placeholder left-bottom */}
-          <View style={styles.key} />
-
-          {/* Zero key */}
-          <TouchableOpacity
-            style={styles.key}
-            onPress={() => handleNumberPress("0")}
-          >
-            <Text style={styles.keyText}>0</Text>
-          </TouchableOpacity>
-
-          {/* Delete only if passcode entered */}
-          {passcode.length > 0 ? (
-            <TouchableOpacity style={styles.key} onPress={handleDelete}>
-              <Ionicons name="arrow-back" size={28} color="#000" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.key} /> // placeholder when empty
-          )}
+            {passcode.length > 0 ? (
+              <TouchableOpacity style={styles.key} onPress={handleDelete}>
+                <Ionicons name="arrow-back" size={28} color="#000" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.key} />
+            )}
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -115,14 +145,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "600",
     color: "#000",
-    textAlign: "center", // 🔹 title aligned left
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
     color: "#555",
     marginTop: 10,
     marginBottom: 30,
-    textAlign: "center", // 🔹 subtitle centered
+    textAlign: "center",
   },
   dotsContainer: {
     flexDirection: "row",
@@ -132,7 +162,7 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 6 },
   keypadWrapper: {
     flex: 1,
-    justifyContent: "flex-end", // 🔹 push keypad to bottom
+    justifyContent: "flex-end",
     marginBottom: 20,
   },
   keypad: {

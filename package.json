@@ -23,6 +23,7 @@
     "lucide-react-native": "^0.540.0",
     "react": "19.1.0",
     "react-native": "0.81.0",
+    "react-native-biometrics": "^3.0.1",
     "react-native-country-picker-modal": "^2.0.0",
     "react-native-device-info": "^14.0.4",
     "react-native-gesture-handler": "^2.28.0",
