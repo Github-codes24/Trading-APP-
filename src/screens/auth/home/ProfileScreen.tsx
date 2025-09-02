@@ -61,32 +61,35 @@ const ProfileScreen: React.FC = () => {
     if (currentUser) setUserEmail(currentUser.email);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      const currentUser = auth().currentUser;
-      if (!currentUser) return;
+const handleLogout = async () => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) return;
 
-      // 🔹 Mark user logged out in Firestore
-      await firestore().collection('users').doc(currentUser.uid).set(
-        { isLoggedIn: false, deviceId: null },
-        { merge: true }
-      );
+    // ✅ Firestore update: wait for completion
+    await firestore()
+      .collection('users')
+      .doc(currentUser.uid)
+      .set({ isLoggedIn: false, deviceId: null }, { merge: true });
 
-      // 🔹 Firebase sign out
-      await auth().signOut();
+    // ✅ Firebase sign out
+    await auth().signOut();
 
-      // 🔹 Remove only current user email, preserve passcode and other settings
-      await AsyncStorage.removeItem('current_user_email');
+    // ✅ Clear local email
+    await AsyncStorage.removeItem('current_user_email');
 
-      // 🔹 Navigate to SignIn/Main screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to log out');
-    }
-  };
+    // ✅ Navigate immediately
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Main' }],
+    });
+
+  } catch (error: any) {
+    Alert.alert('Error', error.message || 'Failed to log out');
+  }
+};
+
+
 
   return (
     <View style={styles.container}>
@@ -169,6 +172,7 @@ const ProfileScreen: React.FC = () => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingBottom: 10, backgroundColor: '#FFFFFF' },

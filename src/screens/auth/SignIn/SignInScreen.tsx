@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TouchableOpacity,
   StyleSheet,
@@ -7,6 +6,7 @@ import {
   TextInput,
   View,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,9 +22,10 @@ export default function SignInScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = React.useState<string>('');
-  const [password, setPassword] = React.useState<string>('');
-  const [isPasswordHidden, setIsPasswordHidden] = React.useState<boolean>(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isPasswordHidden, setIsPasswordHidden] = useState(true);
+  const [loading, setLoading] = useState(false); // ⬅ loading state
 
   const getFriendlyError = (code: string) => {
     switch (code) {
@@ -47,41 +48,49 @@ export default function SignInScreen() {
       return;
     }
 
+    setLoading(true); // ⬅ start spinner
+
     try {
-      const deviceId = getUniqueId(); // unique device ID
+      const deviceId = getUniqueId();
       const userCredential = await auth().signInWithEmailAndPassword(email, password);
       const uid = userCredential.user.uid;
 
       const userDocRef = firestore().collection('users').doc(uid);
       const userDoc = await userDocRef.get();
+      const now = Date.now();
 
       if (userDoc.exists) {
         const data = userDoc.data();
-        if (data?.isLoggedIn && data?.deviceId !== deviceId) {
+        const lastLogin = data?.lastLogin || 0;
+        if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {
           Alert.alert('Error', 'User is already logged in on another device.');
+          setLoading(false);
           return;
         }
       }
 
-      // ✅ Mark user as logged in on this device
-      await userDocRef.set(
-        { isLoggedIn: true, deviceId },
-        { merge: true }
-      );
-
-      // ✅ Save current user email locally
-      await AsyncStorage.setItem('current_user_email', email);
-
-      // ✅ Load user-specific balance
-      const savedBalance = await AsyncStorage.getItem(`balance_${uid}`);
-      dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0));
-
-      // ✅ Navigate based on passcode
+      // Navigate immediately
       const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${email}`);
       navigation.navigate(isPasscodeSet === 'true' ? 'PasscodeLoginScreen' : 'SetPasscodeScreen');
+
+      // Firestore write in background
+      userDocRef.set(
+        { isLoggedIn: true, deviceId, lastLogin: now },
+        { merge: true }
+      ).catch(err => console.log('Firestore login set error:', err));
+
+      // Save current user email
+      AsyncStorage.setItem('current_user_email', email).catch(err => console.log(err));
+
+      // Load balance in parallel
+      AsyncStorage.getItem(`balance_${uid}`).then(savedBalance =>
+        dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0))
+      );
+
     } catch (error: any) {
-      console.log('Login error full:', error);
       Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
+    } finally {
+      setLoading(false); // ⬅ stop spinner
     }
   };
 
@@ -133,8 +142,16 @@ export default function SignInScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn}>
-            <Text style={styles.primaryButtonText}>Sign in</Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, loading && { opacity: 0.6 }]}
+            onPress={handleSignIn}
+            disabled={loading} // ⬅ disable while loading
+          >
+            {loading ? (
+              <ActivityIndicator color="#111111" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Sign in</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryAction}>
