@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import ProfileScreen from './ProfileScreen';
 import TradeScreen from './TradeScreen';
 import InsightsScreen from './InsightsScreen';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ✅ redux
 import { useSelector } from "react-redux";
@@ -37,6 +38,8 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
+  loss: '#FF3B30',
+  profit: '#34C759',
 };
 
 const SIZES = {
@@ -167,6 +170,17 @@ const AccountCard: React.FC<{
   );
 };
 
+// ✅ Trade history getter
+const getTradeHistory = async () => {
+  try {
+    const tradesJSON = await AsyncStorage.getItem('tradeHistory');
+    return tradesJSON ? JSON.parse(tradesJSON) : [];
+  } catch (error) {
+    console.error('Error retrieving trade history:', error);
+    return [];
+  }
+};
+
 // ---------- MAIN UI ----------
 const AccountsUI: React.FC<{
   onDepositPress: () => void;
@@ -174,39 +188,48 @@ const AccountsUI: React.FC<{
   setActiveTab: (tab: string) => void;
 }> = ({ onDepositPress, onWithdrawPress, setActiveTab }) => {
   const [positionsTab, setPositionsTab] = useState<PositionsTab>('Open');
+  const [tradeHistory, setTradeHistory] = useState<any[]>([]);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    const fetchTrades = async () => {
+      const trades = await getTradeHistory();
+      setTradeHistory(trades);
+    };
+    fetchTrades();
+  }, []);
 
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
-      return (
-        <View style={styles.positionsWrap}>
-          <View style={styles.emptyStateContainer}>
-            <Text style={styles.emptyTitle}>No open positions</Text>
-          </View>
-          <View style={styles.centeredBlock}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.btcRow}
-              onPress={() =>
-                navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
-              }
-            >
-              <View style={styles.btcIconWrap}>
-                <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
+      if (tradeHistory.length > 0) {
+        return (
+          <View style={styles.positionsWrap}>
+            {tradeHistory.map((trade, index) => (
+              <View key={index} style={styles.tradeCard}>
+                <View style={styles.tradeRow}>
+                  <Fontisto name="bitcoin" size={18} color="#F7931A" />
+                  <Text style={styles.tradeSymbol}>{trade.symbol}</Text>
+                  <Text
+                    style={[
+                      styles.tradePL,
+                      { color: (trade.pl || 0) >= 0 ? COLORS.profit : COLORS.loss },
+                    ]}
+                  >
+                    {(trade.pl || 0) >= 0 ? '+' : ''}
+                    {(trade.pl || 0).toFixed(2)} USD
+                  </Text>
+                </View>
+                <Text style={styles.tradeDetails}>
+                  {trade.side} {trade.lot} lot at {trade.entryPrice}
+                </Text>
               </View>
-              <Text style={styles.btcText}>XAU/USD - Trade</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.exploreMoreButton}
-              activeOpacity={0.7}
-              onPress={() => setActiveTab('trade')}
-            >
-              <Feather name="menu" size={18} color="#23272F" />
-              <Text style={styles.exploreMoreText}>
-                Explore more instruments
-              </Text>
-            </TouchableOpacity>
+            ))}
           </View>
+        );
+      }
+      return (
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyTitle}>No open positions</Text>
         </View>
       );
     }
@@ -222,7 +245,7 @@ const AccountsUI: React.FC<{
         <Text style={styles.emptyTitle}>No closed orders</Text>
       </View>
     );
-  }, [positionsTab, navigation, setActiveTab]);
+  }, [positionsTab, tradeHistory]);
 
   return (
     <ScrollView
@@ -502,52 +525,43 @@ const styles = StyleSheet.create({
 
   positionsWrap: {
     paddingTop: 4,
-    alignItems: 'center',
     width: '100%',
     backgroundColor: COLORS.bg,
   },
-  centeredBlock: {
-    width: '100%',
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    backgroundColor: COLORS.bg,
-  },
 
-  btcRow: {
-    width: '100%',
+  tradeCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tradeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EEEFF1',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    marginBottom: 16,
+    marginBottom: 4,
   },
-  btcIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F7931A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  btcText: { fontSize: 17, fontWeight: '600', color: '#000000' },
-
-  exploreMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  exploreMoreText: {
-    fontSize: 15,
+  tradeSymbol: {
+    flex: 1,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
-    marginLeft: 6,
+    marginLeft: 8,
+    color: COLORS.text,
+  },
+  tradePL: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tradeDetails: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginLeft: 26,
   },
 
   emptyStateContainer: {
@@ -562,6 +576,53 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#23272F',
     textAlign: 'center',
+      },
+
+  // ---------- Additional Styles ----------
+  emptySubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
+  noDataIcon: {
+    width: 50,
+    height: 50,
+    marginBottom: 8,
+    tintColor: COLORS.textMuted,
+    alignSelf: 'center',
+  },
+
+  // generic button style (optional, for reuse)
+  buttonPrimary: {
+    backgroundColor: COLORS.active,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  buttonTextPrimary: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+
+  // divider for card sections
+  cardDivider: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginVertical: 8,
+  },
+
+  // placeholder for future states (like loader/spinner)
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 10,
   },
 });
 
