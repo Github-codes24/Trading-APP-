@@ -846,7 +846,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         <View style={styles.balanceBox}>
           <Text style={styles.demoBadge}>Real</Text>
           <Text style={styles.balanceAmount}>
-            {walletBalance ? `$${Number(walletBalance).toFixed(2)} USD` : '0.00 USD'}
+            {walletBalance ? `$${Number(walletBalance).toFixed(2)} INR` : '0.00 INR'}
           </Text>
           <Icon name="more-vertical" size={14} color="#111" style={{ marginLeft: 4 }} />
         </View>
