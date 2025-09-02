@@ -454,7 +454,7 @@ const AccountsUI: React.FC<{
 
     if (trades.length > 0) {
       fetchCurrentPrices();
-      interval = setInterval(fetchCurrentPrices, 1500);
+      interval = setInterval(fetchCurrentPrices, 1000);
     }
 
     return () => {
@@ -510,11 +510,13 @@ console.log('-=-=-=-=-=-=',updatedTrades)
   };
 
   // ✅ Positions content
-  const positionsContent = useMemo(() => {
-    if (positionsTab === 'Open') {
-      if (openTrades.length > 0) {
-        return (
-          <View style={styles.positionsWrap}>
+const positionsContent = useMemo(() => {
+  if (positionsTab === 'Open') {
+    return (
+      <View style={styles.positionsWrap}>
+        {openTrades.length > 0 ? (
+          <>
+            {/* ✅ Show Total P/L only if open trades exist */}
             <View style={styles.openTotalProfitlossView}>
               <Text style={styles.openTotalProfitlossTextLb}>Total P/L</Text>
               <Text
@@ -527,6 +529,7 @@ console.log('-=-=-=-=-=-=',updatedTrades)
                 {totalPnL.toFixed(2)} INR
               </Text>
             </View>
+
             {openTrades.map(trades => (
               <TouchableOpacity
                 key={trades.id}
@@ -539,14 +542,14 @@ console.log('-=-=-=-=-=-=',updatedTrades)
                 />
               </TouchableOpacity>
             ))}
-          </View>
-        );
-      } else {
-        return (
-          <View style={styles.positionsWrap}>
+          </>
+        ) : (
+          <>
+            {/* ❌ Empty state without Total P/L */}
             <View style={styles.emptyStateContainer}>
               <Text style={styles.emptyTitle}>No open positions</Text>
             </View>
+
             <View style={styles.centeredBlock}>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -562,6 +565,7 @@ console.log('-=-=-=-=-=-=',updatedTrades)
                 </View>
                 <Text style={styles.btcText}>XAU/USD - Trade</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.exploreMoreButton}
                 activeOpacity={0.7}
@@ -573,50 +577,40 @@ console.log('-=-=-=-=-=-=',updatedTrades)
                 </Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.openTotalProfitlossView}>
-              <Text style={styles.openTotalProfitlossTextLb}>Total P/L</Text>
-              <Text
-                style={[
-                  styles.openTotalProfitlossValueLb,
-                  { color: totalPnL >= 0 ? COLORS.profit : COLORS.loss },
-                ]}
-              >
-                {totalPnL >= 0 ? '+' : ''}
-                {totalPnL.toFixed(2)} INR
-              </Text>
-            </View>
-          </View>
-        );
-      }
-    }
-    if (positionsTab === 'Pending') {
-      return (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyTitle}>No pending orders</Text>
-        </View>
-      );
-    }
-    if (positionsTab === 'Closed') {
-      if (closedTrades.length > 0) {
-        return (
-          <View style={styles.positionsWrap}>
-            {closedTrades.map(trade => (
-              <TradeItem
-                key={trade.id}
-                trade={trade}
-                currentPrice={trade.closePrice || trade.price}
-              />
-            ))}
-          </View>
-        );
-      }
-      return (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyTitle}>No closed orders</Text>
-        </View>
-      );
-    }
-  }, [positionsTab, openTrades, closedTrades, currentPrices, totalPnL]);
+          </>
+        )}
+      </View>
+    );
+  }
+
+  if (positionsTab === 'Pending') {
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Text style={styles.emptyTitle}>No pending orders</Text>
+      </View>
+    );
+  }
+
+  if (positionsTab === 'Closed') {
+    return closedTrades.length > 0 ? (
+      <View style={styles.positionsWrap}>
+        {closedTrades.map(trade => (
+          <TradeItem
+            key={trade.id}
+            trade={trade}
+            currentPrice={trade.closePrice || trade.price}
+          />
+        ))}
+      </View>
+    ) : (
+      <View style={styles.emptyStateContainer}>
+        <Text style={styles.emptyTitle}>No closed orders</Text>
+      </View>
+    );
+  }
+}, [positionsTab, openTrades, closedTrades, currentPrices, totalPnL]);
+
+
 
   return (
     <ScrollView
