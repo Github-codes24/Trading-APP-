@@ -1,3 +1,5 @@
+import { Alert } from 'react-native';
+import { signInWithGoogle } from '../../services/googleSignIn';
 import React from 'react';
 import { Image, TouchableOpacity, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +13,19 @@ const GOOGLE_LOGO_PNG = 'https://developers.google.com/identity/images/g-logo.pn
 
 export default function MainScreen() {
   const navigation = useNavigation();
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const userInfo = await signInWithGoogle();
+      console.log('Google userInfo:', userInfo);
+      Alert.alert('Google Sign-In Result', JSON.stringify(userInfo));
+      // TODO: Find correct property for email and navigate
+      // Example: navigation.navigate('SetPasscodeScreen', { email: userInfo?.user?.email });
+    } catch (error: any) {
+      // Error already handled in signInWithGoogle
+      Alert.alert('Google Sign-In Failed', error?.message ? String(error.message) : 'Unknown error');
+    }
+  };
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -49,7 +64,7 @@ export default function MainScreen() {
             <View style={styles.separatorLine} />
           </View>
 
-          <TouchableOpacity accessibilityRole="button" style={styles.googleButton}>
+          <TouchableOpacity accessibilityRole="button" style={styles.googleButton} onPress={handleGoogleSignIn}>
             <View style={styles.googleContent}>
               <Image source={{ uri: GOOGLE_LOGO_PNG }} style={styles.googleIcon} />
               <Text style={styles.googleText}>Google</Text>
