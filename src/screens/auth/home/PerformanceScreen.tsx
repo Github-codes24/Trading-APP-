@@ -141,11 +141,11 @@ const PerformanceScreen: React.FC = () => {
   const maxLoss = Math.max(...displayedData.map(d => d.loss), 0);
 
   const chartHeight = 200;
-  const halfHeight = chartHeight / 2;
+  const halfHeight = chartHeight /2;
 
   // ✅ Y-axis values
-  const stepUp = maxProfit / 3;
-  const stepDown = maxLoss / 3;
+  const stepUp = maxProfit / 2.5;
+  const stepDown = maxLoss / 2.5;
   const yAxisValues: number[] = [];
   for (let i = 3; i > 0; i--) yAxisValues.push(stepUp * i);
   yAxisValues.push(0);

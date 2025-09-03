@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,6 +16,7 @@ import Fontisto from 'react-native-vector-icons/Fontisto';
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
 import { RootState } from '../../../store';
+import { Image } from 'react-native';
 import { deposit, withdraw } from '../../../slices/balanceSlice';
 
 const TradeScreen: React.FC = () => {
@@ -75,42 +77,39 @@ const TradeScreen: React.FC = () => {
     return name;
   };
 
-  const getIconName = (icon: string) => {
-    switch (icon) {
-      case 'bitcoin':
-        return 'circle';
-      case 'apple':
-        return 'apple';
-      case 'trending-up':
-        return 'trending-up';
+  const getInstrumentIcon = (symbol: string) => {
+    switch (symbol) {
+      case 'BTCUSD':
+      case 'USTEC':
+        return require('../../../assets/images/us.png');
+      case 'USOIL':
+        return require('../../../assets/images/water-and-oil.png');
       default:
-        return 'flag';
+        return null; // handled in forex pair case
     }
   };
 
-  const getIconColor = (icon: string) => {
-    switch (icon) {
-      case 'bitcoin':
-        return '#F7931A';
-      case 'apple':
-        return '#000000';
-      case 'trending-up':
-        return '#1F2937';
+  // helper to map country codes to flags
+  const getFlagIcon = (currency: string) => {
+    switch (currency) {
+      case 'USD':
+        return require('../../../assets/images/us.png');
+      case 'ETH':
+        return require('../../../assets/images/ethereum.png');
+      case 'JPY':
+        return require('../../../assets/images/japan.png');
+      case 'EUR':
+        return require('../../../assets/images/european-union.png');
+      case 'GBP':
+        return require('../../../assets/images/flag.png');
+      case 'CAD':
+        return require('../../../assets/images/canada.png');
+      case 'XAU':
+        return require('../../../assets/images/tether-gold.png');
+      case 'XAU':
+        return require('../../../assets/images/bitcoin.png');
       default:
-        return '#6B7280';
-    }
-  };
-
-  const getIconBackground = (icon: string) => {
-    switch (icon) {
-      case 'bitcoin':
-        return '#F7931A';
-      case 'apple':
-        return '#F3F4F6';
-      case 'trending-up':
-        return '#F3F4F6';
-      default:
-        return '#F3F4F6';
+        return require('../../../assets/images/bitcoin.png');
     }
   };
 
@@ -133,9 +132,7 @@ const TradeScreen: React.FC = () => {
           <View style={styles.realButton}>
             <Text style={styles.accountButtonText}>Real</Text>
           </View>
-          <Text style={styles.accountBalance}>
-            {balance.toFixed(2)} INR
-          </Text>
+          <Text style={styles.accountBalance}>{balance.toFixed(2)} USD</Text>
           <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
@@ -172,7 +169,9 @@ const TradeScreen: React.FC = () => {
                 >
                   {tab}
                 </Text>
-                {activeTab === tab && <View style={styles.activeTabUnderline} />}
+                {activeTab === tab && (
+                  <View style={styles.activeTabUnderline} />
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -227,19 +226,33 @@ const TradeScreen: React.FC = () => {
               }
             >
               <View style={styles.instrumentLeft}>
-                <View
-                  style={[
-                    styles.instrumentIconCircle,
-                    { backgroundColor: getIconBackground(item.icon) },
-                  ]}
-                >
-                  {item.icon === 'bitcoin' ? (
-                    <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
+                <View style={styles.instrumentIconCircle}>
+                  {formatInstrumentName(item.name).includes('/') ? (
+                    // Forex pair → show 2 flags
+                    <View style={{ flexDirection: 'row' }}>
+                      <Image
+                        source={getFlagIcon(formatInstrumentName(item.name).slice(0, 3))}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          marginRight:-8,
+                          marginTop: -4,
+                        }}
+                        resizeMode="contain"
+                      />
+                      <Image
+                        source={getFlagIcon(formatInstrumentName(item.name).slice(4, 7))}
+                        style={{ width: 16, height: 16, borderRadius: 8 }}
+                        resizeMode="contain"
+                      />
+                    </View>
                   ) : (
-                    <Icon
-                      name={getIconName(item.icon) as any}
-                      size={14}
-                      color={getIconColor(item.icon)}
+                    // Single instrument → show 1 icon
+                    <Image
+                      source={getInstrumentIcon(item.name)}
+                      style={{ width: 22, height: 22, borderRadius: 11 }}
+                      resizeMode="contain"
                     />
                   )}
                 </View>
@@ -261,7 +274,9 @@ const TradeScreen: React.FC = () => {
                 </View>
               </View>
               <View style={styles.instrumentRight}>
-                <Text style={styles.instrumentPrice}>{renderPrice(item.price)}</Text>
+                <Text style={styles.instrumentPrice}>
+                  {renderPrice(item.price)}
+                </Text>
                 <Text
                   style={[styles.instrumentChange, { color: item.changeColor }]}
                 >
@@ -392,6 +407,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
     marginTop: -16,
+    backgroundColor: '#FFFFFF',
   },
   instrumentInfo: { flex: 1, flexDirection: 'column' },
   titleChartRow: {

@@ -1,3 +1,4 @@
+/* eslint-disable no-alert */
 import React, { useState } from "react";
 import {
   View,
@@ -130,3 +131,7 @@ const styles = StyleSheet.create({
     color: "#000",
   },
 });
+function alert(arg0: string) {
+  throw new Error("Function not implemented.");
+}
+
