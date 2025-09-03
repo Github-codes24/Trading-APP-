@@ -22,8 +22,9 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ✅ redux
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../store';
+import { deposit, withdraw } from '../../../store/balanceSlice';
 
 // WebSocket URL for fetching historical data
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
@@ -46,6 +47,7 @@ export interface TradeModalProps {
   trade: TradeData | null;
   currentPrice: number;
   onClose: () => void;
+  onForceClose: ()=>void
 }
 
 export const FetchTradeDetails = async (
@@ -83,6 +85,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
   trade,
   currentPrice,
   onClose,
+  onForceClose
 }) => {
   if (!trade) return null;
 
@@ -97,7 +100,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
       visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={onForceClose}
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
@@ -307,7 +310,7 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
           ]}
         >
           {pnl >= 0 ? '+' : ''}
-          {pnl.toFixed(2)} INR
+          {pnl.toFixed(2)} USD
         </Text>
       </View>
 
@@ -349,7 +352,7 @@ const AccountCard: React.FC<{
           <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
         </View>
       </View>
-      <Text style={styles.balanceText}>{balance.toFixed(2)} INR</Text>
+      <Text style={styles.balanceText}>{balance.toFixed(2)} USD</Text>
       <View style={styles.actionsRow}>
         <ActionItem
           icon="activity"
@@ -375,6 +378,17 @@ const AccountCard: React.FC<{
   );
 };
 
+const groupTradesByDate = (trades: TradeData[]) => {
+  return trades.reduce((groups: Record<string, TradeData[]>, trade) => {
+    const date = new Date(trade.timestamp).toISOString().split('T')[0]; // yyyy-mm-dd
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(trade);
+    return groups;
+  }, {});
+};
+
 // ---------- MAIN UI ----------
 const AccountsUI: React.FC<{
   onDepositPress: () => void;
@@ -387,9 +401,10 @@ const AccountsUI: React.FC<{
     {},
   );
   const [totalPnL, setTotalPnL] = useState<number>(0);
-  const [selectedTrade, setSelectedTrade] = useState<TradeData | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<TradeData | any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
   // ✅ Load saved trades from storage
   useEffect(() => {
@@ -454,7 +469,7 @@ const AccountsUI: React.FC<{
 
     if (trades.length > 0) {
       fetchCurrentPrices();
-      interval = setInterval(fetchCurrentPrices, 1000);
+      interval = setInterval(fetchCurrentPrices, 500);
     }
 
     return () => {
@@ -474,7 +489,9 @@ const AccountsUI: React.FC<{
             }
           : t,
       );
-console.log('-=-=-=-=-=-=',updatedTrades)
+      const totalAmount = (currentPrices[selectedTrade?.symbol] || selectedTrade?.price) * selectedTrade?.lotSize || 0
+      console.log('-=-=-=-=-=-=',totalAmount)
+      dispatch(deposit(Number(totalAmount)))
       setTrades(updatedTrades);
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
@@ -526,7 +543,7 @@ const positionsContent = useMemo(() => {
                 ]}
               >
                 {totalPnL >= 0 ? '+' : ''}
-                {totalPnL.toFixed(2)} INR
+                {totalPnL.toFixed(2)} USD
               </Text>
             </View>
 
@@ -592,24 +609,38 @@ const positionsContent = useMemo(() => {
   }
 
   if (positionsTab === 'Closed') {
-    return closedTrades.length > 0 ? (
-      <View style={styles.positionsWrap}>
-        {closedTrades.map(trade => (
-          <TradeItem
-            key={trade.id}
-            trade={trade}
-            currentPrice={trade.closePrice || trade.price}
-          />
-        ))}
-      </View>
-    ) : (
-      <View style={styles.emptyStateContainer}>
-        <Text style={styles.emptyTitle}>No closed orders</Text>
-      </View>
-    );
+     const grouped = groupTradesByDate(closedTrades);
+
+      return Object.keys(grouped).length > 0 ? (
+        <ScrollView style={styles.positionsWrap}>
+          {Object.entries(grouped).map(([date, trades]) => (
+            <View key={date} style={{}}>
+              <Text style={{paddingVertical:12}}>
+                {new Date(date).toDateString()}
+              </Text>
+
+              {trades.map(trade => (
+                <TouchableOpacity
+                  key={trade.id}
+                  onPress={() => handleTradeItemPress(trade)}
+                  activeOpacity={0.7}
+                >
+                  <TradeItem
+                    trade={trade}
+                    currentPrice={trade.closePrice || trade.price}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyTitle}>No closed orders</Text>
+        </View>
+      );
   }
 }, [positionsTab, openTrades, closedTrades, currentPrices, totalPnL]);
-
 
 
   return (
@@ -620,7 +651,7 @@ const positionsContent = useMemo(() => {
       {/* Header */}
       <View style={styles.topToolbar}>
         <Image
-          source={require('../../../assets/images/clockIcon.png')}
+          source={require('../../../assets/images/clockicon.png')}
           style={{
             width: SIZES.topIcon,
             height: SIZES.topIcon,
@@ -630,7 +661,7 @@ const positionsContent = useMemo(() => {
         />
         <View style={styles.bellWrapper}>
           <Image
-            source={require('../../../assets/images/BellIcon.png')}
+            source={require('../../../assets/images/bellicon.png')}
             style={{ width: SIZES.topIcon, height: SIZES.topIcon }}
             resizeMode="contain"
           />
@@ -698,6 +729,7 @@ const positionsContent = useMemo(() => {
             : 0
         }
         onClose={handleCloseTrade}
+        onForceClose={()=>{setModalVisible(false)}}
         onModify={handleModify}
         onPartialClose={handlePartialClose}
       />
@@ -753,11 +785,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
   headerSubtitle: {
     fontSize: 14,
     color: COLORS.textMuted,
@@ -775,10 +802,6 @@ const styles = StyleSheet.create({
   accountNumber: {
     fontSize: 12,
     color: COLORS.textMuted,
-  },
-  tradeDetails: {
-    alignItems: 'center',
-    marginBottom: 16,
   },
   symbolText: {
     fontSize: 18,
