@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from 'react';
 import {
   View,
   Text,
@@ -15,10 +21,13 @@ import {
   Platform,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { withdraw } from '../store/balanceSlice';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -42,8 +51,24 @@ const formatInstrumentName = (name: string) => {
   if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
     return `${name.slice(0, 3)}/${name.slice(3)}`;
   }
+  console.log('======',name)
   return name;
 };
+const formatInstrumentNames = (name: string) => {
+  console.log('namemmememem',name.length)
+  if (name && name.length === 6 ) {
+    console.log('080980809' , [name.slice(0, 3), name.slice(3)])
+    return [name.slice(0, 3), name.slice(3)];
+  }
+  console.log('-------',name)
+  return [name]; // wrap whole name in array
+};
+
+
+// // Examples
+// console.log(formatInstrumentName("ABCDEF")); // ["ABC", "DEF"]
+// console.log(formatInstrumentName("BTC"));    // ["BTC"]
+
 
 const formatDate = (dateStr: string): string => {
   // expects YYYY-MM-DD
@@ -56,13 +81,14 @@ const formatTimeForTooltip = (dateStr: string): string => {
   return `${day}/${month}/${year.slice(2)}`;
 };
 
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
 
 // TIMEFRAMES
 const timeFrames = [
-  { label: '1 day', value: 1 },
-  { label: '1 week', value: 7 },
-  { label: '1 month', value: 30 },
+  { label: '7 Days', value: 7 },
+  { label: '30 Days', value: 30 },
+  { label: '60 Days', value: 60 },
 ];
 
 // FETCH HISTORY VIA WS (one-shot)
@@ -111,8 +137,17 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
   selectedTimeFrame,
 }) => {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} >
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} >
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Select Time Frame</Text>
           <FlatList
@@ -129,7 +164,8 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
                 <Text
                   style={[
                     styles.timeFrameText,
-                    selectedTimeFrame === item.value && styles.selectedTimeFrameText,
+                    selectedTimeFrame === item.value &&
+                      styles.selectedTimeFrameText,
                   ]}
                 >
                   {item.label}
@@ -168,52 +204,47 @@ const TradeModal: React.FC<TradeModalProps> = ({
     rsc: number;
   } | null>(null);
 
-  const calculateTradeValues = useCallback((size: string) => {
-    const lot = parseFloat(size) || 0;
-    if (lot <= 0) {
-      setCalculatedValues(null);
-      return;
-    }
-
-    const baseSymbol = symbol.substring(0, 3).toUpperCase();
-    
-    let profit = 0;
-    let points = 0;
-    let rsc = 0;
-
-    if (baseSymbol === 'VAL') {
-
-      points = lot * 100;
-      profit = points * 1;
-      rsc = profit * 0.05;
-    }
-
-    else if (['FUN', 'GEN', 'USO'].includes(baseSymbol)) {
-      const unitSize = 100000;
-      points = lot * unitSize;
-      
-      if (baseSymbol === 'FUN' || baseSymbol === 'GEN') {
-        profit = points * 0.004;
-      } else if (baseSymbol === 'USO') {
-        profit = points * 0.02; 
+  const calculateTradeValues = useCallback(
+    (size: string) => {
+      const lot = parseFloat(size) || 0;
+      if (lot <= 0) {
+        setCalculatedValues(null);
+        return;
       }
-      
-      rsc = profit * 0.15;
-    }
-    
-    else if (symbol === 'BTCUSD') {
-      
-      rsc = lot;
-      profit = rsc * currentPrice;
-      points = profit / 0.01; 
-    }
-    else {
-      points = lot * 100;
-      profit = points * 0.01;
-      rsc = profit * 0.1;
-    }
 
-  }, [symbol, currentPrice]);
+      const baseSymbol = symbol.substring(0, 3).toUpperCase();
+
+      let profit = 0;
+      let points = 0;
+      let rsc = 0;
+
+      if (baseSymbol === 'VAL') {
+        points = lot * 100;
+        profit = points * 1;
+        rsc = profit * 0.05;
+      } else if (['FUN', 'GEN', 'USO'].includes(baseSymbol)) {
+        const unitSize = 100000;
+        points = lot * unitSize;
+
+        if (baseSymbol === 'FUN' || baseSymbol === 'GEN') {
+          profit = points * 0.004;
+        } else if (baseSymbol === 'USO') {
+          profit = points * 0.02;
+        }
+
+        rsc = profit * 0.15;
+      } else if (symbol === 'BTCUSD') {
+        rsc = lot;
+        profit = rsc * currentPrice;
+        points = profit / 0.01;
+      } else {
+        points = lot * 100;
+        profit = points * 0.01;
+        rsc = profit * 0.1;
+      }
+    },
+    [symbol, currentPrice],
+  );
 
   useEffect(() => {
     calculateTradeValues(lotSize);
@@ -230,17 +261,23 @@ const TradeModal: React.FC<TradeModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.tradeModalContent}>
           <Text style={styles.tradeModalTitle}>
-            {tradeType === 'buy' ? 'Buy' : 'Sell'} {formatInstrumentName(symbol)}
+            {tradeType === 'buy' ? 'Buy' : 'Sell'}{' '}
+            {formatInstrumentName(symbol)}
           </Text>
-          
+
           <Text style={styles.currentPriceText}>
             Current Price: {currentPrice.toFixed(symbol === 'EURUSD' ? 4 : 2)}
           </Text>
-          
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Lot Size:</Text>
             <TextInput
@@ -251,7 +288,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
               placeholder="Enter lot size"
             />
           </View>
-          
+
           {calculatedValues && (
             <View style={styles.calculatedValues}>
               <Text style={styles.calculatedText}>
@@ -265,7 +302,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
               </Text>
             </View>
           )}
-          
+
           <View style={styles.tradeModalButtons}>
             <TouchableOpacity
               style={[styles.tradeModalButton, styles.cancelButton]}
@@ -273,9 +310,12 @@ const TradeModal: React.FC<TradeModalProps> = ({
             >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.tradeModalButton, tradeType === 'buy' ? styles.buyButton : styles.sellButton]}
+              style={[
+                styles.tradeModalButton,
+                tradeType === 'buy' ? styles.buyButton : styles.sellButton,
+              ]}
               onPress={handleConfirm}
             >
               <Text style={styles.buttonText}>
@@ -405,8 +445,10 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: evt => evt.nativeEvent.touches.length === 2,
-        onMoveShouldSetPanResponder: evt => evt.nativeEvent.touches.length === 2,
+        onStartShouldSetPanResponder: evt =>
+          evt.nativeEvent.touches.length === 2,
+        onMoveShouldSetPanResponder: evt =>
+          evt.nativeEvent.touches.length === 2,
         onPanResponderMove: evt => {
           if (evt.nativeEvent.touches.length === 2) {
             const [t1, t2] = evt.nativeEvent.touches as any;
@@ -693,10 +735,13 @@ const DynamicGraph: React.FC<GraphProps> = ({
                   4,
                   Math.abs(((c.close - c.open) / priceRange) * chartHeight),
                 );
-                const wickHeight = ((c.high - c.low) / priceRange) * chartHeight;
-                const bottomWick = ((c.low - zoomedMin) / priceRange) * chartHeight;
+                const wickHeight =
+                  ((c.high - c.low) / priceRange) * chartHeight;
+                const bottomWick =
+                  ((c.low - zoomedMin) / priceRange) * chartHeight;
                 const bottomBody =
-                  ((Math.min(c.open, c.close) - zoomedMin) / priceRange) * chartHeight;
+                  ((Math.min(c.open, c.close) - zoomedMin) / priceRange) *
+                  chartHeight;
 
                 return (
                   <TouchableOpacity
@@ -776,7 +821,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const walletBalance = useSelector(
     (state: any) => state?.balance?.amount ?? 0,
   );
-  
+  const dispatch = useDispatch()
   const [zoom, setZoom] = useState(1);
   const [verticalZoom, setVerticalZoom] = useState(1);
   const [timeFrame, setTimeFrame] = useState(60);
@@ -784,7 +829,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  
+
   const leftPercent = 31;
   const rightPercent = 69;
 
@@ -805,158 +850,286 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     setShowTradeModal(true);
   };
 
-  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
-  try {
-    const tradeData = {
-      id: Date.now().toString(),
-      symbol: trade.name,
-      formattedSymbol: formatInstrumentName(trade.name),
-      type,
-      lotSize,
-      price: currentPrice,
-      timestamp: new Date().toISOString(),
-      status: 'executed'
-    };
+  const getInstrumentIcon = (symbol: string) => {
+    switch (symbol) {
+      case 'BTCUSD':
+        return require('../assets/images/bitcoin.png');
+      case 'USTEC':
+        return require('../assets/images/us.png');
+      case 'USOIL':
+        return require('../assets/images/water-and-oil.png');
+      default:
+        return require('../assets/images/bitcoin.png'); // fallback
+    }
+  };
 
-    const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
-    const existingTrades = existingTradesJSON ? JSON.parse(existingTradesJSON) : [];
-    
-    const updatedTrades = [tradeData, ...existingTrades];
-    
-    await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
+  // Currency flag icons
+const getFlagIcon = (currencies: string | string[]) => {
+  const mapCurrencyToIcon = (currency: string) => {
+    switch (currency) {
+      case 'USD':
+        return { name: 'USD', source: require('../assets/images/us.png') };
+      case 'ETH':
+        return { name: 'ETH', source: require('../assets/images/ethereum.png') };
+      case 'JPY':
+        return { name: 'JPY', source: require('../assets/images/japan.png') };
+      case 'EUR':
+        return { name: 'EUR', source: require('../assets/images/european-union.png') };
+      case 'GBP':
+        return { name: 'GBP', source: require('../assets/images/flag.png') };
+      case 'CAD':
+        return { name: 'CAD', source: require('../assets/images/canada.png') };
+      case 'XAU':
+        return { name: 'XAU', source: require('../assets/images/tether-gold.png') };
+      default:
+        return { name: currency, source: require('../assets/images/bitcoin.png') };
+    }
+  };
 
-    Alert.alert(
-      'Trade Executed',
-      `Successfully ${type === 'buy' ? 'bought' : 'sold'} ${lotSize} lots of ${formatInstrumentName(trade.name)} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`
-    );
-    
-    setShowTradeModal(false);
-  } catch (error) {
-    console.error('Error saving trade:', error);
-    Alert.alert('Error', 'Failed to save trade to history');
+  if (Array.isArray(currencies)) {
+    return currencies.map((c) => mapCurrencyToIcon(c));
   }
+  return [mapCurrencyToIcon(currencies)];
 };
 
+
+
+  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
+    try {
+      const tradeData = {
+        id: Date.now().toString(),
+        symbol: trade.name,
+        formattedSymbol: formatInstrumentName(trade.name),
+        type,
+        lotSize,
+        price: currentPrice,
+        timestamp: new Date().toISOString(),
+        status: 'executed',
+      };
+
+      const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+      const existingTrades = existingTradesJSON
+        ? JSON.parse(existingTradesJSON)
+        : [];
+
+      const updatedTrades = [tradeData, ...existingTrades];
+
+      await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
+
+       const tradeCost = lotSize * currentPrice;
+
+      dispatch(withdraw(tradeCost));
+
+      Alert.alert(
+        'Trade Executed',
+        `Successfully ${
+          type === 'buy' ? 'bought' : 'sold'
+        } ${lotSize} lots of ${formatInstrumentName(
+          trade.name,
+        )} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`,
+      );
+
+      setShowTradeModal(false);
+    } catch (error) {
+      console.error('Error saving trade:', error);
+      Alert.alert('Error', 'Failed to save trade to history');
+    }
+  };
+
   const priceDigits = trade.name === 'EURUSD' ? 4 : 2;
-
+  const isForex = formatInstrumentName(trade.name).includes('/');
+  const iconsA = formatInstrumentNames(trade.name);
+  const icons = getFlagIcon(iconsA)
+console.log('iconsicons',icons)
   return (
-    <View style={styles.container}>
-      {/* TOP (BALANCE BAR) */}
-      <View style={styles.balanceBar}>
-        <View style={styles.balanceBox}>
-          <Text style={styles.demoBadge}>Real</Text>
-          <Text style={styles.balanceAmount}>
-            {walletBalance ? `$${Number(walletBalance).toFixed(2)} INR` : '0.00 INR'}
-          </Text>
-          <Icon name="more-vertical" size={14} color="#111" style={{ marginLeft: 4 }} />
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        {/* TOP (BALANCE BAR) */}
+        <View style={styles.balanceBar}>
+          <View style={styles.balanceBox}>
+            <Text style={styles.demoBadge}>Real</Text>
+            <Text style={styles.balanceAmount}>
+              {walletBalance
+                ? `$${Number(walletBalance).toFixed(2)} USD`
+                : '0.00 USD'}
+            </Text>
+            <Icon
+              name="more-vertical"
+              size={14}
+              color="#111"
+              style={{ marginLeft: 4 }}
+            />
+          </View>
         </View>
-      </View>
 
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Icon name="dollar-sign" size={22} color="#1992FC" style={{ marginRight: 7 }} />
-          <Text style={styles.pairText}>
-            {formatInstrumentName(trade.name)}
-          </Text>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={styles.instrumentIconCircle}>
+              {icons.length > 0 && <View style={{ flexDirection: 'row' }}>
+                {icons.map((icon, idx) =>
+                  icon ? (
+                    <Image
+                      key={idx}
+                      source={icon.source}
+                      style={{
+                        width: isForex ? 20 : 22,
+                        height: isForex ? 20 : 22,
+                        borderRadius: isForex ? 8 : 11,
+                        marginRight: isForex && idx === 0 ? -10 : 0,
+                        marginTop: isForex && idx === 0 ? 15 : 20,
+                      }}
+                      resizeMode="contain"
+                    />
+                  ) : null,
+                )}
+              </View>}
+            </View>
+
+            <Text style={styles.pairText}>
+              {formatInstrumentName(trade.name)}
+            </Text>
+          </View>
+          <View style={styles.headerIcons}>
+            <Icon name="clock" size={20} color="#111" style={styles.icon} />
+            <Icon name="maximize" size={20} color="#111" style={styles.icon} />
+            <Icon name="settings" size={20} color="#111" style={styles.icon} />
+            <Icon name="more-vertical" size={20} color="#111" />
+          </View>
         </View>
-        <View style={styles.headerIcons}>
-          <Icon name="clock" size={20} color="#111" style={styles.icon} />
-          <Icon name="maximize" size={20} color="#111" style={styles.icon} />
-          <Icon name="settings" size={20} color="#111" style={styles.icon} />
-          <Icon name="more-vertical" size={20} color="#111" />
+
+        {/* COUNTS */}
+        <View style={styles.statusRow}>
+          <Text style={styles.statusText}>Open 0</Text>
+          <Text style={styles.statusText}>Pending 0</Text>
         </View>
-      </View>
 
-      {/* COUNTS */}
-      <View style={styles.statusRow}>
-        <Text style={styles.statusText}>Open 0</Text>
-        <Text style={styles.statusText}>Pending 0</Text>
-      </View>
+        {/* CHART AREA (FULL HEIGHT MINUS BOTTOM ACTIONS) */}
+        <View style={styles.chartBox}>
+          <DynamicGraph
+            zoom={zoom}
+            setZoom={setZoom}
+            verticalZoom={verticalZoom}
+            setVerticalZoom={setVerticalZoom}
+            timeFrame={timeFrame}
+            symbol={trade.name}
+            onCurrentPriceChange={handleCurrentPriceChange}
+          />
+        </View>
 
-      {/* CHART AREA (FULL HEIGHT MINUS BOTTOM ACTIONS) */}
-      <View style={styles.chartBox}>
-        <DynamicGraph
-          zoom={zoom}
-          setZoom={setZoom}
-          verticalZoom={verticalZoom}
-          setVerticalZoom={setVerticalZoom}
-          timeFrame={timeFrame}
-          symbol={trade.name}
-          onCurrentPriceChange={handleCurrentPriceChange}
+        {/* TOOLS ROW - FIXED */}
+        <View style={styles.toolsRow}>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            activeOpacity={0.7}
+            onPress={() => {}}
+          >
+            <Icon name="sliders" size={16} color="#777" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            activeOpacity={0.7}
+            onPress={() => setShowTimeFrameModal(true)}
+          >
+            <Text style={{ fontWeight: '600', color: '#444' }}>
+              {getTimeFrameLabel()}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            activeOpacity={0.7}
+            onPress={() => {}}
+          >
+            <Icon name="bar-chart-2" size={16} color="#777" />
+          </TouchableOpacity>
+        </View>
+
+        {/* TIME FRAME MODAL - FIXED */}
+        <TimeFrameModal
+          visible={showTimeFrameModal}
+          onClose={() => setShowTimeFrameModal(false)}
+          onSelect={handleTimeFrameSelect}
+          selectedTimeFrame={timeFrame}
         />
+
+        {/* TRADE MODAL */}
+        <TradeModal
+          visible={showTradeModal}
+          onClose={() => setShowTradeModal(false)}
+          onConfirm={handleTradeConfirm}
+          tradeType={tradeType}
+          currentPrice={currentPrice}
+          symbol={trade.name}
+        />
+
+        {/* BUY / SELL ACTIONS */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#ff5b5b' }]}
+            activeOpacity={0.85}
+            onPress={() => handleTradeAction('sell')}
+          >
+            <Text style={styles.actionTitle}>Sell</Text>
+            <Text style={styles.actionPrice}>
+              {currentPrice.toFixed(priceDigits)}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#1992FC' }]}
+            activeOpacity={0.85}
+            onPress={() => handleTradeAction('buy')}
+          >
+            <Text style={styles.actionTitle}>Buy</Text>
+            <Text style={styles.actionPrice}>
+              {currentPrice.toFixed(priceDigits)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* PERCENT BAR */}
+        <View style={styles.percentBarWrapper}>
+          {/* Left (Sell side) */}
+          <View style={styles.halfWrapper}>
+            <View
+              style={[
+                styles.percentFill,
+                {
+                  width: `${leftPercent}%`,
+                  backgroundColor: '#ff5b5b',
+                },
+              ]}
+            />
+          </View>
+
+          {/* Right (Buy side) */}
+          <View style={styles.halfWrapper}>
+            <View
+              style={[
+                styles.percentFill,
+                {
+                  width: `${rightPercent}%`,
+                  backgroundColor: '#1992FC',
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        <View style={styles.percentTextWrapper}>
+          <View style={styles.persentageWrapper}>
+            <Text style={[styles.actionSub, { color: '#ff5b5b' }]}>
+              {leftPercent}%
+            </Text>
+          </View>
+          <View style={styles.persentageWrapper}>
+            <Text style={[styles.actionSub, { color: '#1992FC' }]}>
+              {rightPercent}%
+            </Text>
+          </View>
+        </View>
       </View>
-
-      {/* TOOLS ROW - FIXED */}
-      <View style={styles.toolsRow}>
-        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7} onPress={() => {}} >
-          <Icon name="sliders" size={16} color="#777" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.toolBtn}
-          activeOpacity={0.7}
-          onPress={() => setShowTimeFrameModal(true)}
-        >
-          <Text style={{ fontWeight: '600', color: '#444' }}>
-            {getTimeFrameLabel()}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7} onPress={() => {}} >
-          <Icon name="bar-chart-2" size={16} color="#777" />
-        </TouchableOpacity>
-      </View>
-
-      {/* TIME FRAME MODAL - FIXED */}
-      <TimeFrameModal
-        visible={showTimeFrameModal}
-        onClose={() => setShowTimeFrameModal(false)}
-        onSelect={handleTimeFrameSelect}
-        selectedTimeFrame={timeFrame}
-      />
-
-      {/* TRADE MODAL */}
-      <TradeModal
-        visible={showTradeModal}
-        onClose={() => setShowTradeModal(false)}
-        onConfirm={handleTradeConfirm}
-        tradeType={tradeType}
-        currentPrice={currentPrice}
-        symbol={trade.name}
-      />
-
-      {/* BUY / SELL ACTIONS */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: '#ff5b5b' }]}
-          activeOpacity={0.85}
-          onPress={() => handleTradeAction('sell')}
-        >
-          <Text style={styles.actionTitle}>Sell</Text>
-          <Text style={styles.actionPrice}>
-            {currentPrice.toFixed(priceDigits)}
-          </Text>
-          <Text style={styles.actionSub}>{leftPercent}%</Text>
-        </TouchableOpacity>
-        <View style={styles.divider} />
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: '#1992FC' }]}
-          activeOpacity={0.85}
-          onPress={() => handleTradeAction('buy')}
-        >
-          <Text style={styles.actionTitle}>Buy</Text>
-          <Text style={styles.actionPrice}>
-            {currentPrice.toFixed(priceDigits)}
-          </Text>
-          <Text style={styles.actionSub}>{rightPercent}%</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* PERCENT BAR */}
-      <View style={styles.percentBarWrapper}>
-        <View style={[styles.percentBarLeft, { flex: leftPercent }]} />
-        <View style={[styles.percentBarRight, { flex: rightPercent }]} />
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -971,6 +1144,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  percentBlock: {
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  percentTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  percentPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  percentSub: {
+    fontSize: 12,
+    color: '#fff',
+  },
+  spreadBox: {
+    backgroundColor: '#111',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    marginHorizontal: 4,
+    borderRadius: 6,
+  },
+  spreadText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  instrumentIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginTop: -16,
+    backgroundColor: '#FFFFFF',
   },
   balanceBox: {
     flexDirection: 'row',
@@ -1040,7 +1256,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     position: 'absolute',
-    bottom: 32,
+    bottom: 45,
     width: '100%',
     height: 54,
     alignItems: 'center',
@@ -1048,7 +1264,7 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   actionTitle: {
     fontSize: 15,
@@ -1063,22 +1279,16 @@ const styles = StyleSheet.create({
   actionSub: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#fff',
-    marginTop: 2,
+    color: '#111',
+    height: 15,
+    width: '100%',
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
   divider: {
     width: 1,
     backgroundColor: '#fff',
     height: '80%',
-  },
-  percentBarWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 10,
-    height: 5,
-    flexDirection: 'row',
-    width: '100%',
   },
   percentBarLeft: {
     backgroundColor: '#ff5b5b',
@@ -1218,6 +1428,43 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  percentBarWrapper: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 30,
+    width: '100%',
+  },
+  percentTextWrapper: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 15,
+    width: '100%',
+  },
+  halfWrapper: {
+    flex: 1,
+    backgroundColor: '#ddd', // grey background for each half
+    justifyContent: 'center',
+  },
+  persentageWrapper: {
+    flex: 1,
+    backgroundColor: '#ffff',
+    justifyContent: 'center',
+    height: 10,
+  },
+
+  percentFill: {
+    height: '100%',
   },
 });
 

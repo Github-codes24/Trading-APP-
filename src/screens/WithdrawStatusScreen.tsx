@@ -47,7 +47,7 @@ export default function WithdrawStatusScreen() {
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Transaction amount</Text>
-          <Text style={styles.value}>{amount} INR</Text>
+          <Text style={styles.value}>{amount} USD</Text>
         </View>
       </View>
     </View>

@@ -16,7 +16,7 @@ interface BottomTabsProps {
 }
 
 const tabItems: TabItem[] = [
-  { key: 'accounts', title: 'Accounts', icon: require('../assets/images/Accountsicon.png') },
+  { key: 'accounts', title: 'Accounts', icon: require('../assets/images/accountsicon.png') },
   { key: 'trade', title: 'Trade', icon: require('../assets/images/tradeIconn.png') },
   { key: 'insights', title: 'Insights', featherIcon: 'globe' },
   { key: 'performance', title: 'Performance', icon: require('../assets/images/performanceIcon.png') },
