@@ -651,7 +651,7 @@ const positionsContent = useMemo(() => {
       {/* Header */}
       <View style={styles.topToolbar}>
         <Image
-          source={require('../../../assets/images/clockicon.png')}
+          source={require('../../../assets/images/clockIcon.png')}
           style={{
             width: SIZES.topIcon,
             height: SIZES.topIcon,
@@ -661,7 +661,7 @@ const positionsContent = useMemo(() => {
         />
         <View style={styles.bellWrapper}>
           <Image
-            source={require('../../../assets/images/bellicon.png')}
+            source={require('../../../assets/images/BellIcon.png')}
             style={{ width: SIZES.topIcon, height: SIZES.topIcon }}
             resizeMode="contain"
           />
