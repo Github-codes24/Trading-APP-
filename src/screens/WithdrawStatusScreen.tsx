@@ -1,16 +1,15 @@
 // src/screens/WithdrawStatusScreen.tsx
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
-import { withdraw } from "../store/balanceSlice"; // ✅ adjust path if needed
+import { withdraw } from "../store/balanceSlice";
 
 export default function WithdrawStatusScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const dispatch = useDispatch();
-
   const { amount } = (route.params as { amount?: number }) || { amount: 0 };
 
   // Update balance in Redux after withdrawal
@@ -20,9 +19,28 @@ export default function WithdrawStatusScreen() {
     }
   }, [amount, dispatch]);
 
+  // 🔥 Handle hardware back button
+  useFocusEffect(
+    React.useCallback(() => {
+      const backAction = () => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Account" }],
+        });
+        return true; // prevent default back behavior
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", backAction);
+
+      return () => subscription.remove();
+    }, [navigation])
+  );
+
   const handleClose = () => {
-    // Navigate directly to Account screen
-    navigation.navigate("Account");
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Account" }],
+    });
   };
 
   return (

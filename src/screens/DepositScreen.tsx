@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -22,46 +23,51 @@ export default function DepositScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Deposit</Text>
-      </View>
-
-      {/* Enter Deposit Amount */}
-      <View style={styles.content}>
-        <Text style={styles.label}>Enter deposit amount</Text>
-
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0"
-            placeholderTextColor="#999"
-          />
-          <Text style={styles.currency}>USD</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Deposit</Text>
         </View>
 
-        <Text style={styles.rangeText}>0.00 – 10,000,000,000.00 USD</Text>
-      </View>
+        {/* Enter Deposit Amount */}
+        <View style={styles.content}>
+          <Text style={styles.label}>Enter deposit amount</Text>
 
-      {/* Bottom Button */}
-      <TouchableOpacity style={styles.button} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
-    </View>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0"
+              placeholderTextColor="#999"
+            />
+            <Text style={styles.currency}>USD</Text>
+          </View>
+
+          <Text style={styles.rangeText}>0.00 – 10,000,000,000.00 USD</Text>
+        </View>
+
+        {/* Bottom Button */}
+        <TouchableOpacity style={styles.button} onPress={handleContinue}>
+          <Text style={styles.buttonText}>Continue</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#FAFAFA",
+  },
+  container: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
   },

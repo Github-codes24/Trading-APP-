@@ -1,16 +1,15 @@
 // src/screens/DepositStatusScreen.tsx
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
-import { deposit } from "../store/balanceSlice"; // <-- import action
+import { deposit } from "../store/balanceSlice";
 
 export default function DepositStatusScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { amount } = route.params || { amount: "0.00" };
-
   const dispatch = useDispatch();
 
   // 🔥 Dispatch deposit once when screen mounts
@@ -20,11 +19,35 @@ export default function DepositStatusScreen() {
     }
   }, [amount]);
 
+  // 🔥 Handle hardware back button
+  useFocusEffect(
+    React.useCallback(() => {
+      const backAction = () => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Account" }],
+        });
+        return true; // prevent default behavior
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", backAction);
+
+      return () => subscription.remove(); // <-- correct way to remove listener
+    }, [navigation])
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate("Account")}>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Account" }],
+            })
+          }
+        >
           <Ionicons name="close" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Deposit Status</Text>

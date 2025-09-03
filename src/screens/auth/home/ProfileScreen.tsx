@@ -66,26 +66,26 @@ const handleLogout = async () => {
     const currentUser = auth().currentUser;
     if (!currentUser) return;
 
-    // ✅ Firestore update: wait for completion
+    // 1️⃣ Firestore update
     await firestore()
-      .collection('users')
+      .collection("users")
       .doc(currentUser.uid)
       .set({ isLoggedIn: false, deviceId: null }, { merge: true });
 
-    // ✅ Firebase sign out
+    // 2️⃣ Firebase sign out
     await auth().signOut();
 
-    // ✅ Clear local email
-    await AsyncStorage.removeItem('current_user_email');
+    // 3️⃣ Clear AsyncStorage & Redux state
+    await AsyncStorage.clear(); // ya selectively balance + passcode
+    dispatch(resetBalance()); // ✅ reset Redux balance
 
-    // ✅ Navigate immediately
+    // 4️⃣ Navigate to Main screen
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Main' }],
+      routes: [{ name: "Main" }],
     });
-
   } catch (error: any) {
-    Alert.alert('Error', error.message || 'Failed to log out');
+    Alert.alert("Error", error.message || "Failed to log out");
   }
 };
 

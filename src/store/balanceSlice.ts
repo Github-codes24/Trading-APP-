@@ -14,10 +14,23 @@ const initialState: BalanceState = {
 const saveBalance = async (amount: number) => {
   try {
     const uid = auth().currentUser?.uid;
-    if (!uid) return; // agar user logged out hai, skip
+    if (!uid) return;
     await AsyncStorage.setItem(`balance_${uid}`, JSON.stringify(amount));
   } catch (e) {
     console.log("Error saving balance:", e);
+  }
+};
+
+// ✅ Load balance for current user
+export const loadBalance = async () => {
+  try {
+    const uid = auth().currentUser?.uid;
+    if (!uid) return 0;
+    const value = await AsyncStorage.getItem(`balance_${uid}`);
+    return value ? JSON.parse(value) : 0;
+  } catch (e) {
+    console.log("Error loading balance:", e);
+    return 0;
   }
 };
 
@@ -30,15 +43,15 @@ const balanceSlice = createSlice({
     },
     deposit: (state, action: PayloadAction<number>) => {
       state.amount += action.payload;
-      saveBalance(state.amount); // ✅ save per-user balance
+      saveBalance(state.amount);
     },
     withdraw: (state, action: PayloadAction<number>) => {
       state.amount -= action.payload;
-      saveBalance(state.amount); // ✅ save per-user balance
+      saveBalance(state.amount);
     },
     resetBalance: (state) => {
       state.amount = 0;
-      saveBalance(0); // ✅ reset per-user balance
+      saveBalance(0);
     },
   },
 });
