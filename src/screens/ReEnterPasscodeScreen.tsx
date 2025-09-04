@@ -33,26 +33,33 @@ export default function ReEnterPasscodeScreen() {
     setPasscode(passcode.slice(0, -1));
   };
 
-  const verifyPasscode = async (enteredPasscode: string) => {
-    if (!email) {
-      Alert.alert("Error", "Email not found");
-      return;
-    }
+const verifyPasscode = async (enteredPasscode: string) => {
+  if (!email) {
+    Alert.alert("Error", "Email not found");
+    return;
+  }
 
-    if (enteredPasscode === initialPasscode) {
-      await AsyncStorage.setItem(`passcode_${email}`, enteredPasscode);
-      await AsyncStorage.setItem(`isPasscodeSet_${email}`, 'true');
-      Alert.alert("Success", "Passcode set successfully", [
-        {
-          text: "OK",
-          onPress: () => navigation.navigate("Account" as never),
+  if (enteredPasscode === initialPasscode) {
+    await AsyncStorage.setItem(`passcode_${email}`, enteredPasscode);
+    await AsyncStorage.setItem(`isPasscodeSet_${email}`, 'true');
+    
+    Alert.alert("Success", "Passcode set successfully", [
+      {
+        text: "OK",
+        onPress: () => {
+          // Reset navigation stack to prevent going back
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Account" }],
+          });
         },
-      ]);
-    } else {
-      Alert.alert("Error", "Passcodes do not match");
-      setPasscode("");
-    }
-  };
+      },
+    ]);
+  } else {
+    Alert.alert("Error", "Passcodes do not match");
+    setPasscode("");
+  }
+};
 
   return (
     <View style={styles.container}>

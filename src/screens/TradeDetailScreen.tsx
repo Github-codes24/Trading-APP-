@@ -181,7 +181,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
 interface TradeModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell') => void;
+  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell', tp?: number, sl?: number) => void;
   tradeType: 'buy' | 'sell';
   currentPrice: number;
   symbol: string;
@@ -196,6 +196,8 @@ const TradeModal: React.FC<TradeModalProps> = ({
   symbol,
 }) => {
   const [lotSize, setLotSize] = useState<string>('1');
+  const [tpValue, setTpValue] = useState<string>('');
+  const [slValue, setSlValue] = useState<string>('');
   const [calculatedValues, setCalculatedValues] = useState<{
     profit: number;
     points: number;
@@ -248,14 +250,20 @@ const TradeModal: React.FC<TradeModalProps> = ({
     calculateTradeValues(lotSize);
   }, [lotSize, calculateTradeValues]);
 
-  const handleConfirm = () => {
+ const handleConfirm = () => {
     const size = parseFloat(lotSize);
     if (size <= 0 || isNaN(size)) {
       Alert.alert('Error', 'Please enter a valid lot size');
       return;
     }
-    onConfirm(size, tradeType);
+    
+    const tp = tpValue ? parseFloat(tpValue) : undefined;
+    const sl = slValue ? parseFloat(slValue) : undefined;
+    
+    onConfirm(size, tradeType, tp, sl);
     setLotSize('1');
+    setTpValue('');
+    setSlValue('');
   };
 
   return (
@@ -285,6 +293,29 @@ const TradeModal: React.FC<TradeModalProps> = ({
               keyboardType="numeric"
               placeholder="Enter lot size"
             />
+          </View>
+
+          <View style={styles.tpSlRow}>
+            <View style={styles.tpSlInputContainer}>
+              <Text style={styles.inputLabel}>+TP:</Text>
+              <TextInput
+                style={styles.tpSlInput}
+                value={tpValue}
+                onChangeText={setTpValue}
+                keyboardType="numeric"
+                placeholder="TP value"
+              />
+            </View>
+            <View style={styles.tpSlInputContainer}>
+              <Text style={styles.inputLabel}>+SL:</Text>
+              <TextInput
+                style={styles.tpSlInput}
+                value={slValue}
+                onChangeText={setSlValue}
+                keyboardType="numeric"
+                placeholder="SL value"
+              />
+            </View>
           </View>
 
           {calculatedValues && (
@@ -393,6 +424,8 @@ interface GraphProps {
   timeFrame: number;
   symbol: string;
   onCurrentPriceChange: (price: number) => void;
+  tpValue?: number;
+  slValue?: number; 
 }
 
 const DynamicGraph: React.FC<GraphProps> = ({
@@ -403,6 +436,8 @@ const DynamicGraph: React.FC<GraphProps> = ({
   timeFrame,
   symbol,
   onCurrentPriceChange,
+  tpValue,
+  slValue,
 }) => {
   const [history, setHistory] = useState<Candle[] | null>(null);
   const [chartHeight, setChartHeight] = useState(
@@ -411,8 +446,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
   const [showCandleDetails, setShowCandleDetails] = useState(false);
-  const candleSlotWidth = 30 * zoom;
+  const candleSlotWidth = 8 * zoom;
   const barWidth = candleSlotWidth * 0.55;
+  
 
   useEffect(() => {
     let isMounted = true;
@@ -543,6 +579,14 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const levels = [zoomedMax, midPrice, zoomedMin];
   const totalWidth = data.length * candleSlotWidth + 60;
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
+
+  const tpLineY = tpValue 
+    ? ((zoomedMax - tpValue) / priceRange) * chartHeight 
+    : null;
+    
+  const slLineY = slValue 
+    ? ((zoomedMax - slValue) / priceRange) * chartHeight 
+    : null;
 
   return (
     <View style={{ flex: 1 }} {...panResponder.panHandlers}>
@@ -682,7 +726,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               style={{
                 flexDirection: 'row',
                 alignItems: 'flex-end',
-                height: '100%',
+                height: '98%',
                 position: 'relative',
               }}
             >
@@ -725,6 +769,88 @@ const DynamicGraph: React.FC<GraphProps> = ({
                   backgroundColor: 'rgba(255, 91, 91, 0.7)',
                 }}
               />
+
+               {/* TP and SL lines */}
+      {tpLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: tpLineY,
+            height: 1,
+            backgroundColor: '#4CAF50', // Green for TP
+            zIndex: 5,
+          }}
+        />
+      )}
+      
+      {slLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: slLineY,
+            height: 1,
+            backgroundColor: '#F44336', // Red for SL
+            zIndex: 5,
+          }}
+        />
+      )}
+      
+      {/* TP and SL labels */}
+      {tpLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 2,
+            top: clamp(tpLineY - 8, 2, chartHeight - 18),
+            flexDirection: 'row',
+            alignItems: 'center',
+            zIndex: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '700',
+              color: 'white',
+              backgroundColor: '#4CAF50',
+              paddingHorizontal: 6,
+              borderRadius: 3,
+            }}
+          >
+            TP: {tpValue?.toFixed(priceDigits)}
+          </Text>
+        </View>
+      )}
+      
+      {slLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 2,
+            top: clamp(slLineY - 8, 2, chartHeight - 18),
+            flexDirection: 'row',
+            alignItems: 'center',
+            zIndex: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '700',
+              color: 'white',
+              backgroundColor: '#F44336',
+              paddingHorizontal: 6,
+              borderRadius: 3,
+            }}
+          >
+            SL: {slValue?.toFixed(priceDigits)}
+          </Text>
+        </View>
+      )}
 
               {/* CANDLES */}
               {data.map((c, idx) => {
@@ -782,7 +908,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                           <Text
                             style={{
                               position: 'absolute',
-                              bottom: 0,
+                              bottom: -10,
                               fontSize: 11,
                               color: '#9b9b9b',
                               width: 70,
@@ -834,6 +960,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
   const leftPercent = 31;
   const rightPercent = 69;
+
+  const [tpValue, setTpValue] = useState<number | undefined>();
+  const [slValue, setSlValue] = useState<number | undefined>();
 
   const handleTimeFrameSelect = (v: number) => {
     setTimeFrame(v);
@@ -909,7 +1038,12 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     return [mapCurrencyToIcon(currencies)];
   };
 
-  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
+  const handleTradeConfirm = async (
+    lotSize: number,
+    type: 'buy' | 'sell',
+    tp?: number,
+    sl?: number,
+  ) => {
     try {
       const tradeData = {
         id: Date.now().toString(),
@@ -918,6 +1052,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         type,
         lotSize,
         price: currentPrice,
+        tp,
+        sl,
         timestamp: new Date().toISOString(),
         status: 'executed',
       };
@@ -926,6 +1062,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       const existingTrades = existingTradesJSON
         ? JSON.parse(existingTradesJSON)
         : [];
+
+      setTpValue(tp);
+      setSlValue(sl);
 
       const updatedTrades = [tradeData, ...existingTrades];
 
@@ -1094,6 +1233,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
           {activeSection === 'Analytics' && (
@@ -1105,6 +1246,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
           {activeSection === 'Specification' && (
@@ -1116,6 +1259,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
         </View>
@@ -1236,7 +1381,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             <View
               style={{
                 flex: 1,
-                backgroundColor: '#e4e4e4ff', // background gray
+                backgroundColor: '#e4e4e4ff',
               }}
             />
           </View>
@@ -1272,6 +1417,23 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     marginTop: 10,
   },
+
+  tpSlRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 20,
+},
+tpSlInputContainer: {
+  flex: 1,
+  marginHorizontal: 5,
+},
+tpSlInput: {
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 8,
+  padding: 12,
+  fontSize: 16,
+},
   percentBlock: {
     borderRadius: 8,
     paddingVertical: 6,
@@ -1352,9 +1514,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 19,
     paddingVertical: 10,
-    backgroundColor: '#f8f8f8', // Greyish background for the rectangular box
-    borderRadius: 12, // Rounded corners for a rectangular look
-    alignItems: 'center', // Center text vertically
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    alignItems: 'center',
     borderBottomWidth: 0,
     margin: 8,
     marginBottom: 0,
@@ -1396,7 +1558,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   sectionBox: {
-    height: '45%',
+    height: '46%',
     marginBottom: 30,
     marginHorizontal: 8,
     backgroundColor: '#fff',
@@ -1611,7 +1773,7 @@ const styles = StyleSheet.create({
   },
   halfWrapper: {
     flex: 1,
-    flexDirection: 'row', // so filled + empty stay side by side
+    flexDirection: 'row',
   },
   persentageWrapper: {
     flex: 1,
