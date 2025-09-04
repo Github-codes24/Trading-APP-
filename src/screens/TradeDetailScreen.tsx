@@ -788,6 +788,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                               fontSize: 11,
                               color: '#9b9b9b',
                               fontWeight: '600',
+                              width:70,
                             }}
                           >
                             {formatDate(c.time)}
