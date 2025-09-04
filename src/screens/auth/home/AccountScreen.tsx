@@ -554,7 +554,7 @@ const AccountCard: React.FC<{
       <View style={styles.actionsRow}>
         <ActionItem
           icon="activity"
-          label={<Text style={{ fontSize: 14, fontWeight: '500' }}>Trade</Text>}
+          label="Trade"
           active
           onPress={() =>
             navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
@@ -562,24 +562,18 @@ const AccountCard: React.FC<{
         />
         <ActionItem
           icon="arrow-down-circle"
-          label={
-            <Text style={{ fontSize: 14, fontWeight: '500' }}>Deposit</Text>
-          }
+          label="Deposit"
           onPress={onDepositPress}
         />
         <ActionItem
           icon="arrow-up-circle"
-          label={
-            <Text style={{ fontSize: 14, fontWeight: '500' }}>Withdraw</Text>
-          }
+           label="Withdrawl"
           onPress={onWithdrawPress}
         />
         <ActionItem
           icon="more-horizontal"
           verticalDots
-          label={
-            <Text style={{ fontSize: 14, fontWeight: '500' }}>Details</Text>
-          }
+           label="Details"
         />
       </View>
     </View>
