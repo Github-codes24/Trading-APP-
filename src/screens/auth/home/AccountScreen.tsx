@@ -50,14 +50,12 @@ export interface TradeModalProps {
   onClose: () => void;
   onForceClose: () => void;
 }
-
 export interface Trade {
   id: string;
   symbol: string;
   pnl: number;
   type: 'buy' | 'sell';
 }
-
 export interface Props {
   visible: boolean;
   onClose: () => void;
@@ -788,8 +786,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
   }
 };
 
-
-
   // ✅ Positions content
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
@@ -942,7 +938,7 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
       {/* Header */}
       <View style={styles.topToolbar}>
         <Image
-          source={require('../../../assets/images/clockIcon.png')}
+          source={require('../../../assets/images/clockicon.png')}
           style={{
             width: SIZES.topIcon,
             height: SIZES.topIcon,
@@ -952,7 +948,7 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         />
         <View style={styles.bellWrapper}>
           <Image
-            source={require('../../../assets/images/BellIcon.png')}
+            source={require('../../../assets/images/bellicon.png')}
             style={{ width: SIZES.topIcon, height: SIZES.topIcon }}
             resizeMode="contain"
           />

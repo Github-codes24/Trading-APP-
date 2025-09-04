@@ -247,7 +247,7 @@ const PerformanceScreen: React.FC = () => {
     let hours = date.getHours();
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12; // convert to 12-hour format
+    hours = hours % 12 || 12;
     const time = `${hours}:${minutes} ${ampm}`;
 
     // 🟢 Check Today / Yesterday

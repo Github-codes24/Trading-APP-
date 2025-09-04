@@ -29,8 +29,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
 
-
-
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -115,7 +113,7 @@ export const FetchTradeDetails = async (
       socket.onerror = err => {
         reject(err);
       };
-      socket.onclose = () => { };
+      socket.onclose = () => {};
     } catch (error) {
       reject(error);
     }
@@ -165,7 +163,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
                   style={[
                     styles.timeFrameText,
                     selectedTimeFrame === item.value &&
-                    styles.selectedTimeFrameText,
+                      styles.selectedTimeFrameText,
                   ]}
                 >
                   {item.label}
@@ -183,7 +181,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
 interface TradeModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell') => void;
+  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell', tp?: number, sl?: number) => void;
   tradeType: 'buy' | 'sell';
   currentPrice: number;
   symbol: string;
@@ -198,6 +196,8 @@ const TradeModal: React.FC<TradeModalProps> = ({
   symbol,
 }) => {
   const [lotSize, setLotSize] = useState<string>('1');
+  const [tpValue, setTpValue] = useState<string>('');
+  const [slValue, setSlValue] = useState<string>('');
   const [calculatedValues, setCalculatedValues] = useState<{
     profit: number;
     points: number;
@@ -250,14 +250,20 @@ const TradeModal: React.FC<TradeModalProps> = ({
     calculateTradeValues(lotSize);
   }, [lotSize, calculateTradeValues]);
 
-  const handleConfirm = () => {
+ const handleConfirm = () => {
     const size = parseFloat(lotSize);
     if (size <= 0 || isNaN(size)) {
       Alert.alert('Error', 'Please enter a valid lot size');
       return;
     }
-    onConfirm(size, tradeType);
+    
+    const tp = tpValue ? parseFloat(tpValue) : undefined;
+    const sl = slValue ? parseFloat(slValue) : undefined;
+    
+    onConfirm(size, tradeType, tp, sl);
     setLotSize('1');
+    setTpValue('');
+    setSlValue('');
   };
 
   return (
@@ -287,6 +293,29 @@ const TradeModal: React.FC<TradeModalProps> = ({
               keyboardType="numeric"
               placeholder="Enter lot size"
             />
+          </View>
+
+          <View style={styles.tpSlRow}>
+            <View style={styles.tpSlInputContainer}>
+              <Text style={styles.inputLabel}>+TP:</Text>
+              <TextInput
+                style={styles.tpSlInput}
+                value={tpValue}
+                onChangeText={setTpValue}
+                keyboardType="numeric"
+                placeholder="TP value"
+              />
+            </View>
+            <View style={styles.tpSlInputContainer}>
+              <Text style={styles.inputLabel}>+SL:</Text>
+              <TextInput
+                style={styles.tpSlInput}
+                value={slValue}
+                onChangeText={setSlValue}
+                keyboardType="numeric"
+                placeholder="SL value"
+              />
+            </View>
           </View>
 
           {calculatedValues && (
@@ -395,6 +424,8 @@ interface GraphProps {
   timeFrame: number;
   symbol: string;
   onCurrentPriceChange: (price: number) => void;
+  tpValue?: number;
+  slValue?: number; 
 }
 
 const DynamicGraph: React.FC<GraphProps> = ({
@@ -405,6 +436,8 @@ const DynamicGraph: React.FC<GraphProps> = ({
   timeFrame,
   symbol,
   onCurrentPriceChange,
+  tpValue,
+  slValue,
 }) => {
   const [history, setHistory] = useState<Candle[] | null>(null);
   const [chartHeight, setChartHeight] = useState(
@@ -413,8 +446,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
   const [showCandleDetails, setShowCandleDetails] = useState(false);
-  const candleSlotWidth = 30 * zoom;
+  const candleSlotWidth = 8 * zoom;
   const barWidth = candleSlotWidth * 0.55;
+  
 
   useEffect(() => {
     let isMounted = true;
@@ -545,6 +579,14 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const levels = [zoomedMax, midPrice, zoomedMin];
   const totalWidth = data.length * candleSlotWidth + 60;
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
+
+  const tpLineY = tpValue 
+    ? ((zoomedMax - tpValue) / priceRange) * chartHeight 
+    : null;
+    
+  const slLineY = slValue 
+    ? ((zoomedMax - slValue) / priceRange) * chartHeight 
+    : null;
 
   return (
     <View style={{ flex: 1 }} {...panResponder.panHandlers}>
@@ -684,7 +726,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               style={{
                 flexDirection: 'row',
                 alignItems: 'flex-end',
-                height: '100%',
+                height: '98%',
                 position: 'relative',
               }}
             >
@@ -727,6 +769,88 @@ const DynamicGraph: React.FC<GraphProps> = ({
                   backgroundColor: 'rgba(255, 91, 91, 0.7)',
                 }}
               />
+
+               {/* TP and SL lines */}
+      {tpLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: tpLineY,
+            height: 1,
+            backgroundColor: '#4CAF50', // Green for TP
+            zIndex: 5,
+          }}
+        />
+      )}
+      
+      {slLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: slLineY,
+            height: 1,
+            backgroundColor: '#F44336', // Red for SL
+            zIndex: 5,
+          }}
+        />
+      )}
+      
+      {/* TP and SL labels */}
+      {tpLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 2,
+            top: clamp(tpLineY - 8, 2, chartHeight - 18),
+            flexDirection: 'row',
+            alignItems: 'center',
+            zIndex: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '700',
+              color: 'white',
+              backgroundColor: '#4CAF50',
+              paddingHorizontal: 6,
+              borderRadius: 3,
+            }}
+          >
+            TP: {tpValue?.toFixed(priceDigits)}
+          </Text>
+        </View>
+      )}
+      
+      {slLineY !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 2,
+            top: clamp(slLineY - 8, 2, chartHeight - 18),
+            flexDirection: 'row',
+            alignItems: 'center',
+            zIndex: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '700',
+              color: 'white',
+              backgroundColor: '#F44336',
+              paddingHorizontal: 6,
+              borderRadius: 3,
+            }}
+          >
+            SL: {slValue?.toFixed(priceDigits)}
+          </Text>
+        </View>
+      )}
 
               {/* CANDLES */}
               {data.map((c, idx) => {
@@ -784,9 +908,10 @@ const DynamicGraph: React.FC<GraphProps> = ({
                           <Text
                             style={{
                               position: 'absolute',
-                              bottom: 0,
+                              bottom: -10,
                               fontSize: 11,
                               color: '#9b9b9b',
+                              width: 70,
                               fontWeight: '600',
                               width:70,
                             }}
@@ -830,10 +955,15 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [activeSection, setActiveSection] = useState<'Chart' | 'Analytics' | 'Specification'>('Chart');
+  const [activeSection, setActiveSection] = useState<
+    'Chart' | 'Analytics' | 'Specification'
+  >('Chart');
 
   const leftPercent = 31;
   const rightPercent = 69;
+
+  const [tpValue, setTpValue] = useState<number | undefined>();
+  const [slValue, setSlValue] = useState<number | undefined>();
 
   const handleTimeFrameSelect = (v: number) => {
     setTimeFrame(v);
@@ -872,29 +1002,49 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         case 'USD':
           return { name: 'USD', source: require('../assets/images/us.png') };
         case 'ETH':
-          return { name: 'ETH', source: require('../assets/images/ethereum.png') };
+          return {
+            name: 'ETH',
+            source: require('../assets/images/ethereum.png'),
+          };
         case 'JPY':
           return { name: 'JPY', source: require('../assets/images/japan.png') };
         case 'EUR':
-          return { name: 'EUR', source: require('../assets/images/european-union.png') };
+          return {
+            name: 'EUR',
+            source: require('../assets/images/european-union.png'),
+          };
         case 'GBP':
           return { name: 'GBP', source: require('../assets/images/flag.png') };
         case 'CAD':
-          return { name: 'CAD', source: require('../assets/images/canada.png') };
+          return {
+            name: 'CAD',
+            source: require('../assets/images/canada.png'),
+          };
         case 'XAU':
-          return { name: 'XAU', source: require('../assets/images/tether-gold.png') };
+          return {
+            name: 'XAU',
+            source: require('../assets/images/tether-gold.png'),
+          };
         default:
-          return { name: currency, source: require('../assets/images/bitcoin.png') };
+          return {
+            name: currency,
+            source: require('../assets/images/bitcoin.png'),
+          };
       }
     };
 
     if (Array.isArray(currencies)) {
-      return currencies.map((c) => mapCurrencyToIcon(c));
+      return currencies.map(c => mapCurrencyToIcon(c));
     }
     return [mapCurrencyToIcon(currencies)];
   };
 
-  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
+  const handleTradeConfirm = async (
+    lotSize: number,
+    type: 'buy' | 'sell',
+    tp?: number,
+    sl?: number,
+  ) => {
     try {
       const tradeData = {
         id: Date.now().toString(),
@@ -903,6 +1053,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         type,
         lotSize,
         price: currentPrice,
+        tp,
+        sl,
         timestamp: new Date().toISOString(),
         status: 'executed',
       };
@@ -911,6 +1063,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       const existingTrades = existingTradesJSON
         ? JSON.parse(existingTradesJSON)
         : [];
+
+      setTpValue(tp);
+      setSlValue(sl);
 
       const updatedTrades = [tradeData, ...existingTrades];
 
@@ -922,7 +1077,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
       Alert.alert(
         'Trade Executed',
-        `Successfully ${type === 'buy' ? 'bought' : 'sold'
+        `Successfully ${
+          type === 'buy' ? 'bought' : 'sold'
         } ${lotSize} lots of ${formatInstrumentName(
           trade.name,
         )} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`,
@@ -1022,34 +1178,46 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             style={[styles.tab, activeSection === 'Chart' && styles.activeTab]}
             onPress={() => setActiveSection('Chart')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Chart' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Chart' && styles.activeTabText,
+              ]}
+            >
               Chart
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeSection === 'Analytics' && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeSection === 'Analytics' && styles.activeTab,
+            ]}
             onPress={() => setActiveSection('Analytics')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Analytics' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Analytics' && styles.activeTabText,
+              ]}
+            >
               Analytics
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeSection === 'Specification' && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeSection === 'Specification' && styles.activeTab,
+            ]}
             onPress={() => setActiveSection('Specification')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Specification' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Specification' && styles.activeTabText,
+              ]}
+            >
               Specification
             </Text>
           </TouchableOpacity>
@@ -1066,6 +1234,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
           {activeSection === 'Analytics' && (
@@ -1077,6 +1247,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
           {activeSection === 'Specification' && (
@@ -1088,6 +1260,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               timeFrame={timeFrame}
               symbol={trade.name}
               onCurrentPriceChange={handleCurrentPriceChange}
+              tpValue={tpValue}
+              slValue={slValue}
             />
           )}
         </View>
@@ -1097,7 +1271,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => { }}
+            onPress={() => {}}
           >
             <Icon name="sliders" size={16} color="#777" />
           </TouchableOpacity>
@@ -1113,7 +1287,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => { }}
+            onPress={() => {}}
           >
             <Icon name="bar-chart-2" size={16} color="#777" />
           </TouchableOpacity>
@@ -1140,7 +1314,10 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         {/* BUY / SELL ACTIONS */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#EB483F' }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: '#EB483F', borderRadius: 15 },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('sell')}
           >
@@ -1149,9 +1326,12 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               {currentPrice.toFixed(priceDigits)}
             </Text>
           </TouchableOpacity>
-          <View style={styles.divider} />
+
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#1E89F1' }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: '#1E89F1', borderRadius: 15 },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('buy')}
           >
@@ -1163,30 +1343,47 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         </View>
 
         {/* PERCENT BAR */}
-        <View style={styles.percentBarWrapper}>
+        <View style={styles.progressWrapper}>
           {/* Left (Sell side) */}
           <View style={styles.halfWrapper}>
+            {/* Filled red */}
             <View
-              style={[
-                styles.percentFill,
-                {
-                  width: `${leftPercent}%`,
-                  backgroundColor: '#ff5b5b',
-                },
-              ]}
+              style={{
+                height: 8,
+                width: `${leftPercent}%`,
+                backgroundColor: '#ff5b5b',
+              }}
+            />
+            {/* Empty gray */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: '#e4e4e4ff',
+                borderTopRightRadius: 4,
+                borderBottomRightRadius: 4,
+              }}
             />
           </View>
 
           {/* Right (Buy side) */}
           <View style={styles.halfWrapper}>
+            {/* Filled blue */}
             <View
-              style={[
-                styles.percentFill,
-                {
-                  width: `${rightPercent}%`,
-                  backgroundColor: '#1992FC',
-                },
-              ]}
+              style={{
+                height: 8,
+                width: `${rightPercent}%`,
+                borderTopLeftRadius: 4,
+                borderBottomLeftRadius: 4,
+                marginLeft: 10,
+                backgroundColor: '#1992FC',
+              }}
+            />
+            {/* Empty gray */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: '#e4e4e4ff',
+              }}
             />
           </View>
         </View>
@@ -1219,8 +1416,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 0,
     borderColor: '#e5e7eb',
-    marginTop:10
+    marginTop: 10,
   },
+
+  tpSlRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 20,
+},
+tpSlInputContainer: {
+  flex: 1,
+  marginHorizontal: 5,
+},
+tpSlInput: {
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 8,
+  padding: 12,
+  fontSize: 16,
+},
   percentBlock: {
     borderRadius: 8,
     paddingVertical: 6,
@@ -1301,9 +1515,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 19,
     paddingVertical: 10,
-    backgroundColor: '#f8f8f8', // Greyish background for the rectangular box
-    borderRadius: 12, // Rounded corners for a rectangular look
-    alignItems: 'center', // Center text vertically
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    alignItems: 'center',
     borderBottomWidth: 0,
     margin: 8,
     marginBottom: 0,
@@ -1322,8 +1536,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     borderRadius: 12,
     marginBottom: 0,
-    gap: 24, 
-    
+    gap: 24,
   },
   tab: {
     paddingVertical: 8,
@@ -1334,8 +1547,8 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#000000',
-    paddingHorizontal: 20, 
-  marginHorizontal: 8
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
   },
   tabText: {
     fontSize: 16,
@@ -1343,14 +1556,13 @@ const styles = StyleSheet.create({
     color: '#999999',
   },
   activeTabText: {
-    color: '#000000', 
+    color: '#000000',
   },
   sectionBox: {
-    height: '45%',
+    height: '46%',
     marginBottom: 30,
     marginHorizontal: 8,
     backgroundColor: '#fff',
-    
   },
   toolsRow: {
     flexDirection: 'row',
@@ -1371,25 +1583,26 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     position: 'absolute',
+    marginHorizontal: 5,
     bottom: 45,
-    width: '100%',
-    height: 54,
+    width: '97%',
+    height: 55,
     alignItems: 'center',
   },
   actionBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    width: '95%'
+    paddingVertical: 7,
+    marginHorizontal: 4,
   },
   actionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#fff',
   },
   actionPrice: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#fff',
   },
   actionSub: {
@@ -1401,11 +1614,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
   },
-  divider: {
-    width: 1,
-    backgroundColor: '#fff',
-    height: '80%',
-  },
+
   percentBarLeft: {
     backgroundColor: '#ff5b5b',
     borderTopRightRadius: 4,
@@ -1545,32 +1754,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  percentBarWrapper: {
-    flexDirection: 'row',
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 30,
-    width: '100%',
-  },
   percentTextWrapper: {
     flexDirection: 'row',
     height: 10,
-    borderRadius: 5,
     overflow: 'hidden',
     position: 'absolute',
-    left: 0,
-    right: 0,
     bottom: 15,
     width: '100%',
   },
+  progressWrapper: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 30,
+    width: '93%',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginHorizontal: 10,
+  },
   halfWrapper: {
     flex: 1,
-    backgroundColor: '#ddd', // grey background for each half
-    justifyContent: 'center',
+    flexDirection: 'row',
   },
   persentageWrapper: {
     flex: 1,

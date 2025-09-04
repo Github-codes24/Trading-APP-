@@ -11,13 +11,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
-import Fontisto from 'react-native-vector-icons/Fontisto';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
 import { RootState } from '../../../store';
 import { Image } from 'react-native';
-import { deposit, withdraw } from '../../../slices/balanceSlice';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
@@ -26,7 +24,6 @@ const TradeScreen: React.FC = () => {
   const [tradeAmount, setTradeAmount] = useState<number>(0);
 
   const navigation = useNavigation();
-  const dispatch = useDispatch();
   const balance = useSelector((state: RootState) => state.balance.amount);
 
   useEffect(() => {
