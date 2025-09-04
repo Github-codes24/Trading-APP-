@@ -59,7 +59,7 @@ export default function SignInScreen() {
       const userDoc = await userDocRef.get();
       const now = Date.now();
 
-      if (userDoc.exists) {
+      if (userDoc.exists()) {
         const data = userDoc.data();
         const lastLogin = data?.lastLogin || 0;
         if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {

@@ -11,7 +11,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
-import { BackHandler } from 'react-native';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
@@ -25,7 +24,6 @@ const TradeScreen: React.FC = () => {
   const [tradeAmount, setTradeAmount] = useState<number>(0);
 
   const navigation = useNavigation();
-  const dispatch = useDispatch();
   const balance = useSelector((state: RootState) => state.balance.amount);
 
   useEffect(() => {
@@ -38,23 +36,11 @@ const TradeScreen: React.FC = () => {
       }
     };
 
-     const backAction = () => {
-      // 👇 this will close the app
-      BackHandler.exitApp();
-      return true; // prevent default behavior
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
     tradingApiService.subscribeToTradingData(handleLiveData);
 
     return () => {
       tradingApiService.removeAllListeners();
       tradingApiService.disconnect();
-      backHandler.remove()
     };
   }, []);
 

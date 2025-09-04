@@ -26,7 +26,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../store';
 import { deposit, withdraw } from '../../../store/balanceSlice';
-import { BackHandler } from 'react-native';
 
 // WebSocket URL for fetching historical data
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
@@ -51,14 +50,12 @@ export interface TradeModalProps {
   onClose: () => void;
   onForceClose: () => void;
 }
-
 export interface Trade {
   id: string;
   symbol: string;
   pnl: number;
   type: 'buy' | 'sell';
 }
-
 export interface Props {
   visible: boolean;
   onClose: () => void;
@@ -789,8 +786,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
   }
 };
 
-
-
   // ✅ Positions content
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
@@ -1046,20 +1041,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
 const AccountScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('accounts');
   const navigation = useNavigation();
-
-   useEffect(() => {
-    const backAction = () => {
-      BackHandler.exitApp();
-      return true;
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
-    return () => backHandler.remove();
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

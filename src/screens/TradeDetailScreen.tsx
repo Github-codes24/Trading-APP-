@@ -29,8 +29,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
 
-
-
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -115,7 +113,7 @@ export const FetchTradeDetails = async (
       socket.onerror = err => {
         reject(err);
       };
-      socket.onclose = () => { };
+      socket.onclose = () => {};
     } catch (error) {
       reject(error);
     }
@@ -165,7 +163,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
                   style={[
                     styles.timeFrameText,
                     selectedTimeFrame === item.value &&
-                    styles.selectedTimeFrameText,
+                      styles.selectedTimeFrameText,
                   ]}
                 >
                   {item.label}
@@ -830,7 +828,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [activeSection, setActiveSection] = useState<'Chart' | 'Analytics' | 'Specification'>('Chart');
+  const [activeSection, setActiveSection] = useState<
+    'Chart' | 'Analytics' | 'Specification'
+  >('Chart');
 
   const leftPercent = 31;
   const rightPercent = 69;
@@ -872,24 +872,39 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         case 'USD':
           return { name: 'USD', source: require('../assets/images/us.png') };
         case 'ETH':
-          return { name: 'ETH', source: require('../assets/images/ethereum.png') };
+          return {
+            name: 'ETH',
+            source: require('../assets/images/ethereum.png'),
+          };
         case 'JPY':
           return { name: 'JPY', source: require('../assets/images/japan.png') };
         case 'EUR':
-          return { name: 'EUR', source: require('../assets/images/european-union.png') };
+          return {
+            name: 'EUR',
+            source: require('../assets/images/european-union.png'),
+          };
         case 'GBP':
           return { name: 'GBP', source: require('../assets/images/flag.png') };
         case 'CAD':
-          return { name: 'CAD', source: require('../assets/images/canada.png') };
+          return {
+            name: 'CAD',
+            source: require('../assets/images/canada.png'),
+          };
         case 'XAU':
-          return { name: 'XAU', source: require('../assets/images/tether-gold.png') };
+          return {
+            name: 'XAU',
+            source: require('../assets/images/tether-gold.png'),
+          };
         default:
-          return { name: currency, source: require('../assets/images/bitcoin.png') };
+          return {
+            name: currency,
+            source: require('../assets/images/bitcoin.png'),
+          };
       }
     };
 
     if (Array.isArray(currencies)) {
-      return currencies.map((c) => mapCurrencyToIcon(c));
+      return currencies.map(c => mapCurrencyToIcon(c));
     }
     return [mapCurrencyToIcon(currencies)];
   };
@@ -922,7 +937,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
       Alert.alert(
         'Trade Executed',
-        `Successfully ${type === 'buy' ? 'bought' : 'sold'
+        `Successfully ${
+          type === 'buy' ? 'bought' : 'sold'
         } ${lotSize} lots of ${formatInstrumentName(
           trade.name,
         )} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`,
@@ -1022,34 +1038,46 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             style={[styles.tab, activeSection === 'Chart' && styles.activeTab]}
             onPress={() => setActiveSection('Chart')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Chart' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Chart' && styles.activeTabText,
+              ]}
+            >
               Chart
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeSection === 'Analytics' && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeSection === 'Analytics' && styles.activeTab,
+            ]}
             onPress={() => setActiveSection('Analytics')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Analytics' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Analytics' && styles.activeTabText,
+              ]}
+            >
               Analytics
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeSection === 'Specification' && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeSection === 'Specification' && styles.activeTab,
+            ]}
             onPress={() => setActiveSection('Specification')}
           >
-            <Text style={[
-              styles.tabText,
-              activeSection === 'Specification' && styles.activeTabText
-            ]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeSection === 'Specification' && styles.activeTabText,
+              ]}
+            >
               Specification
             </Text>
           </TouchableOpacity>
@@ -1097,7 +1125,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => { }}
+            onPress={() => {}}
           >
             <Icon name="sliders" size={16} color="#777" />
           </TouchableOpacity>
@@ -1113,7 +1141,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => { }}
+            onPress={() => {}}
           >
             <Icon name="bar-chart-2" size={16} color="#777" />
           </TouchableOpacity>
@@ -1140,7 +1168,10 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         {/* BUY / SELL ACTIONS */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#EB483F' }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: '#EB483F', borderRadius: 15 },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('sell')}
           >
@@ -1149,9 +1180,12 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
               {currentPrice.toFixed(priceDigits)}
             </Text>
           </TouchableOpacity>
-          <View style={styles.divider} />
+
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#1E89F1' }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: '#1E89F1', borderRadius: 15 },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('buy')}
           >
@@ -1163,30 +1197,47 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         </View>
 
         {/* PERCENT BAR */}
-        <View style={styles.percentBarWrapper}>
+        <View style={styles.progressWrapper}>
           {/* Left (Sell side) */}
           <View style={styles.halfWrapper}>
+            {/* Filled red */}
             <View
-              style={[
-                styles.percentFill,
-                {
-                  width: `${leftPercent}%`,
-                  backgroundColor: '#ff5b5b',
-                },
-              ]}
+              style={{
+                height: 8,
+                width: `${leftPercent}%`,
+                backgroundColor: '#ff5b5b',
+              }}
+            />
+            {/* Empty gray */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: '#e4e4e4ff',
+                borderTopRightRadius: 4,
+                borderBottomRightRadius: 4,
+              }}
             />
           </View>
 
           {/* Right (Buy side) */}
           <View style={styles.halfWrapper}>
+            {/* Filled blue */}
             <View
-              style={[
-                styles.percentFill,
-                {
-                  width: `${rightPercent}%`,
-                  backgroundColor: '#1992FC',
-                },
-              ]}
+              style={{
+                height: 8,
+                width: `${rightPercent}%`,
+                borderTopLeftRadius: 4,
+                borderBottomLeftRadius: 4,
+                marginLeft: 10,
+                backgroundColor: '#1992FC',
+              }}
+            />
+            {/* Empty gray */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: '#e4e4e4ff', // background gray
+              }}
             />
           </View>
         </View>
@@ -1219,7 +1270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 0,
     borderColor: '#e5e7eb',
-    marginTop:10
+    marginTop: 10,
   },
   percentBlock: {
     borderRadius: 8,
@@ -1322,8 +1373,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     borderRadius: 12,
     marginBottom: 0,
-    gap: 24, 
-    
+    gap: 24,
   },
   tab: {
     paddingVertical: 8,
@@ -1334,8 +1384,8 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#000000',
-    paddingHorizontal: 20, 
-  marginHorizontal: 8
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
   },
   tabText: {
     fontSize: 16,
@@ -1343,14 +1393,13 @@ const styles = StyleSheet.create({
     color: '#999999',
   },
   activeTabText: {
-    color: '#000000', 
+    color: '#000000',
   },
   sectionBox: {
     height: '45%',
     marginBottom: 30,
     marginHorizontal: 8,
     backgroundColor: '#fff',
-    
   },
   toolsRow: {
     flexDirection: 'row',
@@ -1371,25 +1420,26 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     position: 'absolute',
+    marginHorizontal: 5,
     bottom: 45,
-    width: '100%',
-    height: 54,
+    width: '97%',
+    height: 55,
     alignItems: 'center',
   },
   actionBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    width: '95%'
+    paddingVertical: 7,
+    marginHorizontal: 4,
   },
   actionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#fff',
   },
   actionPrice: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#fff',
   },
   actionSub: {
@@ -1401,11 +1451,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
   },
-  divider: {
-    width: 1,
-    backgroundColor: '#fff',
-    height: '80%',
-  },
+
   percentBarLeft: {
     backgroundColor: '#ff5b5b',
     borderTopRightRadius: 4,
@@ -1545,32 +1591,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  percentBarWrapper: {
-    flexDirection: 'row',
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 30,
-    width: '100%',
-  },
   percentTextWrapper: {
     flexDirection: 'row',
     height: 10,
-    borderRadius: 5,
     overflow: 'hidden',
     position: 'absolute',
-    left: 0,
-    right: 0,
     bottom: 15,
     width: '100%',
   },
+  progressWrapper: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 30,
+    width: '93%',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginHorizontal: 10,
+  },
   halfWrapper: {
     flex: 1,
-    backgroundColor: '#ddd', // grey background for each half
-    justifyContent: 'center',
+    flexDirection: 'row', // so filled + empty stay side by side
   },
   persentageWrapper: {
     flex: 1,

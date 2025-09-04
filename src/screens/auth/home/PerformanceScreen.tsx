@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontFamily: FONT_REGULAR,
-    marginRight: 0,
+    marginRight: 4,
     flexShrink: 1,
   },
 

@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -15,7 +16,6 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetBalance } from '../../../store/balanceSlice'; // ✅ Import your redux action
-import { BackHandler } from 'react-native';
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
 const FONT_SEMIBOLD = Platform.select({ ios: 'Hartwell-Semibold', android: 'hartwell_semibold' });
@@ -63,18 +63,6 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     const currentUser = auth().currentUser;
     if (currentUser) setUserEmail(currentUser.email);
-    const backAction = () => {
-      // 👇 this will close the app
-      BackHandler.exitApp();
-      return true; // prevent default behavior
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
-    return () => backHandler.remove();
   }, []);
 
   const handleLogout = async () => {
