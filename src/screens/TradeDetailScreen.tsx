@@ -787,6 +787,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                               bottom: 0,
                               fontSize: 11,
                               color: '#9b9b9b',
+                              width: 70,
                               fontWeight: '600',
                             }}
                           >
