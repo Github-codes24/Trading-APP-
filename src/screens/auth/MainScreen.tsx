@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-
-// Import your local image
 import ExnessLogo from '../../assets/images/exnessLogo.png';
+import { useEffect } from 'react';
+import auth from '@react-native-firebase/auth';
+
 
 const GOOGLE_LOGO_PNG = 'https://developers.google.com/identity/images/g-logo.png';
 
@@ -19,18 +20,31 @@ GoogleSignin.configure({
 export default function MainScreen() {
   const navigation = useNavigation();
 
-const handleGoogleSignIn = async () => {
-  try {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const userInfo = await GoogleSignin.signIn();
-    console.log('Google userInfo:', userInfo);
-    Alert.alert('Google Sign-In Success', JSON.stringify(userInfo, null, 2));
-  } catch (error: any) {
-    // Log full error for debugging
-    console.error('Google Sign-In Error:', error);
+useEffect(() => {
+  const currentUser = auth().currentUser;
+  if (currentUser) {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Account' }],
+    });
+  }
+}, []);
 
-    // Build detailed message
-    const errorDetails = `
+
+
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      console.log('Google userInfo:', userInfo);
+      Alert.alert('Google Sign-In Success', JSON.stringify(userInfo, null, 2));
+    } catch (error: any) {
+      // Log full error for debugging
+      console.error('Google Sign-In Error:', error);
+
+      // Build detailed message
+      const errorDetails = `
 Code: ${error.code ?? 'N/A'}
 Message: ${error.message ?? 'N/A'}
 Details: ${error.details ?? 'N/A'}
@@ -40,10 +54,10 @@ In Progress: ${error.code === statusCodes.IN_PROGRESS}
 Play Services Not Available: ${error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE}
     `;
 
-    // Show in alert
-    Alert.alert('Google Sign-In Failed', errorDetails);
-  }
-};
+      // Show in alert
+      Alert.alert('Google Sign-In Failed', errorDetails);
+    }
+  };
 
 
   return (
@@ -61,13 +75,13 @@ Play Services Not Available: ${error.code === statusCodes.PLAY_SERVICES_NOT_AVAI
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             accessibilityRole="button"
             style={styles.primaryButton}
             onPress={() => navigation.navigate('Register' as never)}
           >
             <Text style={styles.primaryButtonText}>Register</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             accessibilityRole="button"
@@ -78,12 +92,12 @@ Play Services Not Available: ${error.code === statusCodes.PLAY_SERVICES_NOT_AVAI
           </TouchableOpacity>
 
           <View style={styles.separatorRow}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>or</Text>
-            <View style={styles.separatorLine} />
+            {/* <View style={styles.separatorLine} /> */}
+            {/* <Text style={styles.separatorText}>or</Text> */}
+            {/* <View style={styles.separatorLine} /> */}
           </View>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             accessibilityRole="button"
             style={styles.googleButton}
             onPress={handleGoogleSignIn}
@@ -92,7 +106,7 @@ Play Services Not Available: ${error.code === statusCodes.PLAY_SERVICES_NOT_AVAI
               <Image source={{ uri: GOOGLE_LOGO_PNG }} style={styles.googleIcon} />
               <Text style={styles.googleText}>Google</Text>
             </View>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
     </SafeAreaView>
@@ -118,7 +132,7 @@ const styles = StyleSheet.create({
   footer: { paddingBottom: 24, gap: 12 },
   primaryButton: { backgroundColor: '#FFD100', height: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#111111', fontSize: 14, fontWeight: '400' },
-  secondaryButton: { backgroundColor: '#F2F4F7', height: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  secondaryButton: { backgroundColor: '#FFD100', height: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { color: '#111111', fontSize: 14, fontWeight: '500' },
   separatorRow: { marginTop: 4, marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 12 },
   separatorLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },

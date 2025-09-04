@@ -42,64 +42,62 @@ export default function SignInScreen() {
     }
   };
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
-      return;
-    }
+const handleSignIn = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter email and password');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const trimmedEmail = email.trim().toLowerCase(); // normalize email
-      const deviceId = getUniqueId();
-      const userCredential = await auth().signInWithEmailAndPassword(trimmedEmail, password);
-      const uid = userCredential.user.uid;
+  try {
+    const trimmedEmail = email.trim().toLowerCase(); // normalize email
+    const deviceId = getUniqueId();
 
-      const userDocRef = firestore().collection('users').doc(uid);
-      const userDoc = await userDocRef.get();
-      const now = Date.now();
+    // Firebase sign-in
+    const userCredential = await auth().signInWithEmailAndPassword(trimmedEmail, password);
+    const uid = userCredential.user.uid;
 
-      if (userDoc.exists) {
-        const data = userDoc.data();
-        const lastLogin = data?.lastLogin || 0;
-        if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {
-          Alert.alert('Error', 'User is already logged in on another device.');
-          setLoading(false);
-          return;
-        }
+    const userDocRef = firestore().collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
+    const now = Date.now();
+
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      const lastLogin = data?.lastLogin || 0;
+      if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {
+        Alert.alert('Error', 'User is already logged in on another device.');
+        setLoading(false);
+        return;
       }
-
-      // Save current user email
-      await AsyncStorage.setItem('current_user_email', trimmedEmail);
-
-      // Check if passcode is already set
-      const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${trimmedEmail}`);
-
-      // Navigate using reset so user can't go back to login
-      navigation.reset({
-        index: 0,
-        routes: [
-          { name: isPasscodeSet === 'true' ? 'PasscodeLoginScreen' : 'SetPasscodeScreen' },
-        ],
-      });
-
-      // Firestore write in background
-      userDocRef.set(
-        { isLoggedIn: true, deviceId, lastLogin: now },
-        { merge: true }
-      ).catch(err => console.log('Firestore login set error:', err));
-
-      // Load balance in parallel
-      const savedBalance = await AsyncStorage.getItem(`balance_${uid}`);
-      dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0));
-
-    } catch (error: any) {
-      Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Save current user email
+    await AsyncStorage.setItem('current_user_email', trimmedEmail);
+
+    // 🔹 Directly navigate to AccountScreen
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Account' }],
+    });
+
+    // Firestore write in background
+    userDocRef.set(
+      { isLoggedIn: true, deviceId, lastLogin: now },
+      { merge: true }
+    ).catch(err => console.log('Firestore login set error:', err));
+
+    // Load balance in parallel
+    const savedBalance = await AsyncStorage.getItem(`balance_${uid}`);
+    dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0));
+
+  } catch (error: any) {
+    Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
