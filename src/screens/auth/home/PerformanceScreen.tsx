@@ -18,8 +18,6 @@ const FONT_BOLD = 'Satoshi-Bold';
 const FONT_REGULAR = 'Satoshi-Regular';
 const FONT_MEDIUM = 'Satoshi-Medium';
 
-const TABS = [{ label: 'Summary' }, { label: 'Exness benefits' }];
-
 // ✅ Extract only 7 evenly spaced points
 const getSevenBars = (
   data: { date: string; profit: number; loss: number }[],
@@ -56,7 +54,7 @@ const getXAxisLabels = (
 const OrdersChart: React.FC<{ data: number[] }> = ({ data }) => {
   const maxValue = Math.max(...data, 1);
   const chartHeight = 100;
-  
+
   return (
     <View style={styles.chartContainer}>
       <View style={styles.chartBarsContainer}>
@@ -83,7 +81,7 @@ const OrdersChart: React.FC<{ data: number[] }> = ({ data }) => {
 const VolumeChart: React.FC<{ data: number[] }> = ({ data }) => {
   const maxValue = Math.max(...data, 1);
   const chartHeight = 100;
-  
+
   return (
     <View style={styles.chartContainer}>
       <View style={styles.chartBarsContainer}>
@@ -126,7 +124,15 @@ const PerformanceScreen: React.FC = () => {
   // Dummy data for charts
   const ordersData = [8, 12, 6, 10, 14, 9, 13];
   const volumeData = [120000, 180000, 90000, 150000, 210000, 130000, 190000];
-  const volumeLabels = ['13 Jul', '18 Jul', '23 Jul', '28 Jul', '02 Aug', '07 Aug', '12 Aug'];
+  const volumeLabels = [
+    '13 Jul',
+    '18 Jul',
+    '23 Jul',
+    '28 Jul',
+    '02 Aug',
+    '07 Aug',
+    '12 Aug',
+  ];
 
   const customDatesForChart = customDates.map(item => ({
     date: item.date,
@@ -141,7 +147,7 @@ const PerformanceScreen: React.FC = () => {
   const maxLoss = Math.max(...displayedData.map(d => d.loss), 0);
 
   const chartHeight = 200;
-  const halfHeight = chartHeight /2;
+  const halfHeight = chartHeight / 2;
 
   // ✅ Y-axis values
   const stepUp = maxProfit / 2.5;
@@ -232,6 +238,54 @@ const PerformanceScreen: React.FC = () => {
   const unprofitableOrders = 4;
   const tradingVolume = '536,836.99 USD';
   const lifetimeTradingVolume = '3,100,614.91 USD';
+  const now = new Date();
+
+  const formatDate = (date: Date): string => {
+    const now = new Date();
+
+    // 🟢 Format time as "h:mm AM/PM"
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12; // convert to 12-hour format
+    const time = `${hours}:${minutes} ${ampm}`;
+
+    // 🟢 Check Today / Yesterday
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const checkDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+
+    if (checkDate.getTime() === today.getTime()) {
+      return `Today ${time}`;
+    } else if (checkDate.getTime() === yesterday.getTime()) {
+      return `Yesterday ${time}`;
+    } else {
+      // default fallback → Sep 4, 2025 4:35 PM
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return `${
+        monthNames[date.getMonth()]
+      } ${date.getDate()}, ${date.getFullYear()} ${time}`;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -241,26 +295,6 @@ const PerformanceScreen: React.FC = () => {
           <Text style={styles.headerTitle}>Performance</Text>
         </View>
 
-        {/* Tabs */}
-        <View style={styles.tabsRow}>
-          {TABS.map((tab, idx) => (
-            <TouchableOpacity
-              key={tab.label}
-              style={[styles.tab, activeTab === idx && styles.tabActive]}
-              onPress={() => setActiveTab(idx)}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === idx && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
         <View style={styles.tabDivider} />
 
         {/* Filters */}
@@ -298,20 +332,20 @@ const PerformanceScreen: React.FC = () => {
               style={[
                 styles.percentBadge,
                 {
-                  backgroundColor: isProfit ? '#DCFCE7' : '#FEE2E2',
+                  backgroundColor: isProfit ? '#eaf2fd' : '#FEE2E2',
                 },
               ]}
             >
               <Icon
-                name={isProfit ? 'arrow-up-right' : 'arrow-down-right'}
+                name={isProfit ? 'arrow-up' : 'arrow-down'}
                 size={14}
-                color={isProfit ? '#16A34A' : '#E11D48'}
+                color={isProfit ? '#4f7fa5' : '#E11D48'}
               />
               <Text
                 style={[
                   styles.percentText,
                   {
-                    color: isProfit ? '#16A34A' : '#E11D48',
+                    color: isProfit ? '#4f7fa5' : '#E11D48',
                   },
                 ]}
               >
@@ -320,7 +354,7 @@ const PerformanceScreen: React.FC = () => {
               <Icon
                 name="info"
                 size={14}
-                color={isProfit ? '#16A34A' : '#E11D48'}
+                color={isProfit ? '#4f7fa5' : '#E11D48'}
                 style={{ marginLeft: 2 }}
               />
             </View>
@@ -401,6 +435,11 @@ const PerformanceScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+        </View>
+        <View style={styles.lastupdateHeader}>
+          <Text style={styles.lastupdatedDateLabel}>
+            Last Updated: {formatDate(now)}
+          </Text>
         </View>
 
         {/* Total Orders Section */}
@@ -580,6 +619,8 @@ const PerformanceScreen: React.FC = () => {
                         { flex: 1, textAlign: 'center' },
                       ]}
                       placeholder="DD/MM"
+                      placeholderTextColor="#d0d2d7ff"
+                      //  keyboardType="numeric"
                       value={item.date}
                       onChangeText={text =>
                         updateCustomDateField(index, 'date', text)
@@ -637,7 +678,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F9FA' },
   header: { paddingHorizontal: 24 },
   headerTitle: {
-    fontSize: 34,
+    fontSize: 30,
+    marginTop: 15,
     fontFamily: FONT_BOLD,
     color: '#111111',
     fontWeight: '800',
@@ -655,7 +697,8 @@ const styles = StyleSheet.create({
   tabDivider: {
     height: 1,
     backgroundColor: '#E5E7EB',
-    marginBottom: 16,
+    marginBottom: 15,
+    marginTop: 10,
     marginHorizontal: 24,
   },
   chartXAxisRow: {
@@ -676,19 +719,19 @@ const styles = StyleSheet.create({
   filtersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 24,
-    marginBottom: 32,
+    gap: 0,
+    paddingHorizontal: 15,
+    marginBottom: 20,
+    marginTop: 5,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderColor: '#E5E7EB',
-    borderWidth: 1,
     borderRadius: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     marginRight: 12,
   },
   filterText: {
@@ -701,7 +744,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    marginBottom: 8,
+    marginBottom: 13,
     marginTop: 8,
     gap: 8,
   },
@@ -828,17 +871,23 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
   summaryItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
+    marginBottom: 3,
+  },
+  lastupdateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 30,
+    marginTop: -10,
+    marginBottom: 15,
   },
   summaryDotGreen: {
     width: 8,
@@ -861,6 +910,14 @@ const styles = StyleSheet.create({
     marginRight: 4,
     flexShrink: 1,
   },
+  lastupdatedDateLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: FONT_REGULAR,
+    marginRight: 4,
+    flexShrink: 1,
+  },
+
   summaryValue: {
     fontSize: 14,
     color: '#111111',
@@ -995,8 +1052,8 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   ordersSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    // flexDirection: 'row',
+    // justifyContent: 'space-between',
   },
   ordersSummaryItem: {
     flexDirection: 'row',
