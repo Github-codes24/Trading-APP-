@@ -11,13 +11,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
-import Fontisto from 'react-native-vector-icons/Fontisto';
+import { BackHandler } from 'react-native';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
 import { RootState } from '../../../store';
 import { Image } from 'react-native';
-import { deposit, withdraw } from '../../../slices/balanceSlice';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
@@ -39,11 +38,23 @@ const TradeScreen: React.FC = () => {
       }
     };
 
+     const backAction = () => {
+      // 👇 this will close the app
+      BackHandler.exitApp();
+      return true; // prevent default behavior
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
     tradingApiService.subscribeToTradingData(handleLiveData);
 
     return () => {
       tradingApiService.removeAllListeners();
       tradingApiService.disconnect();
+      backHandler.remove()
     };
   }, []);
 
