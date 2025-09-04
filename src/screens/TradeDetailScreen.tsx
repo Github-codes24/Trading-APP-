@@ -1382,7 +1382,7 @@ const styles = StyleSheet.create({
     width: '95%'
   },
   actionTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     color: '#fff',
   },
