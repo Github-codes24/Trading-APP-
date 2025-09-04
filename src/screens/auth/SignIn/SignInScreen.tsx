@@ -25,7 +25,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordHidden, setIsPasswordHidden] = useState(true);
-  const [loading, setLoading] = useState(false); // ⬅ loading state
+  const [loading, setLoading] = useState(false);
 
   const getFriendlyError = (code: string) => {
     switch (code) {
@@ -48,11 +48,12 @@ export default function SignInScreen() {
       return;
     }
 
-    setLoading(true); // ⬅ start spinner
+    setLoading(true);
 
     try {
+      const trimmedEmail = email.trim().toLowerCase(); // normalize email
       const deviceId = getUniqueId();
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const userCredential = await auth().signInWithEmailAndPassword(trimmedEmail, password);
       const uid = userCredential.user.uid;
 
       const userDocRef = firestore().collection('users').doc(uid);
@@ -69,9 +70,19 @@ export default function SignInScreen() {
         }
       }
 
-      // Navigate immediately
-      const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${email}`);
-      navigation.navigate(isPasscodeSet === 'true' ? 'PasscodeLoginScreen' : 'SetPasscodeScreen');
+      // Save current user email
+      await AsyncStorage.setItem('current_user_email', trimmedEmail);
+
+      // Check if passcode is already set
+      const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${trimmedEmail}`);
+
+      // Navigate using reset so user can't go back to login
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: isPasscodeSet === 'true' ? 'PasscodeLoginScreen' : 'SetPasscodeScreen' },
+        ],
+      });
 
       // Firestore write in background
       userDocRef.set(
@@ -79,25 +90,20 @@ export default function SignInScreen() {
         { merge: true }
       ).catch(err => console.log('Firestore login set error:', err));
 
-      // Save current user email
-      AsyncStorage.setItem('current_user_email', email).catch(err => console.log(err));
-
       // Load balance in parallel
-      AsyncStorage.getItem(`balance_${uid}`).then(savedBalance =>
-        dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0))
-      );
+      const savedBalance = await AsyncStorage.getItem(`balance_${uid}`);
+      dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0));
 
     } catch (error: any) {
       Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
     } finally {
-      setLoading(false); // ⬅ stop spinner
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="chevron-left" size={28} color="#111111" />
@@ -106,7 +112,6 @@ export default function SignInScreen() {
           <View style={styles.grow} />
         </View>
 
-        {/* Body */}
         <View style={styles.body}>
           <Text style={styles.helper}>Please enter your email address and password</Text>
 
@@ -140,12 +145,11 @@ export default function SignInScreen() {
           </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.primaryButton, loading && { opacity: 0.6 }]}
             onPress={handleSignIn}
-            disabled={loading} // ⬅ disable while loading
+            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#111111" />
