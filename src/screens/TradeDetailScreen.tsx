@@ -29,6 +29,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
 
+
+
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -51,24 +53,22 @@ const formatInstrumentName = (name: string) => {
   if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
     return `${name.slice(0, 3)}/${name.slice(3)}`;
   }
-  console.log('======',name)
+  console.log('======', name);
   return name;
 };
 const formatInstrumentNames = (name: string) => {
-  console.log('namemmememem',name.length)
-  if (name && name.length === 6 ) {
-    console.log('080980809' , [name.slice(0, 3), name.slice(3)])
+  console.log('namemmememem', name.length);
+  if (name && name.length === 6) {
+    console.log('080980809', [name.slice(0, 3), name.slice(3)]);
     return [name.slice(0, 3), name.slice(3)];
   }
-  console.log('-------',name)
+  console.log('-------', name);
   return [name]; // wrap whole name in array
 };
 
-
-// // Examples
+// Examples
 // console.log(formatInstrumentName("ABCDEF")); // ["ABC", "DEF"]
 // console.log(formatInstrumentName("BTC"));    // ["BTC"]
-
 
 const formatDate = (dateStr: string): string => {
   // expects YYYY-MM-DD
@@ -115,7 +115,7 @@ export const FetchTradeDetails = async (
       socket.onerror = err => {
         reject(err);
       };
-      socket.onclose = () => {};
+      socket.onclose = () => { };
     } catch (error) {
       reject(error);
     }
@@ -165,7 +165,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
                   style={[
                     styles.timeFrameText,
                     selectedTimeFrame === item.value &&
-                      styles.selectedTimeFrameText,
+                    styles.selectedTimeFrameText,
                   ]}
                 >
                   {item.label}
@@ -821,7 +821,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const walletBalance = useSelector(
     (state: any) => state?.balance?.amount ?? 0,
   );
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
   const [zoom, setZoom] = useState(1);
   const [verticalZoom, setVerticalZoom] = useState(1);
   const [timeFrame, setTimeFrame] = useState(60);
@@ -829,6 +829,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [activeSection, setActiveSection] = useState<'Chart' | 'Analytics' | 'Specification'>('Chart');
 
   const leftPercent = 31;
   const rightPercent = 69;
@@ -864,35 +865,33 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   };
 
   // Currency flag icons
-const getFlagIcon = (currencies: string | string[]) => {
-  const mapCurrencyToIcon = (currency: string) => {
-    switch (currency) {
-      case 'USD':
-        return { name: 'USD', source: require('../assets/images/us.png') };
-      case 'ETH':
-        return { name: 'ETH', source: require('../assets/images/ethereum.png') };
-      case 'JPY':
-        return { name: 'JPY', source: require('../assets/images/japan.png') };
-      case 'EUR':
-        return { name: 'EUR', source: require('../assets/images/european-union.png') };
-      case 'GBP':
-        return { name: 'GBP', source: require('../assets/images/flag.png') };
-      case 'CAD':
-        return { name: 'CAD', source: require('../assets/images/canada.png') };
-      case 'XAU':
-        return { name: 'XAU', source: require('../assets/images/tether-gold.png') };
-      default:
-        return { name: currency, source: require('../assets/images/bitcoin.png') };
+  const getFlagIcon = (currencies: string | string[]) => {
+    const mapCurrencyToIcon = (currency: string) => {
+      switch (currency) {
+        case 'USD':
+          return { name: 'USD', source: require('../assets/images/us.png') };
+        case 'ETH':
+          return { name: 'ETH', source: require('../assets/images/ethereum.png') };
+        case 'JPY':
+          return { name: 'JPY', source: require('../assets/images/japan.png') };
+        case 'EUR':
+          return { name: 'EUR', source: require('../assets/images/european-union.png') };
+        case 'GBP':
+          return { name: 'GBP', source: require('../assets/images/flag.png') };
+        case 'CAD':
+          return { name: 'CAD', source: require('../assets/images/canada.png') };
+        case 'XAU':
+          return { name: 'XAU', source: require('../assets/images/tether-gold.png') };
+        default:
+          return { name: currency, source: require('../assets/images/bitcoin.png') };
+      }
+    };
+
+    if (Array.isArray(currencies)) {
+      return currencies.map((c) => mapCurrencyToIcon(c));
     }
+    return [mapCurrencyToIcon(currencies)];
   };
-
-  if (Array.isArray(currencies)) {
-    return currencies.map((c) => mapCurrencyToIcon(c));
-  }
-  return [mapCurrencyToIcon(currencies)];
-};
-
-
 
   const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
     try {
@@ -916,14 +915,13 @@ const getFlagIcon = (currencies: string | string[]) => {
 
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
-       const tradeCost = lotSize * currentPrice;
+      const tradeCost = lotSize * currentPrice;
 
       dispatch(withdraw(tradeCost));
 
       Alert.alert(
         'Trade Executed',
-        `Successfully ${
-          type === 'buy' ? 'bought' : 'sold'
+        `Successfully ${type === 'buy' ? 'bought' : 'sold'
         } ${lotSize} lots of ${formatInstrumentName(
           trade.name,
         )} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`,
@@ -939,8 +937,9 @@ const getFlagIcon = (currencies: string | string[]) => {
   const priceDigits = trade.name === 'EURUSD' ? 4 : 2;
   const isForex = formatInstrumentName(trade.name).includes('/');
   const iconsA = formatInstrumentNames(trade.name);
-  const icons = getFlagIcon(iconsA)
-console.log('iconsicons',icons)
+  const icons = getFlagIcon(iconsA);
+  console.log('iconsicons', icons);
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -966,24 +965,26 @@ console.log('iconsicons',icons)
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={styles.instrumentIconCircle}>
-              {icons.length > 0 && <View style={{ flexDirection: 'row' }}>
-                {icons.map((icon, idx) =>
-                  icon ? (
-                    <Image
-                      key={idx}
-                      source={icon.source}
-                      style={{
-                        width: isForex ? 20 : 22,
-                        height: isForex ? 20 : 22,
-                        borderRadius: isForex ? 8 : 11,
-                        marginRight: isForex && idx === 0 ? -10 : 0,
-                        marginTop: isForex && idx === 0 ? 15 : 20,
-                      }}
-                      resizeMode="contain"
-                    />
-                  ) : null,
-                )}
-              </View>}
+              {icons.length > 0 && (
+                <View style={{ flexDirection: 'row' }}>
+                  {icons.map((icon, idx) =>
+                    icon ? (
+                      <Image
+                        key={idx}
+                        source={icon.source}
+                        style={{
+                          width: isForex ? 20 : 22,
+                          height: isForex ? 20 : 22,
+                          borderRadius: isForex ? 8 : 11,
+                          marginRight: isForex && idx === 0 ? -10 : 0,
+                          marginTop: isForex && idx === 0 ? 15 : 20,
+                        }}
+                        resizeMode="contain"
+                      />
+                    ) : null,
+                  )}
+                </View>
+              )}
             </View>
 
             <Text style={styles.pairText}>
@@ -991,10 +992,20 @@ console.log('iconsicons',icons)
             </Text>
           </View>
           <View style={styles.headerIcons}>
-            <Icon name="clock" size={20} color="#111" style={styles.icon} />
-            <Icon name="maximize" size={20} color="#111" style={styles.icon} />
+            <Image
+              source={require('../assets/images/alarm.png')}
+              style={{ width: 22, height: 22, marginLeft: 12 }}
+            />
+
+            <Image
+              source={require('../assets/images/calculator.png')}
+              style={{ width: 20, height: 20, marginLeft: 12 }}
+            />
+            <Image
+              source={require('../assets/images/arrowfour.png')}
+              style={{ width: 20, height: 20, marginLeft: 12 }}
+            />
             <Icon name="settings" size={20} color="#111" style={styles.icon} />
-            <Icon name="more-vertical" size={20} color="#111" />
           </View>
         </View>
 
@@ -1004,17 +1015,80 @@ console.log('iconsicons',icons)
           <Text style={styles.statusText}>Pending 0</Text>
         </View>
 
-        {/* CHART AREA (FULL HEIGHT MINUS BOTTOM ACTIONS) */}
-        <View style={styles.chartBox}>
-          <DynamicGraph
-            zoom={zoom}
-            setZoom={setZoom}
-            verticalZoom={verticalZoom}
-            setVerticalZoom={setVerticalZoom}
-            timeFrame={timeFrame}
-            symbol={trade.name}
-            onCurrentPriceChange={handleCurrentPriceChange}
-          />
+        {/* SECTION TABS */}
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tab, activeSection === 'Chart' && styles.activeTab]}
+            onPress={() => setActiveSection('Chart')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeSection === 'Chart' && styles.activeTabText
+            ]}>
+              Chart
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeSection === 'Analytics' && styles.activeTab]}
+            onPress={() => setActiveSection('Analytics')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeSection === 'Analytics' && styles.activeTabText
+            ]}>
+              Analytics
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeSection === 'Specification' && styles.activeTab]}
+            onPress={() => setActiveSection('Specification')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeSection === 'Specification' && styles.activeTabText
+            ]}>
+              Specification
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* SECTION CONTENT */}
+        <View style={styles.sectionBox}>
+          {activeSection === 'Chart' && (
+            <DynamicGraph
+              zoom={zoom}
+              setZoom={setZoom}
+              verticalZoom={verticalZoom}
+              setVerticalZoom={setVerticalZoom}
+              timeFrame={timeFrame}
+              symbol={trade.name}
+              onCurrentPriceChange={handleCurrentPriceChange}
+            />
+          )}
+          {activeSection === 'Analytics' && (
+            <DynamicGraph
+              zoom={zoom}
+              setZoom={setZoom}
+              verticalZoom={verticalZoom}
+              setVerticalZoom={setVerticalZoom}
+              timeFrame={timeFrame}
+              symbol={trade.name}
+              onCurrentPriceChange={handleCurrentPriceChange}
+            />
+          )}
+          {activeSection === 'Specification' && (
+            <DynamicGraph
+              zoom={zoom}
+              setZoom={setZoom}
+              verticalZoom={verticalZoom}
+              setVerticalZoom={setVerticalZoom}
+              timeFrame={timeFrame}
+              symbol={trade.name}
+              onCurrentPriceChange={handleCurrentPriceChange}
+            />
+          )}
         </View>
 
         {/* TOOLS ROW - FIXED */}
@@ -1022,7 +1096,7 @@ console.log('iconsicons',icons)
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => {}}
+            onPress={() => { }}
           >
             <Icon name="sliders" size={16} color="#777" />
           </TouchableOpacity>
@@ -1038,7 +1112,7 @@ console.log('iconsicons',icons)
           <TouchableOpacity
             style={styles.toolBtn}
             activeOpacity={0.7}
-            onPress={() => {}}
+            onPress={() => { }}
           >
             <Icon name="bar-chart-2" size={16} color="#777" />
           </TouchableOpacity>
@@ -1065,7 +1139,7 @@ console.log('iconsicons',icons)
         {/* BUY / SELL ACTIONS */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#ff5b5b' }]}
+            style={[styles.actionBtn, { backgroundColor: '#EB483F' }]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('sell')}
           >
@@ -1076,7 +1150,7 @@ console.log('iconsicons',icons)
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#1992FC' }]}
+            style={[styles.actionBtn, { backgroundColor: '#1E89F1' }]}
             activeOpacity={0.85}
             onPress={() => handleTradeAction('buy')}
           >
@@ -1142,8 +1216,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
     borderColor: '#e5e7eb',
+    marginTop:10
   },
   percentBlock: {
     borderRadius: 8,
@@ -1191,11 +1266,13 @@ const styles = StyleSheet.create({
   balanceBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#ffffffff',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 16,
-    maxWidth: 160,
+    maxWidth: 195,
+    borderWidth: 1, // Border
+    borderColor: '#d3d3d3',
   },
   demoBadge: {
     backgroundColor: '#edeff5',
@@ -1205,7 +1282,7 @@ const styles = StyleSheet.create({
     marginRight: 7,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 7,
+    borderRadius: 10,
   },
   balanceAmount: { fontWeight: '600', fontSize: 16, color: '#222' },
   header: {
@@ -1216,26 +1293,63 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#fff',
   },
-  pairText: { fontSize: 18, fontWeight: '700', color: '#222' },
+  pairText: { fontSize: 22, fontWeight: '700', color: '#222' },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
   icon: { marginLeft: 14 },
   statusRow: {
     flexDirection: 'row',
     paddingHorizontal: 19,
     paddingVertical: 10,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f8f8', // Greyish background for the rectangular box
+    borderRadius: 12, // Rounded corners for a rectangular look
+    alignItems: 'center', // Center text vertically
+    borderBottomWidth: 0,
+    margin: 8,
+    marginBottom: 0,
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#a2a8b4',
+    fontWeight: '500',
+    color: '#1f2023ff',
     marginRight: 18,
   },
-  chartBox: {
-    height: '50%',
+  tabRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    backgroundColor: '#ffffffff',
+    marginHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 0,
+    gap: 24, 
+    
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 12,
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#000000',
+    paddingHorizontal: 20, 
+  marginHorizontal: 8
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#999999',
+  },
+  activeTabText: {
+    color: '#000000', 
+  },
+  sectionBox: {
+    height: '45%',
     marginBottom: 30,
     marginHorizontal: 8,
     backgroundColor: '#fff',
+    
   },
   toolsRow: {
     flexDirection: 'row',
@@ -1268,8 +1382,8 @@ const styles = StyleSheet.create({
     width: '95%'
   },
   actionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#fff',
   },
   actionPrice: {
@@ -1463,7 +1577,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 10,
   },
-
   percentFill: {
     height: '100%',
   },

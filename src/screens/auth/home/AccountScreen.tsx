@@ -948,7 +948,7 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
       {/* Header */}
       <View style={styles.topToolbar}>
         <Image
-          source={require('../../../assets/images/clockicon.png')}
+          source={require('../../../assets/images/clockIcon.png')}
           style={{
             width: SIZES.topIcon,
             height: SIZES.topIcon,
@@ -958,7 +958,7 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         />
         <View style={styles.bellWrapper}>
           <Image
-            source={require('../../../assets/images/bellicon.png')}
+            source={require('../../../assets/images/BellIcon.png')}
             style={{ width: SIZES.topIcon, height: SIZES.topIcon }}
             resizeMode="contain"
           />

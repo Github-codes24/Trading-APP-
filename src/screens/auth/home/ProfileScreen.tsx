@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux'; // ✅ Import dispatch
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resetBalance } from '../../../store/balanceSlice'; // ✅ Import your redux action
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
 const FONT_SEMIBOLD = Platform.select({ ios: 'Hartwell-Semibold', android: 'hartwell_semibold' });
@@ -54,6 +56,7 @@ const ListItem: React.FC<{
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch(); // ✅ Initialize dispatch
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,35 +64,33 @@ const ProfileScreen: React.FC = () => {
     if (currentUser) setUserEmail(currentUser.email);
   }, []);
 
-const handleLogout = async () => {
-  try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return;
+  const handleLogout = async () => {
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) return;
 
-    // 1️⃣ Firestore update
-    await firestore()
-      .collection("users")
-      .doc(currentUser.uid)
-      .set({ isLoggedIn: false, deviceId: null }, { merge: true });
+      // 1️⃣ Update Firestore
+      await firestore()
+        .collection("users")
+        .doc(currentUser.uid)
+        .set({ isLoggedIn: false, deviceId: null }, { merge: true });
 
-    // 2️⃣ Firebase sign out
-    await auth().signOut();
+      // 2️⃣ Sign out Firebase
+      await auth().signOut();
 
-    // 3️⃣ Clear AsyncStorage & Redux state
-    await AsyncStorage.clear(); // ya selectively balance + passcode
-    dispatch(resetBalance()); // ✅ reset Redux balance
+      // 3️⃣ Clear AsyncStorage and reset Redux
+      await AsyncStorage.clear();
+      dispatch(resetBalance());
 
-    // 4️⃣ Navigate to Main screen
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Main" }],
-    });
-  } catch (error: any) {
-    Alert.alert("Error", error.message || "Failed to log out");
-  }
-};
-
-
+      // 4️⃣ Navigate to Main screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Main" }],
+      });
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to log out");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -173,7 +174,6 @@ const handleLogout = async () => {
   );
 };
 
-
 const styles = StyleSheet.create({
   container: { flex: 1, paddingBottom: 10, backgroundColor: '#FFFFFF' },
   headerRow: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', paddingHorizontal: 18, paddingBottom: 8 },
@@ -198,11 +198,6 @@ const styles = StyleSheet.create({
   bannerTitle: { fontSize: 14, color: '#111518', lineHeight: 20, fontFamily: FONT_REGULAR },
   bannerButton: { height: 44, borderRadius: 8, backgroundColor: '#FFD100', alignItems: 'center', justifyContent: 'center' },
   bannerButtonText: { fontSize: 16, color: '#111518', fontFamily: FONT_SEMIBOLD },
-  cardRow: { marginTop: 16, marginHorizontal: 18, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  cardIconGreen: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E6FFFA', alignItems: 'center', justifyContent: 'center' },
-  cardTextWrap: { flex: 1 },
-  cardTitle: { fontSize: 16, color: '#0F172A', fontFamily: FONT_MEDIUM },
-  cardSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: FONT_REGULAR },
   group: { backgroundColor: '#FFFFFF', borderRadius: 12, marginHorizontal: 18, paddingVertical: 4, borderWidth: 1, borderColor: '#F1F5F9' },
   separator: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 18 + 36 + 12 },
   logoutCard: { marginTop: 18, marginHorizontal: 18, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#F1F5F9' },
