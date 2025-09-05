@@ -74,7 +74,7 @@ function AppContent() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Main" component={MainScreen} />
+        <Stack.Screen name="Main" component={AccountScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="Email" component={EmailScreen} />

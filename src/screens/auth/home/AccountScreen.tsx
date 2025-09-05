@@ -718,7 +718,7 @@ const AccountsUI: React.FC<{
 
   const handleTradeItemPress = (trade: TradeData) => {
     setSelectedTrade(trade);
-    setModalVisible(true);
+    // setModalVisible(true);
   };
 
   const handleModify = () => {

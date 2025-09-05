@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-shadow */
+/* eslint-disable react/self-closing-comp */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
 import React, {
@@ -28,6 +30,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
+import {
+  BarChart,
+  LineChart,
+  PieChart,
+  PopulationPyramid,
+  RadarChart,
+} from 'react-native-gifted-charts';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -47,30 +56,33 @@ export interface HistoryResponse {
   data: Candle[];
 }
 
-const formatInstrumentName = (name: string) => {
-  if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
-    return `${name.slice(0, 3)}/${name.slice(3)}`;
-  }
-  console.log('======', name);
-  return name;
-};
+ const formatInstrumentName = (name: string) => {
+    if (name && name === 'BTCUSD') {
+      return `${name.slice(0, 3)}`;
+    }
+    if (
+      name &&
+      name.length === 6 &&
+      /^[A-Z]{6}$/.test(name) &&
+      name !== 'BTCUSD'
+    ) {
+      return `${name.slice(0, 3)}/${name.slice(3)}`;
+    }
+
+    return name;
+  };
+  
 const formatInstrumentNames = (name: string) => {
-  console.log('namemmememem', name.length);
   if (name && name.length === 6) {
-    console.log('080980809', [name.slice(0, 3), name.slice(3)]);
     return [name.slice(0, 3), name.slice(3)];
   }
-  console.log('-------', name);
-  return [name]; // wrap whole name in array
+  return [name];
 };
-
-// Examples
-// console.log(formatInstrumentName("ABCDEF")); // ["ABC", "DEF"]
-// console.log(formatInstrumentName("BTC"));    // ["BTC"]
 
 const formatDate = (dateStr: string): string => {
   // expects YYYY-MM-DD
   const [year, month, day] = dateStr.split('-');
+  console.log('=====>', dateStr);
   return `${day}/${month}`;
 };
 
@@ -83,11 +95,7 @@ const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
 // TIMEFRAMES
-const timeFrames = [
-  { label: '7 Days', value: 7 },
-  { label: '30 Days', value: 30 },
-  { label: '60 Days', value: 60 },
-];
+const timeFrames = [{ label: '5 m', value: 7 }];
 
 // FETCH HISTORY VIA WS (one-shot)
 export const FetchTradeDetails = async (
@@ -181,7 +189,7 @@ const TimeFrameModal: React.FC<TimeFrameModalProps> = ({
 interface TradeModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell', tp?: number, sl?: number) => void;
+  onConfirm: (lotSize: number, tradeType: 'buy' | 'sell') => void;
   tradeType: 'buy' | 'sell';
   currentPrice: number;
   symbol: string;
@@ -196,8 +204,6 @@ const TradeModal: React.FC<TradeModalProps> = ({
   symbol,
 }) => {
   const [lotSize, setLotSize] = useState<string>('1');
-  const [tpValue, setTpValue] = useState<string>('');
-  const [slValue, setSlValue] = useState<string>('');
   const [calculatedValues, setCalculatedValues] = useState<{
     profit: number;
     points: number;
@@ -242,6 +248,12 @@ const TradeModal: React.FC<TradeModalProps> = ({
         profit = points * 0.01;
         rsc = profit * 0.1;
       }
+
+      setCalculatedValues({
+        profit,
+        points,
+        rsc,
+      });
     },
     [symbol, currentPrice],
   );
@@ -250,20 +262,27 @@ const TradeModal: React.FC<TradeModalProps> = ({
     calculateTradeValues(lotSize);
   }, [lotSize, calculateTradeValues]);
 
- const handleConfirm = () => {
+  const handleIncrement = () => {
+    const current = parseFloat(lotSize) || 0;
+    setLotSize((current + 0.1).toFixed(1));
+  };
+
+  const handleDecrement = () => {
+    const current = parseFloat(lotSize) || 0;
+    if (current > 0.1) {
+      setLotSize((current - 0.1).toFixed(1));
+    }
+  };
+
+  const handleConfirm = () => {
     const size = parseFloat(lotSize);
     if (size <= 0 || isNaN(size)) {
       Alert.alert('Error', 'Please enter a valid lot size');
       return;
     }
-    
-    const tp = tpValue ? parseFloat(tpValue) : undefined;
-    const sl = slValue ? parseFloat(slValue) : undefined;
-    
-    onConfirm(size, tradeType, tp, sl);
+
+    onConfirm(size, tradeType);
     setLotSize('1');
-    setTpValue('');
-    setSlValue('');
   };
 
   return (
@@ -275,66 +294,64 @@ const TradeModal: React.FC<TradeModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.tradeModalContent}>
-          <Text style={styles.tradeModalTitle}>
-            {tradeType === 'buy' ? 'Buy' : 'Sell'}{' '}
-            {formatInstrumentName(symbol)}
-          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              top: -10,
+              height: 6,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: '#e5e5e5',
+                height: 4,
+                width: 30,
+                borderRadius: 2,
+              }}
+            ></View>
+          </View>
+          <Text style={styles.tradeModalTitle}>Regular</Text>
 
-          <Text style={styles.currentPriceText}>
-            Current Price: {currentPrice.toFixed(symbol === 'EURUSD' ? 4 : 2)}
-          </Text>
+          {/* <View style= {{flex:1, flexDirection: 'row-reverse', backgroundColor: '#f4f5f7', width : 30, height: 30}}> </View> */}
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Lot Size:</Text>
-            <TextInput
-              style={styles.input}
-              value={lotSize}
-              onChangeText={setLotSize}
-              keyboardType="numeric"
-              placeholder="Enter lot size"
-            />
-          </View>
+            <Text style={styles.inputLabel}>Volume</Text>
+            <View style={styles.input}>
+              <TouchableOpacity
+                style={styles.volumeButton}
+                onPress={handleDecrement}
+              >
+                <Text style={styles.volumeButtonText}>-</Text>
+              </TouchableOpacity>
 
-          <View style={styles.tpSlRow}>
-            <View style={styles.tpSlInputContainer}>
-              <Text style={styles.inputLabel}>+TP:</Text>
               <TextInput
-                style={styles.tpSlInput}
-                value={tpValue}
-                onChangeText={setTpValue}
+                value={lotSize}
+                onChangeText={setLotSize}
                 keyboardType="numeric"
-                placeholder="TP value"
+                placeholder="Enter lot size"
+                textAlign="center"
+                style={{
+                  flex: 1,
+                  height: 40,
+                  paddingHorizontal: 10,
+                  fontSize: 16,
+                  color: '#000',
+                }}
               />
-            </View>
-            <View style={styles.tpSlInputContainer}>
-              <Text style={styles.inputLabel}>+SL:</Text>
-              <TextInput
-                style={styles.tpSlInput}
-                value={slValue}
-                onChangeText={setSlValue}
-                keyboardType="numeric"
-                placeholder="SL value"
-              />
+
+              <TouchableOpacity
+                style={styles.volumeButton}
+                onPress={handleIncrement}
+              >
+                <Text style={styles.volumeButtonText}>+</Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          {calculatedValues && (
-            <View style={styles.calculatedValues}>
-              <Text style={styles.calculatedText}>
-                Estimated Profit: ${calculatedValues.profit}
-              </Text>
-              <Text style={styles.calculatedText}>
-                Points: {calculatedValues.points}
-              </Text>
-              <Text style={styles.calculatedText}>
-                RSC: {calculatedValues.rsc}
-              </Text>
-            </View>
-          )}
 
           <View style={styles.tradeModalButtons}>
             <TouchableOpacity
-              style={[styles.tradeModalButton, styles.cancelButton]}
+              style={[styles.trademodalbuttoncancle]}
               onPress={onClose}
             >
               <Text style={styles.buttonText}>Cancel</Text>
@@ -347,10 +364,37 @@ const TradeModal: React.FC<TradeModalProps> = ({
               ]}
               onPress={handleConfirm}
             >
-              <Text style={styles.buttonText}>
-                Confirm {tradeType === 'buy' ? 'Buy' : 'Sell'}
+              <Text style={styles.buttonTextBuySell}>
+                Confirm {tradeType === 'buy' ? 'Buy' : 'Sell'} {lotSize} lots
+              </Text>
+              <Text style={styles.buttonTextBuySell}>
+                {currentPrice.toFixed(symbol === 'EURUSD' ? 4 : 2)}
               </Text>
             </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ bottom: -12, color: '#797979', fontSize: 12 }}>
+              Fees: 0.16 USD | Margin: 1.77 USD(1:2000)
+            </Text>
+            <Icon
+              name="info"
+              size={22}
+              color="#111"
+              style={{
+                marginRight: 4,
+                height: 22,
+                width: 22,
+                top: 10,
+                color: '#aeafb1',
+              }}
+            />
           </View>
         </View>
       </View>
@@ -408,7 +452,7 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
         }
         return next;
       });
-    }, 1000);
+    }, 1500);
     return () => clearInterval(interval);
   }, [symbol, candles.length]);
 
@@ -425,7 +469,7 @@ interface GraphProps {
   symbol: string;
   onCurrentPriceChange: (price: number) => void;
   tpValue?: number;
-  slValue?: number; 
+  slValue?: number;
 }
 
 const DynamicGraph: React.FC<GraphProps> = ({
@@ -436,19 +480,16 @@ const DynamicGraph: React.FC<GraphProps> = ({
   timeFrame,
   symbol,
   onCurrentPriceChange,
-  tpValue,
-  slValue,
 }) => {
   const [history, setHistory] = useState<Candle[] | null>(null);
   const [chartHeight, setChartHeight] = useState(
-    Math.floor(SCREEN_HEIGHT * 0.52),
+    Math.floor(SCREEN_HEIGHT * 0.5),
   );
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
   const [showCandleDetails, setShowCandleDetails] = useState(false);
-  const candleSlotWidth = 8 * zoom;
-  const barWidth = candleSlotWidth * 0.55;
-  
+  const candleSlotWidth = 10 * zoom;
+  const barWidth = candleSlotWidth * 0.5;
 
   useEffect(() => {
     let isMounted = true;
@@ -567,8 +608,8 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const midPrice = (maxPrice + minPrice) / 2;
   const baseRange = Math.max(1e-9, maxPrice - minPrice);
   const zoomedRange = baseRange / verticalZoom;
-  const zoomedMax = midPrice + zoomedRange / 2;
-  const zoomedMin = midPrice - zoomedRange / 2;
+  const zoomedMax = midPrice + zoomedRange / 1.5;
+  const zoomedMin = midPrice - zoomedRange / 1.5;
   const priceRange = Math.max(1e-9, zoomedMax - zoomedMin);
 
   // Get current price for buy/sell lines
@@ -577,16 +618,8 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const sellLineY = ((zoomedMax - currentPrice) / priceRange) * chartHeight;
 
   const levels = [zoomedMax, midPrice, zoomedMin];
-  const totalWidth = data.length * candleSlotWidth + 60;
+  const totalWidth = data.length * candleSlotWidth + SCREEN_WIDTH;
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
-
-  const tpLineY = tpValue 
-    ? ((zoomedMax - tpValue) / priceRange) * chartHeight 
-    : null;
-    
-  const slLineY = slValue 
-    ? ((zoomedMax - slValue) / priceRange) * chartHeight 
-    : null;
 
   return (
     <View style={{ flex: 1 }} {...panResponder.panHandlers}>
@@ -621,12 +654,12 @@ const DynamicGraph: React.FC<GraphProps> = ({
               position: 'absolute',
               right: 2,
               top: clamp(top - 8, 2, chartHeight - 20),
-              fontSize: 12,
-              fontWeight: '600',
-              color: 'white',
-              backgroundColor: 'rgba(0,0,0,0.45)',
+              fontSize: 16,
+              fontWeight: '500',
+              color: '#7c8484',
+              // backgroundColor: 'rgba(0,0,0,0.45)',
               zIndex: 3,
-              paddingHorizontal: 4,
+              // paddingHorizontal: 4,
               borderRadius: 3,
             }}
           >
@@ -665,9 +698,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
           />
           <Text
             style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: '#111',
+              fontSize: 14,
+              fontWeight: '500',
+              color: '#fff',
               backgroundColor: '#1992FC',
               paddingHorizontal: 6,
               borderRadius: 3,
@@ -695,9 +728,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
           />
           <Text
             style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: '#111',
+              fontSize: 14,
+              fontWeight: '500',
+              color: '#fff',
               backgroundColor: '#ff5b5b',
               paddingHorizontal: 6,
               borderRadius: 3,
@@ -726,7 +759,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               style={{
                 flexDirection: 'row',
                 alignItems: 'flex-end',
-                height: '98%',
+                height: '94%',
                 position: 'relative',
               }}
             >
@@ -769,89 +802,6 @@ const DynamicGraph: React.FC<GraphProps> = ({
                   backgroundColor: 'rgba(255, 91, 91, 0.7)',
                 }}
               />
-
-               {/* TP and SL lines */}
-      {tpLineY !== null && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: tpLineY,
-            height: 1,
-            backgroundColor: '#4CAF50', // Green for TP
-            zIndex: 5,
-          }}
-        />
-      )}
-      
-      {slLineY !== null && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: slLineY,
-            height: 1,
-            backgroundColor: '#F44336', // Red for SL
-            zIndex: 5,
-          }}
-        />
-      )}
-      
-      {/* TP and SL labels */}
-      {tpLineY !== null && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 2,
-            top: clamp(tpLineY - 8, 2, chartHeight - 18),
-            flexDirection: 'row',
-            alignItems: 'center',
-            zIndex: 6,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: 'white',
-              backgroundColor: '#4CAF50',
-              paddingHorizontal: 6,
-              borderRadius: 3,
-            }}
-          >
-            TP: {tpValue?.toFixed(priceDigits)}
-          </Text>
-        </View>
-      )}
-      
-      {slLineY !== null && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 2,
-            top: clamp(slLineY - 8, 2, chartHeight - 18),
-            flexDirection: 'row',
-            alignItems: 'center',
-            zIndex: 6,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: 'white',
-              backgroundColor: '#F44336',
-              paddingHorizontal: 6,
-              borderRadius: 3,
-            }}
-          >
-            SL: {slValue?.toFixed(priceDigits)}
-          </Text>
-        </View>
-      )}
-
               {/* CANDLES */}
               {data.map((c, idx) => {
                 const isBull = c.close >= c.open;
@@ -874,7 +824,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                       width: candleSlotWidth,
                       alignItems: 'center',
                       position: 'relative',
-                      height: '100%',
+                      height: '95%',
                     }}
                     onPress={() => handleCandleTap(c)}
                     activeOpacity={0.7}
@@ -912,7 +862,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                               fontSize: 11,
                               color: '#9b9b9b',
                               width: 70,
-                              fontWeight: '600',
+                              fontWeight: '500',
                             }}
                           >
                             {formatDate(c.time)}
@@ -949,7 +899,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const dispatch = useDispatch();
   const [zoom, setZoom] = useState(1);
   const [verticalZoom, setVerticalZoom] = useState(1);
-  const [timeFrame, setTimeFrame] = useState(60);
+  const [timeFrame, setTimeFrame] = useState(7);
   const [showTimeFrameModal, setShowTimeFrameModal] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
@@ -960,9 +910,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
   const leftPercent = 31;
   const rightPercent = 69;
-
-  const [tpValue, setTpValue] = useState<number | undefined>();
-  const [slValue, setSlValue] = useState<number | undefined>();
 
   const handleTimeFrameSelect = (v: number) => {
     setTimeFrame(v);
@@ -1038,12 +985,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     return [mapCurrencyToIcon(currencies)];
   };
 
-  const handleTradeConfirm = async (
-    lotSize: number,
-    type: 'buy' | 'sell',
-    tp?: number,
-    sl?: number,
-  ) => {
+  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
     try {
       const tradeData = {
         id: Date.now().toString(),
@@ -1052,19 +994,14 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         type,
         lotSize,
         price: currentPrice,
-        tp,
-        sl,
         timestamp: new Date().toISOString(),
-        status: 'executed',
+        status: 'open',
       };
 
       const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
       const existingTrades = existingTradesJSON
         ? JSON.parse(existingTradesJSON)
         : [];
-
-      setTpValue(tp);
-      setSlValue(sl);
 
       const updatedTrades = [tradeData, ...existingTrades];
 
@@ -1090,11 +1027,74 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     }
   };
 
-  const priceDigits = trade.name === 'EURUSD' ? 4 : 2;
-  const isForex = formatInstrumentName(trade.name).includes('/');
+  const getTradeCounts = async (symbol: string) => {
+    try {
+      const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+      const existingTrades = existingTradesJSON
+        ? JSON.parse(existingTradesJSON)
+        : [];
+
+      const openTrades = existingTrades.filter(
+        (t: any) => t.symbol === symbol && t.status === 'open',
+      );
+
+      const pendingTrades = existingTrades.filter(
+        (t: any) => t.symbol === symbol && t.status === 'pending',
+        
+      );
+
+      // Calculate total profit/loss for open trades
+      const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+        // Calculate P/L based on current price vs entry price
+        const priceDifference = currentPrice - trade.price;
+        const tradePnl = priceDifference * trade.lotSize;
+
+        
+        return total + tradePnl;
+      }, 0);
+
+      return {
+        openCount: openTrades.length,
+        pendingCount: pendingTrades.length,
+        totalProfitLoss,
+      };
+    } catch (error) {
+      console.error('Error reading trades:', error);
+      return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
+    }
+  };
+
+  const priceDigits = trade.name === 'EURUSD' ? 4 : 3;
   const iconsA = formatInstrumentNames(trade.name);
   const icons = getFlagIcon(iconsA);
   console.log('iconsicons', icons);
+
+  const [tradeCounts, setTradeCounts] = useState({
+    openCount: 0,
+    pendingCount: 0,
+    totalProfitLoss: 0,
+  });
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      const counts = await getTradeCounts(trade.name);
+      setTradeCounts(counts);
+    };
+
+    loadCounts();
+  }, [trade.name, currentPrice]);
+
+  useEffect(() => {
+    const refreshProfitLoss = async () => {
+      const counts = await getTradeCounts(trade.name);
+      setTradeCounts(prev => ({
+        ...prev,
+        totalProfitLoss: counts.totalProfitLoss,
+      }));
+    };
+
+    refreshProfitLoss();
+  }, [currentPrice, trade.name]);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -1105,7 +1105,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             <Text style={styles.demoBadge}>Real</Text>
             <Text style={styles.balanceAmount}>
               {walletBalance
-                ? `$${Number(walletBalance).toFixed(2)} USD`
+                ? `${Number(walletBalance).toFixed(2)} USD`
                 : '0.00 USD'}
             </Text>
             <Icon
@@ -1118,285 +1118,368 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         </View>
 
         {/* HEADER */}
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={styles.instrumentIconCircle}>
-              {icons.length > 0 && (
-                <View style={{ flexDirection: 'row' }}>
-                  {icons.map((icon, idx) =>
-                    icon ? (
-                      <Image
-                        key={idx}
-                        source={icon.source}
-                        style={{
-                          width: isForex ? 20 : 22,
-                          height: isForex ? 20 : 22,
-                          borderRadius: isForex ? 8 : 11,
-                          marginRight: isForex && idx === 0 ? -10 : 0,
-                          marginTop: isForex && idx === 0 ? 15 : 20,
-                        }}
-                        resizeMode="contain"
-                      />
-                    ) : null,
-                  )}
-                </View>
-              )}
+        <View style={styles.containtView}>
+          <View style={styles.header}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={styles.instrumentIconCircle}>
+                {icons.length > 0 && (
+                  <View style={{ flexDirection: 'row' }}>
+                    {icons.map((icon, idx) =>
+                      icon ? (
+                        <Image
+                          key={idx}
+                          source={icon.source}
+                          style={{
+                            width: icons ? 18 : 22,
+                            height: icons ? 18 : 22,
+                            borderRadius: icons ? 9 : 11,
+                            marginRight: icons && idx === 0 ? -10 : 0,
+                            marginTop: icons && idx === 0 ? 15 : 20,
+                          }}
+                          resizeMode="contain"
+                        />
+                      ) : null,
+                    )}
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.pairText}>
+                {formatInstrumentName(trade.name)}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                top: -30,
+                height: 6,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: '#e5e5e5',
+                  height: 4,
+                  width: 30,
+                  borderRadius: 2,
+                }}
+              ></View>
+            </View>
+            <View style={styles.headerIcons}>
+              <Image
+                source={require('../assets/images/alarm.png')}
+                style={{ width: 22, height: 22, marginLeft: 12 }}
+              />
+
+              <Image
+                source={require('../assets/images/calculator.png')}
+                style={{ width: 20, height: 20, marginLeft: 12 }}
+              />
+              <Image
+                source={require('../assets/images/arrowfour.png')}
+                style={{ width: 20, height: 20, marginLeft: 12 }}
+              />
+              <Icon
+                name="settings"
+                size={20}
+                color="#111"
+                style={styles.icon}
+              />
+            </View>
+          </View>
+
+          {/* COUNTS */}
+          <View style={styles.statusRow}>
+            <Text style={styles.statusText}>Open</Text>
+            <Text
+              style={{
+                backgroundColor: '#edeff1',
+                fontSize: 14,
+                fontWeight: '500',
+                color: '#1f2023ff',
+                paddingVertical: 2,
+                paddingHorizontal: 5,
+                borderRadius: 15,
+                marginLeft: -10,
+                marginRight: 15,
+              }}
+            >
+              {tradeCounts.openCount}
+            </Text>
+            <Text style={styles.statusText}>Pending</Text>
+            <Text
+              style={{
+                backgroundColor: '#edeff1',
+                fontSize: 14,
+                fontWeight: '500',
+                color: '#1f2023ff',
+                paddingVertical: 2,
+                paddingHorizontal: 5,
+                borderRadius: 15,
+                marginLeft: -10,
+                marginRight: 18,
+              }}
+            >
+              {tradeCounts.pendingCount}
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row-reverse',
+                width: 160,
+                height: '100%',
+                alignItems: 'center',
+              }}
+            >
+              <TouchableOpacity onPress={() => setActiveSection('Chart')}>
+                <Image
+                  source={require('../assets/images/cancel.png')}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    marginLeft: 12,
+                    tintColor: '#ec4945',
+                  }}
+                />
+              </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color:
+                    tradeCounts.totalProfitLoss >= 0 ? '#4caf50' : '#f44336',
+                  marginLeft: 8,
+                }}
+              >
+                {tradeCounts.totalProfitLoss >= 0 ? '+' : ''}
+                {tradeCounts.totalProfitLoss.toFixed(2)} USD
+              </Text>
+            </View>
+          </View>
+
+          {/* SECTION TABS */}
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeSection === 'Chart' && styles.activeTab,
+              ]}
+              onPress={() => setActiveSection('Chart')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeSection === 'Chart' && styles.activeTabText,
+                ]}
+              >
+                Chart
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeSection === 'Analytics' && styles.activeTab,
+              ]}
+              onPress={() => setActiveSection('Analytics')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeSection === 'Analytics' && styles.activeTabText,
+                ]}
+              >
+                Analytics
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeSection === 'Specification' && styles.activeTab,
+              ]}
+              onPress={() => setActiveSection('Specification')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeSection === 'Specification' && styles.activeTabText,
+                ]}
+              >
+                Specifications
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* SECTION CONTENT */}
+          <View style={styles.sectionBox}>
+            {activeSection === 'Chart' && (
+              <DynamicGraph
+                zoom={zoom}
+                setZoom={setZoom}
+                verticalZoom={verticalZoom}
+                setVerticalZoom={setVerticalZoom}
+                timeFrame={timeFrame}
+                symbol={trade.name}
+                onCurrentPriceChange={handleCurrentPriceChange}
+              />
+            )}
+            {activeSection === 'Analytics' && (
+              <DynamicGraph
+                zoom={zoom}
+                setZoom={setZoom}
+                verticalZoom={verticalZoom}
+                setVerticalZoom={setVerticalZoom}
+                timeFrame={timeFrame}
+                symbol={trade.name}
+                onCurrentPriceChange={handleCurrentPriceChange}
+              />
+            )}
+            {activeSection === 'Specification' && (
+              <DynamicGraph
+                zoom={zoom}
+                setZoom={setZoom}
+                verticalZoom={verticalZoom}
+                setVerticalZoom={setVerticalZoom}
+                timeFrame={timeFrame}
+                symbol={trade.name}
+                onCurrentPriceChange={handleCurrentPriceChange}
+              />
+            )}
+          </View>
+
+          {/* TOOLS ROW - FIXED */}
+          <View style={styles.toolsRow}>
+            <TouchableOpacity
+              style={styles.toolBtn}
+              activeOpacity={0.7}
+              onPress={() => {}}
+            >
+              <Icon name="sliders" size={16} color="#777" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.toolBtn}
+              activeOpacity={0.7}
+              onPress={() => setShowTimeFrameModal(true)}
+            >
+              <Text style={{ fontWeight: '600', color: '#444' }}>
+                {getTimeFrameLabel()}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.toolBtn}
+              activeOpacity={0.7}
+              onPress={() => {}}
+            >
+              <Icon name="bar-chart-2" size={16} color="#777" />
+            </TouchableOpacity>
+          </View>
+
+          {/* TIME FRAME MODAL - FIXED */}
+          <TimeFrameModal
+            visible={showTimeFrameModal}
+            onClose={() => setShowTimeFrameModal(false)}
+            onSelect={handleTimeFrameSelect}
+            selectedTimeFrame={timeFrame}
+          />
+
+          {/* TRADE MODAL */}
+          <TradeModal
+            visible={showTradeModal}
+            onClose={() => setShowTradeModal(false)}
+            onConfirm={handleTradeConfirm}
+            tradeType={tradeType}
+            currentPrice={currentPrice}
+            symbol={trade.name}
+          />
+
+          {/* BUY / SELL ACTIONS */}
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              style={[
+                styles.actionBtn,
+                { backgroundColor: '#EB483F', borderRadius: 3 },
+              ]}
+              activeOpacity={0.85}
+              onPress={() => handleTradeAction('sell')}
+            >
+              <Text style={styles.actionTitle}>Sell</Text>
+              <Text style={styles.actionPrice}>
+                {currentPrice.toFixed(priceDigits)}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.actionBtn,
+                { backgroundColor: '#1E89F1', borderRadius: 3 },
+              ]}
+              activeOpacity={0.85}
+              onPress={() => handleTradeAction('buy')}
+            >
+              <Text style={styles.actionTitle}>Buy</Text>
+              <Text style={styles.actionPrice}>
+                {currentPrice.toFixed(priceDigits)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* PERCENT BAR */}
+          <View style={styles.progressWrapper}>
+            {/* Left (Sell side) */}
+            <View style={styles.halfWrapper}>
+              {/* Filled red */}
+              <View
+                style={{
+                  height: 4,
+                  width: `${leftPercent}%`,
+                  backgroundColor: '#ff5b5b',
+                }}
+              />
+              {/* Empty gray */}
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: '#e4e4e4ff',
+                  borderTopRightRadius: 2,
+                  borderBottomRightRadius: 2,
+                }}
+              />
             </View>
 
-            <Text style={styles.pairText}>
-              {formatInstrumentName(trade.name)}
-            </Text>
-          </View>
-          <View style={styles.headerIcons}>
-            <Image
-              source={require('../assets/images/alarm.png')}
-              style={{ width: 22, height: 22, marginLeft: 12 }}
-            />
-
-            <Image
-              source={require('../assets/images/calculator.png')}
-              style={{ width: 20, height: 20, marginLeft: 12 }}
-            />
-            <Image
-              source={require('../assets/images/arrowfour.png')}
-              style={{ width: 20, height: 20, marginLeft: 12 }}
-            />
-            <Icon name="settings" size={20} color="#111" style={styles.icon} />
-          </View>
-        </View>
-
-        {/* COUNTS */}
-        <View style={styles.statusRow}>
-          <Text style={styles.statusText}>Open 0</Text>
-          <Text style={styles.statusText}>Pending 0</Text>
-        </View>
-
-        {/* SECTION TABS */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tab, activeSection === 'Chart' && styles.activeTab]}
-            onPress={() => setActiveSection('Chart')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeSection === 'Chart' && styles.activeTabText,
-              ]}
-            >
-              Chart
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeSection === 'Analytics' && styles.activeTab,
-            ]}
-            onPress={() => setActiveSection('Analytics')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeSection === 'Analytics' && styles.activeTabText,
-              ]}
-            >
-              Analytics
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeSection === 'Specification' && styles.activeTab,
-            ]}
-            onPress={() => setActiveSection('Specification')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeSection === 'Specification' && styles.activeTabText,
-              ]}
-            >
-              Specification
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* SECTION CONTENT */}
-        <View style={styles.sectionBox}>
-          {activeSection === 'Chart' && (
-            <DynamicGraph
-              zoom={zoom}
-              setZoom={setZoom}
-              verticalZoom={verticalZoom}
-              setVerticalZoom={setVerticalZoom}
-              timeFrame={timeFrame}
-              symbol={trade.name}
-              onCurrentPriceChange={handleCurrentPriceChange}
-              tpValue={tpValue}
-              slValue={slValue}
-            />
-          )}
-          {activeSection === 'Analytics' && (
-            <DynamicGraph
-              zoom={zoom}
-              setZoom={setZoom}
-              verticalZoom={verticalZoom}
-              setVerticalZoom={setVerticalZoom}
-              timeFrame={timeFrame}
-              symbol={trade.name}
-              onCurrentPriceChange={handleCurrentPriceChange}
-              tpValue={tpValue}
-              slValue={slValue}
-            />
-          )}
-          {activeSection === 'Specification' && (
-            <DynamicGraph
-              zoom={zoom}
-              setZoom={setZoom}
-              verticalZoom={verticalZoom}
-              setVerticalZoom={setVerticalZoom}
-              timeFrame={timeFrame}
-              symbol={trade.name}
-              onCurrentPriceChange={handleCurrentPriceChange}
-              tpValue={tpValue}
-              slValue={slValue}
-            />
-          )}
-        </View>
-
-        {/* TOOLS ROW - FIXED */}
-        <View style={styles.toolsRow}>
-          <TouchableOpacity
-            style={styles.toolBtn}
-            activeOpacity={0.7}
-            onPress={() => {}}
-          >
-            <Icon name="sliders" size={16} color="#777" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.toolBtn}
-            activeOpacity={0.7}
-            onPress={() => setShowTimeFrameModal(true)}
-          >
-            <Text style={{ fontWeight: '600', color: '#444' }}>
-              {getTimeFrameLabel()}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.toolBtn}
-            activeOpacity={0.7}
-            onPress={() => {}}
-          >
-            <Icon name="bar-chart-2" size={16} color="#777" />
-          </TouchableOpacity>
-        </View>
-
-        {/* TIME FRAME MODAL - FIXED */}
-        <TimeFrameModal
-          visible={showTimeFrameModal}
-          onClose={() => setShowTimeFrameModal(false)}
-          onSelect={handleTimeFrameSelect}
-          selectedTimeFrame={timeFrame}
-        />
-
-        {/* TRADE MODAL */}
-        <TradeModal
-          visible={showTradeModal}
-          onClose={() => setShowTradeModal(false)}
-          onConfirm={handleTradeConfirm}
-          tradeType={tradeType}
-          currentPrice={currentPrice}
-          symbol={trade.name}
-        />
-
-        {/* BUY / SELL ACTIONS */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              { backgroundColor: '#EB483F', borderRadius: 15 },
-            ]}
-            activeOpacity={0.85}
-            onPress={() => handleTradeAction('sell')}
-          >
-            <Text style={styles.actionTitle}>Sell</Text>
-            <Text style={styles.actionPrice}>
-              {currentPrice.toFixed(priceDigits)}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              { backgroundColor: '#1E89F1', borderRadius: 15 },
-            ]}
-            activeOpacity={0.85}
-            onPress={() => handleTradeAction('buy')}
-          >
-            <Text style={styles.actionTitle}>Buy</Text>
-            <Text style={styles.actionPrice}>
-              {currentPrice.toFixed(priceDigits)}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* PERCENT BAR */}
-        <View style={styles.progressWrapper}>
-          {/* Left (Sell side) */}
-          <View style={styles.halfWrapper}>
-            {/* Filled red */}
-            <View
-              style={{
-                height: 8,
-                width: `${leftPercent}%`,
-                backgroundColor: '#ff5b5b',
-              }}
-            />
-            {/* Empty gray */}
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: '#e4e4e4ff',
-                borderTopRightRadius: 4,
-                borderBottomRightRadius: 4,
-              }}
-            />
+            {/* Right (Buy side) */}
+            <View style={styles.halfWrapper}>
+              {/* Filled blue */}
+              <View
+                style={{
+                  height: 4,
+                  width: `${rightPercent}%`,
+                  borderTopLeftRadius: 2,
+                  borderBottomLeftRadius: 2,
+                  marginLeft: 5,
+                  backgroundColor: '#1992FC',
+                }}
+              />
+              {/* Empty gray */}
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: '#e4e4e4ff',
+                }}
+              />
+            </View>
           </View>
 
-          {/* Right (Buy side) */}
-          <View style={styles.halfWrapper}>
-            {/* Filled blue */}
-            <View
-              style={{
-                height: 8,
-                width: `${rightPercent}%`,
-                borderTopLeftRadius: 4,
-                borderBottomLeftRadius: 4,
-                marginLeft: 10,
-                backgroundColor: '#1992FC',
-              }}
-            />
-            {/* Empty gray */}
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: '#e4e4e4ff',
-              }}
-            />
-          </View>
-        </View>
-
-        <View style={styles.percentTextWrapper}>
-          <View style={styles.persentageWrapper}>
-            <Text style={[styles.actionSub, { color: '#ff5b5b' }]}>
-              {leftPercent}%
-            </Text>
-          </View>
-          <View style={styles.persentageWrapper}>
-            <Text style={[styles.actionSub, { color: '#1992FC' }]}>
-              {rightPercent}%
-            </Text>
+          <View style={styles.percentTextWrapper}>
+            <View style={styles.persentageWrapper}>
+              <Text style={[styles.actionSub, { color: '#ff5b5b' }]}>
+                {leftPercent}%
+              </Text>
+            </View>
+            <View style={styles.persentageWrapper}>
+              <Text style={[styles.actionSub, { color: '#1992FC' }]}>
+                {rightPercent}%
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -1406,10 +1489,10 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
 // STYLES
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#f8f8f8' },
   balanceBar: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 15,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1418,22 +1501,34 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  tpSlRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginBottom: 20,
-},
-tpSlInputContainer: {
-  flex: 1,
-  marginHorizontal: 5,
-},
-tpSlInput: {
-  borderWidth: 1,
-  borderColor: '#ddd',
-  borderRadius: 8,
-  padding: 12,
-  fontSize: 16,
-},
+  volumeControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  volumeButton: {
+    alignItems: 'center',
+    // justifyContent: 'center',
+  },
+  volumeButtonText: {
+    fontSize: 25,
+    // fontWeight: 'bold',
+    color: '#333',
+  },
+  input: {
+    // flex:1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    height: 43,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inputText: {},
   percentBlock: {
     borderRadius: 8,
     paddingVertical: 6,
@@ -1482,30 +1577,37 @@ tpSlInput: {
     alignItems: 'center',
     backgroundColor: '#ffffffff',
     paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    maxWidth: 195,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    maxWidth: 200,
     borderWidth: 1, // Border
     borderColor: '#d3d3d3',
+    height: 37,
   },
   demoBadge: {
     backgroundColor: '#edeff5',
-    color: '#999',
-    fontWeight: '700',
-    fontSize: 13,
+    color: '#111',
+    fontWeight: '400',
+    fontSize: 12,
     marginRight: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
   },
   balanceAmount: { fontWeight: '600', fontSize: 16, color: '#222' },
+  containtView: {
+    backgroundColor: '#fff',
+    borderTopRightRadius: 15,
+    borderTopLeftRadius: 15,
+    height: '93%',
+    width: '100%',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 30,
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
   },
   pairText: { fontSize: 22, fontWeight: '700', color: '#222' },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
@@ -1515,10 +1617,12 @@ tpSlInput: {
     paddingHorizontal: 19,
     paddingVertical: 10,
     backgroundColor: '#f8f8f8',
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
     borderBottomWidth: 0,
-    margin: 8,
+    marginTop: -18,
+    marginLeft: 15,
+    marginRight: 15,
     marginBottom: 0,
   },
   statusText: {
@@ -1529,25 +1633,26 @@ tpSlInput: {
   },
   tabRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     paddingVertical: 10,
     backgroundColor: '#ffffffff',
-    marginHorizontal: 8,
-    borderRadius: 12,
-    marginBottom: 0,
-    gap: 24,
+    marginHorizontal: 20,
+    marginBottom: 35,
+    width: '100%'
   },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    // borderRadius: 8,
     marginHorizontal: 12,
   },
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#000000',
-    paddingHorizontal: 20,
+    borderRadius:1,
+    paddingHorizontal: 8,
     marginHorizontal: 8,
+    // width: '100%'
   },
   tabText: {
     fontSize: 16,
@@ -1565,33 +1670,34 @@ tpSlInput: {
   },
   toolsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    // justifyContent: 'center',
     paddingVertical: 9,
     backgroundColor: '#fff',
     marginBottom: 4,
+    marginLeft: 10,
   },
   toolBtn: {
-    marginHorizontal: 10,
+    marginHorizontal: 4,
     backgroundColor: '#ececec',
-    paddingVertical: 7,
-    paddingHorizontal: 23,
     borderRadius: 8,
+    height: 40,
+    width: 40,
     alignItems: 'center',
-    flexDirection: 'row',
+    justifyContent: 'center',
   },
   bottomBar: {
     flexDirection: 'row',
     position: 'absolute',
-    marginHorizontal: 5,
-    bottom: 45,
-    width: '97%',
+    marginHorizontal: 15,
+    bottom: 35,
+    width: '92%',
     height: 55,
     alignItems: 'center',
   },
   actionBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 7,
+    paddingVertical: 3,
     marginHorizontal: 4,
   },
   actionTitle: {
@@ -1601,14 +1707,14 @@ tpSlInput: {
   },
   actionPrice: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#fff',
   },
   actionSub: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     color: '#111',
-    height: 15,
+    height: 17,
     width: '100%',
     textAlign: 'center',
     textAlignVertical: 'center',
@@ -1627,14 +1733,15 @@ tpSlInput: {
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    width: '100%',
   },
   modalContent: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    width: '80%',
+    width: '100%',
     maxHeight: '70%',
   },
   modalTitle: {
@@ -1647,25 +1754,24 @@ tpSlInput: {
   timeFrameItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    // borderBottomWidth: 1,
+    // borderBottomColor: '#f0f0f0',
   },
   selectedTimeFrame: {
-    backgroundColor: '#1992FC',
-    borderRadius: 6,
+    // backgroundColor: '#1992FC',
+    // borderRadius: 6,
   },
   timeFrameText: {
     fontSize: 16,
-    color: '#333',
+    color: '#111',
   },
   selectedTimeFrameText: {
-    color: 'white',
-    fontWeight: '600',
+    color: '#111',
+    fontWeight: '500',
   },
-  // Candle Details Box Styles
   candleDetailsBox: {
     position: 'absolute',
-    top: 20,
+    top: 25,
     left: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     padding: 12,
@@ -1678,16 +1784,15 @@ tpSlInput: {
     fontWeight: '600',
     marginBottom: 4,
   },
-  // Trade Modal Styles
   tradeModalContent: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
-    width: '90%',
-    maxHeight: '70%',
+    width: '100%',
+    height: '28%',
   },
   tradeModalTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
@@ -1704,18 +1809,12 @@ tpSlInput: {
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
     marginBottom: 8,
-    color: '#333',
+    color: '#393d3e',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
+
   calculatedValues: {
     backgroundColor: '#f9f9f9',
     padding: 15,
@@ -1730,17 +1829,22 @@ tpSlInput: {
   },
   tradeModalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // justifyContent: 'space-between',
   },
   tradeModalButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 8,
+    padding: 5,
+    borderRadius: 4,
     alignItems: 'center',
     marginHorizontal: 5,
+    width: '75%',
   },
-  cancelButton: {
-    backgroundColor: '#ccc',
+  trademodalbuttoncancle: {
+    flex: 1,
+    padding: 5,
+    borderRadius: 4,
+    alignItems: 'center',
+    width: 25,
+    backgroundColor: '#f4f5f7',
   },
   buyButton: {
     backgroundColor: '#1992FC',
@@ -1749,27 +1853,35 @@ tpSlInput: {
     backgroundColor: '#ff5b5b',
   },
   buttonText: {
+    color: '#36373b',
+    // fontWeight: 'bold',
+    fontSize: 12,
+    top: 7,
+  },
+  buttonTextBuySell: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 12,
   },
+
   percentTextWrapper: {
     flexDirection: 'row',
     height: 10,
     overflow: 'hidden',
     position: 'absolute',
-    bottom: 15,
-    width: '100%',
+    bottom: 10,
+    width: '92%',
+    marginLeft: 20,
   },
   progressWrapper: {
     flexDirection: 'row',
     position: 'absolute',
-    bottom: 30,
-    width: '93%',
-    height: 8,
-    borderRadius: 4,
+    bottom: 25,
+    width: '90%',
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
-    marginHorizontal: 10,
+    marginHorizontal: 20,
   },
   halfWrapper: {
     flex: 1,
