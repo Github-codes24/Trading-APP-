@@ -25,7 +25,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordHidden, setIsPasswordHidden] = useState(true);
-  const [loading, setLoading] = useState(false); // ⬅ loading state
+  const [loading, setLoading] = useState(false);
 
   const getFriendlyError = (code: string) => {
     switch (code) {
@@ -42,62 +42,66 @@ export default function SignInScreen() {
     }
   };
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
-      return;
-    }
+const handleSignIn = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter email and password');
+    return;
+  }
 
-    setLoading(true); // ⬅ start spinner
+  setLoading(true);
 
-    try {
-      const deviceId = getUniqueId();
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
-      const uid = userCredential.user.uid;
+  try {
+    const trimmedEmail = email.trim().toLowerCase(); // normalize email
+    const deviceId = getUniqueId();
 
-      const userDocRef = firestore().collection('users').doc(uid);
-      const userDoc = await userDocRef.get();
-      const now = Date.now();
+    // Firebase sign-in
+    const userCredential = await auth().signInWithEmailAndPassword(trimmedEmail, password);
+    const uid = userCredential.user.uid;
 
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        const lastLogin = data?.lastLogin || 0;
-        if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {
-          Alert.alert('Error', 'User is already logged in on another device.');
-          setLoading(false);
-          return;
-        }
+    const userDocRef = firestore().collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
+    const now = Date.now();
+
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      const lastLogin = data?.lastLogin || 0;
+      if (data?.isLoggedIn && data?.deviceId !== deviceId && now - lastLogin < 5 * 60 * 1000) {
+        Alert.alert('Error', 'User is already logged in on another device.');
+        setLoading(false);
+        return;
       }
-
-      // Navigate immediately
-      const isPasscodeSet = await AsyncStorage.getItem(`isPasscodeSet_${email}`);
-      navigation.navigate(isPasscodeSet === 'true' ? 'PasscodeLoginScreen' : 'SetPasscodeScreen');
-
-      // Firestore write in background
-      userDocRef.set(
-        { isLoggedIn: true, deviceId, lastLogin: now },
-        { merge: true }
-      ).catch(err => console.log('Firestore login set error:', err));
-
-      // Save current user email
-      AsyncStorage.setItem('current_user_email', email).catch(err => console.log(err));
-
-      // Load balance in parallel
-      AsyncStorage.getItem(`balance_${uid}`).then(savedBalance =>
-        dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0))
-      );
-
-    } catch (error: any) {
-      Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
-    } finally {
-      setLoading(false); // ⬅ stop spinner
     }
-  };
+
+    // Save current user email
+    await AsyncStorage.setItem('current_user_email', trimmedEmail);
+
+    // 🔹 Directly navigate to AccountScreen
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Account' }],
+    });
+
+    // Firestore write in background
+    userDocRef.set(
+      { isLoggedIn: true, deviceId, lastLogin: now },
+      { merge: true }
+    ).catch(err => console.log('Firestore login set error:', err));
+
+    // Load balance in parallel
+    const savedBalance = await AsyncStorage.getItem(`balance_${uid}`);
+    dispatch(setBalance(savedBalance ? JSON.parse(savedBalance) : 0));
+
+  } catch (error: any) {
+    Alert.alert('Login Failed', getFriendlyError(error.code || 'unknown'));
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="chevron-left" size={28} color="#111111" />
@@ -106,7 +110,6 @@ export default function SignInScreen() {
           <View style={styles.grow} />
         </View>
 
-        {/* Body */}
         <View style={styles.body}>
           <Text style={styles.helper}>Please enter your email address and password</Text>
 
@@ -140,12 +143,11 @@ export default function SignInScreen() {
           </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.primaryButton, loading && { opacity: 0.6 }]}
             onPress={handleSignIn}
-            disabled={loading} // ⬅ disable while loading
+            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#111111" />

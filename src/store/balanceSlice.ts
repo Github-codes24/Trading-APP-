@@ -40,6 +40,7 @@ const balanceSlice = createSlice({
   reducers: {
     setBalance: (state, action: PayloadAction<number>) => {
       state.amount = action.payload;
+      saveBalance(state.amount);
     },
     deposit: (state, action: PayloadAction<number>) => {
       state.amount += action.payload;
@@ -53,9 +54,13 @@ const balanceSlice = createSlice({
       state.amount = 0;
       saveBalance(0);
     },
+    updateBalanceWithPnl: (state, action: PayloadAction<number>) => {
+      state.amount = action.payload; // Directly set the balance with the new value including P/L
+      saveBalance(state.amount); // Save the updated balance
+    },
   },
 });
 
-export const { setBalance, deposit, withdraw, resetBalance } =
+export const { setBalance, deposit, withdraw, resetBalance, updateBalanceWithPnl } =
   balanceSlice.actions;
 export default balanceSlice.reducer;

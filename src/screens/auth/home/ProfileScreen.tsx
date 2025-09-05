@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux'; // ✅ Import dispatch
+import { useDispatch, useSelector } from 'react-redux';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { resetBalance } from '../../../store/balanceSlice'; // ✅ Import your redux action
+import { resetBalance } from '../../../store/balanceSlice';
+import { RootState } from '../../../store'; 
 
 const FONT_BOLD = Platform.select({ ios: 'HartwellAlt-Black', android: 'hartwell_alt_black' });
 const FONT_SEMIBOLD = Platform.select({ ios: 'Hartwell-Semibold', android: 'hartwell_semibold' });
@@ -57,39 +58,82 @@ const ListItem: React.FC<{
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
-  const dispatch = useDispatch(); // ✅ Initialize dispatch
+  const dispatch = useDispatch();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number>(0);
 
+  const reduxBalance = useSelector((state: RootState) => state.balance.value);
+
+  // Load balance on mount
   useEffect(() => {
     const currentUser = auth().currentUser;
     if (currentUser) setUserEmail(currentUser.email);
-  }, []);
+
+    const loadBalance = async () => {
+      if (!currentUser) return;
+
+      try {
+        const balanceKey = `balance_${currentUser.uid}`;
+        const savedBalance = await AsyncStorage.getItem(balanceKey);
+
+        if (savedBalance !== null) {
+          setBalance(parseFloat(savedBalance));
+        } else {
+          setBalance(reduxBalance ?? 0);
+        }
+      } catch (err) {
+        console.log('Error loading balance:', err);
+        setBalance(reduxBalance ?? 0);
+      }
+    };
+
+    loadBalance();
+  }, [reduxBalance]);
+
+  // Persist balance whenever it changes
+  useEffect(() => {
+    const persistBalance = async () => {
+      const currentUser = auth().currentUser;
+      if (!currentUser) return;
+
+      const balanceKey = `balance_${currentUser.uid}`;
+      try {
+        await AsyncStorage.setItem(balanceKey, (balance ?? 0).toString());
+
+        await firestore()
+          .collection('users')
+          .doc(currentUser.uid)
+          .set({ balance: balance ?? 0 }, { merge: true });
+      } catch (err) {
+        console.log('Error persisting balance:', err);
+      }
+    };
+
+    persistBalance();
+  }, [balance]);
 
   const handleLogout = async () => {
     try {
       const currentUser = auth().currentUser;
       if (!currentUser) return;
 
-      // 1️⃣ Update Firestore
-      await firestore()
-        .collection("users")
-        .doc(currentUser.uid)
-        .set({ isLoggedIn: false, deviceId: null }, { merge: true });
+      // Save balance before logout
+      const balanceKey = `balance_${currentUser.uid}`;
+      await AsyncStorage.setItem(balanceKey, (balance ?? 0).toString());
+      await firestore().collection('users').doc(currentUser.uid).set({ isLoggedIn: false, deviceId: null }, { merge: true });
 
-      // 2️⃣ Sign out Firebase
       await auth().signOut();
-
-      // 3️⃣ Clear AsyncStorage and reset Redux
-      await AsyncStorage.clear();
+      await AsyncStorage.removeItem('current_user_email');
       dispatch(resetBalance());
 
-      // 4️⃣ Navigate to Main screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Main" }],
-      });
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to log out");
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      }, 100);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to log out');
     }
   };
 
@@ -131,7 +175,7 @@ const ProfileScreen: React.FC = () => {
         <ListItem 
           icon="credit-card" 
           title="Balance" 
-          rightText="0.00 USD" 
+          rightText={`${(balance ?? 0).toFixed(2)} USD`} 
           customRightTextStyle={styles.balanceText} 
         />
 
@@ -157,7 +201,6 @@ const ProfileScreen: React.FC = () => {
           <ListItem icon="info" title="About the app" />
         </View>
 
-        {/* Logout */}
         <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.8}>
           <View style={styles.logoutLeft}>
             <View style={styles.logoutIconWrap}>

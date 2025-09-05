@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
@@ -25,7 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ✅ redux
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../store';
-import { deposit, withdraw } from '../../../store/balanceSlice';
+import { deposit, withdraw, updateBalanceWithPnl } from '../../../store/balanceSlice';
 
 // WebSocket URL for fetching historical data
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
@@ -61,49 +62,103 @@ export interface Props {
   onClose: () => void;
   onConfirm: (action: string, selectedInstrument: string) => void;
   openTrades: TradeData[];
+  currentPrices: Record<string, number>;
 }
-
 export const CloseAllModal: React.FC<Props> = ({
   visible,
   onClose,
   onConfirm,
-  openTrades,
+  openTrades = [], // ✅ default value add करो
+  currentPrices = {} // ✅ default value add करो
 }) => {
   const [selectedInstrument, setSelectedInstrument] =
     useState<string>('All instruments');
   const [selectedAction, setSelectedAction] = useState<string>('Close all');
 
-  // ✅ unique instruments list
+  // ✅ unique instruments list - with null check
   const instruments = useMemo(
-    () => ['All instruments', ...new Set(openTrades.map(t => t.symbol))],
+    () => ['All instruments', ...new Set((openTrades || []).map(t => t.symbol))],
     [openTrades],
   );
 
-  // ✅ filtered trades
+  // ✅ filtered trades - with null check
   const tradesToShow =
     selectedInstrument === 'All instruments'
-      ? openTrades
-      : openTrades.filter(t => t.symbol === selectedInstrument);
+      ? (openTrades || [])
+      : (openTrades || []).filter(t => t.symbol === selectedInstrument);
 
-  // ✅ grouping
-  const profitable = tradesToShow.filter(t => t.status === 'open' || t.status === 'executed'); // adjust later with PnL calc
-  const losing = [] as TradeData[]; // placeholder if you want PnL-based filtering
-  const buyTrades = tradesToShow.filter(t => t.type === 'buy');
-  const sellTrades = tradesToShow.filter(t => t.type === 'sell');
+  // ✅ grouping - PROFITABLE और LOSING trades calculate करो
+  const profitable = (tradesToShow || []).filter(t => {
+    if (!(t.status === 'open' || t.status === 'executed')) return false;
+    if (!currentPrices || !currentPrices[t.symbol]) return false;
+    
+    return (t.type === 'buy' && currentPrices[t.symbol] > t.price) || 
+           (t.type === 'sell' && currentPrices[t.symbol] < t.price);
+  });
 
-  const renderRow = (label: string, trades: TradeData[]) => (
-    <TouchableOpacity
-      key={label}
-      style={styles.row}
-      onPress={() => setSelectedAction(label)}
-      activeOpacity={0.7}
-    >
-      <Text>
-        {label} {trades.length > 0 ? `(${trades.length})` : ''}
-      </Text>
-      {selectedAction === label && <Text> ✓</Text>}
-    </TouchableOpacity>
-  );
+  const losing = (tradesToShow || []).filter(t => {
+    if (!(t.status === 'open' || t.status === 'executed')) return false;
+    if (!currentPrices || !currentPrices[t.symbol]) return false;
+    
+    return (t.type === 'buy' && currentPrices[t.symbol] < t.price) || 
+           (t.type === 'sell' && currentPrices[t.symbol] > t.price);
+  });
+
+  const buyTrades = (tradesToShow || []).filter(t => t.type === 'buy');
+  const sellTrades = (tradesToShow || []).filter(t => t.type === 'sell');
+
+  // Calculate total P&L for each group
+// Calculate total P&L for each group - FIXED VERSION
+const calculateTotalPnL = (trades: TradeData[]) => {
+  if (!trades || !currentPrices) return 0;
+  
+  return trades.reduce((total, trade) => {
+    if (!trade || !currentPrices[trade.symbol]) return total;
+    
+    // ✅ Fix: Add proper null checks for lotSize
+    const lotSize = trade.lotSize || 0;
+    
+    const pnl = trade.type === 'buy'
+      ? (currentPrices[trade.symbol] - trade.price) * lotSize * 100
+      : (trade.price - currentPrices[trade.symbol]) * lotSize * 100;
+    
+    return total + pnl;
+  }, 0);
+};
+
+  const renderRow = (label: string, trades: TradeData[]) => {
+    const totalPnL = calculateTotalPnL(trades || []);
+    const isProfit = totalPnL >= 0;
+    
+    return (
+      <TouchableOpacity
+        key={label}
+        style={styles.row}
+        onPress={() => setSelectedAction(label)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.rowContent}>
+          <Text style={styles.rowLabel}>
+            {label} {(trades || []).length > 0 ? `(${(trades || []).length})` : ''}
+          </Text>
+          
+          <View style={styles.pnlContainer}>
+            {(trades || []).length > 0 && (
+              <Text style={[
+                styles.pnlText,
+                { color: isProfit ? COLORS.profit : COLORS.loss }
+              ]}>
+                {isProfit ? '+' : ''}{totalPnL.toFixed(2)} USD
+              </Text>
+            )}
+            {selectedAction === label && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -117,7 +172,7 @@ export const CloseAllModal: React.FC<Props> = ({
             showsHorizontalScrollIndicator={false}
             style={styles.tabRow}
           >
-            {instruments.map(inst => (
+            {(instruments || []).map(inst => (
               <TouchableOpacity
                 key={inst}
                 style={[
@@ -129,6 +184,7 @@ export const CloseAllModal: React.FC<Props> = ({
                 <Text
                   style={{
                     color: selectedInstrument === inst ? '#fff' : '#000',
+                    fontWeight: '500',
                   }}
                 >
                   {inst}
@@ -139,9 +195,13 @@ export const CloseAllModal: React.FC<Props> = ({
 
           {/* Action Rows */}
           {renderRow('Close all', tradesToShow)}
+          {renderRow('Close all Profitable', profitable)}
+          {renderRow('Close all Losing', losing)}
           {renderRow('Close all Buy', buyTrades)}
           {renderRow('Close all Sell', sellTrades)}
-          {/* If later you add real-time PnL: add profitable/losing rows here */}
+
+          {/* Divider */}
+          <View style={styles.divider} />
 
           {/* Buttons */}
           <TouchableOpacity
@@ -151,7 +211,7 @@ export const CloseAllModal: React.FC<Props> = ({
             <Text style={{ color: '#000', fontWeight: 'bold' }}>Confirm</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text>Cancel</Text>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -182,7 +242,7 @@ export const FetchTradeDetails = async (
       socket.onerror = err => {
         reject(err);
       };
-      socket.onclose = () => {};
+      socket.onclose = () => { };
     } catch (error) {
       reject(error);
     }
@@ -229,9 +289,8 @@ export const TradeModal: React.FC<TradeModalProps> = ({
               {trade.formattedSymbol || trade.symbol}
             </Text>
             <Text style={styles.tradeLabel}>
-              {trade.type === 'buy' ? 'Buy' : 'Sell'} {trade.lotSize.toFixed(2)}{' '}
-              lot at {trade.price.toFixed(2)}
-            </Text>
+  {trade.type === 'buy' ? 'Buy' : 'Sell'} {trade.lotSize ? trade.lotSize.toFixed(2) : 'N/A'} lot at {trade.price.toFixed(2)}
+</Text>
             <Text
               style={[
                 styles.pnlText,
@@ -316,7 +375,7 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
-  profit: '#0CAF60',
+  profit: '#64D68C',
   loss: '#EF4444',
 };
 
@@ -325,7 +384,7 @@ const SIZES = {
   balance: 27,
   chip: 12,
   tab: 16,
-  actionIcon: 42,
+  actionIcon: 50,
   chevronCircle: 35,
   topIcon: 28,
 };
@@ -403,7 +462,7 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
   // Calculate P/L based on trade type and current price
   const pnl =
     trade.type === 'buy'
-      ? (currentPrice - trade.price) * trade.lotSize * 100 // Assuming 100 units per lot
+      ? (currentPrice - trade.price) * trade.lotSize * 100
       : (trade.price - currentPrice) * trade.lotSize * 100;
 
   const getInstrumentIcon = (symbol: string) => {
@@ -414,11 +473,11 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
       case 'USOIL':
         return require('../../../assets/images/water-and-oil.png');
       default:
-        return null; // handled in forex pair case
+        return null;
     }
   };
 
-  // helper to map country codes to flags
+  // Helper to map country codes to flags
   const getFlagIcon = (currency: string) => {
     switch (currency) {
       case 'USD':
@@ -435,7 +494,7 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
         return require('../../../assets/images/canada.png');
       case 'XAU':
         return require('../../../assets/images/tether-gold.png');
-      case 'XAU':
+      case 'BTC':
         return require('../../../assets/images/bitcoin.png');
       default:
         return require('../../../assets/images/bitcoin.png');
@@ -452,7 +511,6 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
     <View style={styles.tradeItem}>
       <View style={{ flexDirection: 'row', width: '100%' }}>
         {formatInstrumentName(trade.symbol).includes('/') ? (
-          // Forex pair → show 2 flags
           <View style={{ flexDirection: 'row' }}>
             <Image
               source={getFlagIcon(
@@ -476,7 +534,6 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
             />
           </View>
         ) : (
-          // Single instrument → show 1 icon
           <Image
             source={getInstrumentIcon(trade.symbol)}
             style={{ width: 16, height: 16, borderRadius: 9 }}
@@ -484,39 +541,27 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
           />
         )}
         <View style={styles.tradeHeader}>
-          <Text style={styles.tradeSymbol}>
-            {trade.formattedSymbol || trade.symbol}
-          </Text>
-          <Text
-            style={[
-              styles.tradePnl,
-              { color: pnl >= 0 ? COLORS.profit : COLORS.loss },
-            ]}
-          >
-            {pnl >= 0 ? '+' : ''}
-            {pnl.toFixed(2)} USD
-          </Text>
-        </View>
-      </View>
-      <View style={styles.tradeDetails}>
-        <View style={styles.tradeDetailRow}>
-          <Text>
-            <Text style={{ color: '#2596be', fontSize: 14, marginBottom: 8 }}>
+          <View style={styles.tradeInfo}>
+            <Text style={styles.tradeSymbol}>
+              {trade.formattedSymbol || trade.symbol}
+            </Text>
+            <Text style={styles.tradeType}>
               {trade.type === 'buy' ? 'Buy' : 'Sell'} {trade.lotSize.toFixed(2)}{' '}
-              lot
+              <Text style={{ color: '#6B7280' }}>at {trade.price.toFixed(2)}</Text>
             </Text>
+          </View>
+          <View style={styles.tradePnlContainer}>
             <Text
-              style={{
-                color: COLORS.textMuted,
-                fontSize: 14,
-                marginBottom: 8,
-              }}
+              style={[
+                styles.tradePnl,
+                { color: pnl >= 0 ? COLORS.profit : COLORS.loss },
+              ]}
             >
-              {' '}
-              at {trade.price.toFixed(2)}
+              {pnl >= 0 ? '+' : ''}
+              {pnl.toFixed(2)} USD
             </Text>
-          </Text>
-          <Text style={styles.tradeValue}>{currentPrice.toFixed(2)}</Text>
+            <Text style={styles.tradeValue}>{currentPrice.toFixed(2)}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -530,33 +575,72 @@ const AccountCard: React.FC<{
   navigation: any;
 }> = ({ onDepositPress, onWithdrawPress, navigation }) => {
   const balance = useSelector((state: RootState) => state.balance.amount);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [accountOptionsModalVisible, setAccountOptionsModalVisible] = useState(false);
+  const [traderName, setTraderName] = useState('RISING TRADERS');
+  const [accountNumber, setAccountNumber] = useState('#79555989');
+  const [activeAccountType, setActiveAccountType] = useState('Real'); // Initialize with default value
+
+  // Load trader name and account number from AsyncStorage on mount
+  useEffect(() => {
+    const loadAccountDetails = async () => {
+      try {
+        const savedTraderName = await AsyncStorage.getItem('traderName');
+        const savedAccountNumber = await AsyncStorage.getItem('accountNumber');
+        if (savedTraderName) setTraderName(savedTraderName);
+        if (savedAccountNumber) setAccountNumber(savedAccountNumber);
+      } catch (error) {
+        console.error('Error loading account details:', error);
+      }
+    };
+    loadAccountDetails();
+  }, []);
+
+  // Save trader name and account number to AsyncStorage
+  const saveAccountDetails = async () => {
+    try {
+      await AsyncStorage.setItem('traderName', traderName);
+      await AsyncStorage.setItem('accountNumber', accountNumber);
+      setDetailsModalVisible(false);
+    } catch (error) {
+      console.error('Error saving account details:', error);
+    }
+  };
+
+  // Handler for account option selection
+  const handleAccountOptionSelect = (option: string) => {
+    setActiveAccountType(option); // Update the active account type
+    console.log(`Selected option: ${option}`); // Placeholder for further logic
+    setAccountOptionsModalVisible(false); // Close modal after selection
+  };
 
   return (
     <View style={styles.accountCard}>
       <View style={styles.accountHeaderRow}>
         <View>
           <Text style={styles.accountTitle}>
-            RISING TRADERS <Text style={styles.hashGrey}>#79555989</Text>
+            {traderName} <Text style={styles.hashGrey}>{accountNumber}</Text>
           </Text>
           <View style={styles.chipsRow}>
             <Chip label="MT5" />
             <Chip label="Standard" />
-            <Chip label="Real" />
+            <Chip label={activeAccountType} /> {/* Dynamically show the active account type */}
           </View>
         </View>
-        <View style={styles.circleSmall}>
+        <TouchableOpacity
+          style={styles.circleSmall}
+          onPress={() => setAccountOptionsModalVisible(true)}
+        >
           <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
-        </View>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.balanceText}>{balance.toFixed(2)} USD</Text>
+      <Text style={styles.balanceText}>{balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</Text>
       <View style={styles.actionsRow}>
         <ActionItem
           icon="activity"
           label="Trade"
           active
-          onPress={() =>
-            navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
-          }
+          onPress={() => navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })}
         />
         <ActionItem
           icon="arrow-down-circle"
@@ -565,25 +649,129 @@ const AccountCard: React.FC<{
         />
         <ActionItem
           icon="arrow-up-circle"
-           label="Withdrawl"
+          label="Withdraw"
           onPress={onWithdrawPress}
         />
         <ActionItem
           icon="more-horizontal"
           verticalDots
-           label="Details"
+          label="Details"
+          onPress={() => setDetailsModalVisible(true)}
         />
       </View>
+
+      {/* Details Modal */}
+      <Modal
+        visible={detailsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDetailsModalVisible(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.title}>Update Account Details</Text>
+            <TextInput
+              style={styles.input}
+              value={traderName}
+              onChangeText={setTraderName}
+              placeholder="Enter Trader Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={accountNumber}
+              onChangeText={setAccountNumber}
+              placeholder="Enter Account Number"
+            />
+            <TouchableOpacity style={styles.confirmButton} onPress={saveAccountDetails}>
+              <Text style={{ color: '#000', fontWeight: 'bold' }}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setDetailsModalVisible(false)}>
+              <Text>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Account Type Modal */}
+      // Inside AccountCard component, replace the AccountTypeModal section
+      <Modal
+        visible={accountOptionsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setAccountOptionsModalVisible(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.accountTypeModal}>
+             <View style={styles.modalHandle} />
+            <View style={styles.headerRow}>
+              <Text style={styles.headerTitle}>Accounts</Text>
+              <View style={{ flex: 1 }} />
+              <Text style={styles.plusText}>+</Text>
+            </View>
+            {/* <View style={styles.horizontalLine} /> */}
+            {/* Horizontal account options */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.accountOptionsContainer}
+            >
+              <TouchableOpacity
+                style={[styles.accountOption, activeAccountType === 'Real' && styles.activeAccountOption]}
+                onPress={() => handleAccountOptionSelect('Real')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.accountOptionText}>Real</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.accountOption, activeAccountType === 'Demo' && styles.activeAccountOption]}
+                onPress={() => handleAccountOptionSelect('Demo')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.accountOptionText}>Demo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.accountOption, activeAccountType === 'Archived' && styles.activeAccountOption]}
+                onPress={() => handleAccountOptionSelect('Archived')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.accountOptionText}>Archived</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <View style={styles.accountCardInModal}>
+              <View style={styles.accountHeaderRow}>
+                <View>
+                  <Text style={styles.accountTitle}>
+                    RISING TRADERS <Text style={styles.hashGrey}>#356578493</Text>
+                  </Text>
+                  <View style={styles.chipsRow}>
+                    <Chip label="MT5" />
+                    <Chip label="Standard" />
+                    <Chip label={activeAccountType} /> {/* Reflect the active account type */}
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.circleSmall}>
+                  <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <Text>1000.00 USD</Text> {/* Example balance */}
+            </View>
+            {/* <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setAccountOptionsModalVisible(false)}
+            >
+              <Text>Cancel</Text>
+            </TouchableOpacity> */}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const groupTradesByDate = (trades: TradeData[]) => {
   return trades.reduce((groups: Record<string, TradeData[]>, trade) => {
-    const date = new Date(trade.timestamp).toISOString().split('T')[0]; // yyyy-mm-dd
-    if (!groups[date]) {
-      groups[date] = [];
-    }
+    const date = new Date(trade.timestamp).toISOString().split('T')[0];
+    if (!groups[date]) groups[date] = [];
     groups[date].push(trade);
     return groups;
   }, {});
@@ -598,23 +786,20 @@ const AccountsUI: React.FC<{
 }> = ({ onDepositPress, onWithdrawPress, setActiveTab, closeAllModalPress }) => {
   const [positionsTab, setPositionsTab] = useState<PositionsTab>('Open');
   const [trades, setTrades] = useState<TradeData[]>([]);
-  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(
-    {},
-  );
+  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
   const [totalPnL, setTotalPnL] = useState<number>(0);
   const [selectedTrade, setSelectedTrade] = useState<TradeData | any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const balance = useSelector((state: RootState) => state.balance.amount);
 
   // ✅ Load saved trades from storage
   useEffect(() => {
     const loadTrades = async () => {
       try {
         const tradesJSON = await AsyncStorage.getItem('tradeHistory');
-        if (tradesJSON) {
-          setTrades(JSON.parse(tradesJSON));
-        }
+        if (tradesJSON) setTrades(JSON.parse(tradesJSON));
       } catch (error) {
         console.error('Error loading trades:', error);
       }
@@ -622,14 +807,12 @@ const AccountsUI: React.FC<{
     loadTrades();
   }, []);
 
-  // ✅ Fetch prices and recalc PnL
+  // ✅ Fetch prices and recalc PnL, then update balance
   useEffect(() => {
     let interval: any;
 
     const fetchCurrentPrices = async () => {
-      const openTrades = trades.filter(
-        trade => trade.status === 'executed' || trade.status === 'open',
-      );
+      const openTrades = trades.filter(trade => trade.status === 'executed' || trade.status === 'open');
       const symbols = [...new Set(openTrades.map(trade => trade.symbol))];
 
       const prices: Record<string, number> = {};
@@ -638,23 +821,17 @@ const AccountsUI: React.FC<{
       for (const symbol of symbols) {
         try {
           const historyData: any = await FetchTradeDetails(symbol, 7);
-
           if (historyData && historyData.data.length > 0) {
             const latestCandle = historyData.data[historyData.data.length - 1];
             const latestClose = latestCandle.close;
 
             prices[symbol] = latestClose;
 
-            const symbolTrades = openTrades.filter(
-              trade => trade.symbol === symbol,
-            );
-
+            const symbolTrades = openTrades.filter(trade => trade.symbol === symbol);
             for (const trade of symbolTrades) {
-              const pnl =
-                trade.type === 'buy'
-                  ? (latestClose - trade.price) * trade.lotSize * 100
-                  : (trade.price - latestClose) * trade.lotSize * 100;
-
+              const pnl = trade.type === 'buy'
+                ? (latestClose - trade.price) * trade.lotSize * 100
+                : (trade.price - latestClose) * trade.lotSize * 100;
               totalPnl += pnl;
             }
           }
@@ -666,6 +843,8 @@ const AccountsUI: React.FC<{
 
       setCurrentPrices(prices);
       setTotalPnL(totalPnl);
+      const newBalance = balance + totalPnl;
+      dispatch(updateBalanceWithPnl(newBalance));
     };
 
     if (trades.length > 0) {
@@ -673,31 +852,21 @@ const AccountsUI: React.FC<{
       interval = setInterval(fetchCurrentPrices, 500);
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [trades]);
+    return () => { if (interval) clearInterval(interval); };
+  }, [trades, balance, dispatch]);
 
   // ✅ Close trade (moves it to Closed)
   const handleCloseTrade = async (trade: TradeData) => {
     try {
       const updatedTrades = trades.map(t =>
         t.id === selectedTrade?.id
-          ? {
-              ...t,
-              status: 'closed',
-              closePrice:
-                currentPrices[selectedTrade.symbol] || selectedTrade.price,
-            }
-          : t,
+          ? { ...t, status: 'closed', closePrice: currentPrices[selectedTrade.symbol] || selectedTrade.price }
+          : t
       );
-      const totalAmount =
-        (currentPrices[selectedTrade?.symbol] || selectedTrade?.price) *
-          selectedTrade?.lotSize || 0;
+      const totalAmount = (currentPrices[selectedTrade?.symbol] || selectedTrade?.price) * selectedTrade?.lotSize || 0;
       dispatch(deposit(Number(totalAmount)));
       setTrades(updatedTrades);
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
-
       setModalVisible(false);
       setSelectedTrade(null);
     } catch (error) {
@@ -706,85 +875,51 @@ const AccountsUI: React.FC<{
   };
 
   // ✅ Trade filtering
-  const openTrades = useMemo(() => {
-    return trades.filter(
-      trade => trade.status === 'executed' || trade.status === 'open',
-    );
-  }, [trades]);
-
-  const closedTrades = useMemo(() => {
-    return trades.filter(trade => trade.status === 'closed');
-  }, [trades]);
+  const openTrades = useMemo(() => trades.filter(trade => trade.status === 'executed' || trade.status === 'open'), [trades]);
+  const closedTrades = useMemo(() => trades.filter(trade => trade.status === 'closed'), [trades]);
 
   const handleTradeItemPress = (trade: TradeData) => {
     setSelectedTrade(trade);
-    // setModalVisible(true);
+    setModalVisible(true);
   };
 
-  const handleModify = () => {
-    console.log('Modify trade:', selectedTrade);
-  };
-
-  const handlePartialClose = () => {
-    console.log('Partial close trade:', selectedTrade);
-  };
-
+  const handleModify = () => console.log('Modify trade:', selectedTrade);
+  const handlePartialClose = () => console.log('Partial close trade:', selectedTrade);
 
   const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
 
-   const handleCloseAllTrades = () => {
-   setcloseAllModelVisible(true);
+  const handleCloseAllTrades = () => setcloseAllModelVisible(true);
+
+  const handleConfirm = async (action: string, selectedInstrument: string) => {
+    try {
+      let tradesToClose = trades.filter(t =>
+        (selectedInstrument === 'All instruments' || t.symbol === selectedInstrument) &&
+        (t.status === 'executed' || t.status === 'open')
+      );
+
+      if (action === 'Close all Buy') tradesToClose = tradesToClose.filter(t => t.type === 'buy');
+      else if (action === 'Close all Sell') tradesToClose = tradesToClose.filter(t => t.type === 'sell');
+
+      const updatedTrades = trades.map(t =>
+        tradesToClose.includes(t)
+          ? { ...t, status: 'closed', closePrice: currentPrices[t.symbol] || t.price }
+          : t
+      );
+
+      let totalAmount = 0;
+      tradesToClose.forEach(t => {
+        const exitPrice = currentPrices[t.symbol] || t.price;
+        totalAmount += exitPrice * t.lotSize;
+      });
+
+      if (totalAmount > 0) dispatch(deposit(Number(totalAmount)));
+      setTrades(updatedTrades);
+      await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
+      setcloseAllModelVisible(false);
+    } catch (error) {
+      console.error('Error closing trades:', error);
+    }
   };
-
-const handleConfirm = async (action: string, selectedInstrument: string) => {
-  try {
-    // ✅ Filter trades based on selectedInstrument
-    let tradesToClose = trades.filter(
-      t =>
-        (selectedInstrument === 'All instruments' ||
-          t.symbol === selectedInstrument) &&
-        (t.status === 'executed' || t.status === 'open'),
-    );
-
-    // ✅ Further filter by action (Buy/Sell)
-    if (action === 'Close all Buy') {
-      tradesToClose = tradesToClose.filter(t => t.type === 'buy');
-    } else if (action === 'Close all Sell') {
-      tradesToClose = tradesToClose.filter(t => t.type === 'sell');
-    }
-    // (Close all → no filter, just close everything above)
-
-    // ✅ Close trades
-    const updatedTrades = trades.map(t =>
-      tradesToClose.includes(t)
-        ? {
-            ...t,
-            status: 'closed',
-            closePrice: currentPrices[t.symbol] || t.price,
-          }
-        : t,
-    );
-
-    // ✅ Deposit back total amounts of closed trades
-    let totalAmount = 0;
-    tradesToClose.forEach(t => {
-      const exitPrice = currentPrices[t.symbol] || t.price;
-      totalAmount += exitPrice * t.lotSize;
-    });
-
-    if (totalAmount > 0) {
-      dispatch(deposit(Number(totalAmount)));
-    }
-
-    // ✅ Save updated trades
-    setTrades(updatedTrades);
-    await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
-
-    setcloseAllModelVisible(false);
-  } catch (error) {
-    console.error('Error closing trades:', error);
-  }
-};
 
   // ✅ Positions content
   const positionsContent = useMemo(() => {
@@ -793,7 +928,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         <View style={styles.positionsWrap}>
           {openTrades.length > 0 ? (
             <>
-              {/* ✅ Show Total P/L only if open trades exist */}
               <View style={styles.openTotalProfitlossView}>
                 <Text style={styles.openTotalProfitlossTextLb}>Total P/L</Text>
                 <Text
@@ -802,11 +936,9 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
                     { color: totalPnL >= 0 ? COLORS.profit : COLORS.loss },
                   ]}
                 >
-                  {totalPnL >= 0 ? '+' : ''}
-                  {totalPnL.toFixed(2)} USD
+                  {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)} USD
                 </Text>
               </View>
-
               {openTrades.map(trades => (
                 <TouchableOpacity
                   key={trades.id}
@@ -819,7 +951,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
                   />
                 </TouchableOpacity>
               ))}
-
               {openTrades.length > 1 && (
                 <TouchableOpacity
                   style={styles.closeAllButton}
@@ -829,57 +960,43 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
                   <View style={{ flexDirection: 'row' }}>
                     <Image
                       source={require('../../../assets/images/close.png')}
-                      style={{
-                        width: 14,
-                        height: 14,
-                        marginRight: 5,
-                      }}
+                      style={{ width: 14, height: 14, marginRight: 5 }}
                       resizeMode="contain"
                     />
-                    <Text style={styles.closeAllButtonText}>
-                      Close all positions
-                    </Text>
+                    <Text style={styles.closeAllButtonText}>Close all positions</Text>
                   </View>
                 </TouchableOpacity>
               )}
-
               <CloseAllModal
                 visible={closeAllModelVisible}
                 onClose={() => setcloseAllModelVisible(false)}
-                onConfirm={handleConfirm} openTrades={openTrades}      />
-
+                onConfirm={handleConfirm}
+                openTrades={openTrades}
+              />
             </>
           ) : (
             <>
               <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyTitle}>No open positions</Text>
               </View>
-
               <View style={styles.centeredBlock}>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={styles.btcRow}
-                  onPress={() =>
-                    navigation.navigate('TradeDetail', {
-                      trade: { name: 'XAUUSD' },
-                    })
-                  }
+                  onPress={() => navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })}
                 >
                   <View style={styles.btcIconWrap}>
                     <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
                   </View>
                   <Text style={styles.btcText}>XAU/USD - Trade</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.exploreMoreButton}
                   activeOpacity={0.7}
                   onPress={() => setActiveTab('trade')}
                 >
                   <Feather name="menu" size={18} color="#23272F" />
-                  <Text style={styles.exploreMoreText}>
-                    Explore more instruments
-                  </Text>
+                  <Text style={styles.exploreMoreText}>Explore more instruments</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -887,7 +1004,6 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         </View>
       );
     }
-
     if (positionsTab === 'Pending') {
       return (
         <View style={styles.emptyStateContainer}>
@@ -895,18 +1011,13 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         </View>
       );
     }
-
     if (positionsTab === 'Closed') {
       const grouped = groupTradesByDate(closedTrades);
-
       return Object.keys(grouped).length > 0 ? (
         <ScrollView style={styles.positionsWrap}>
           {Object.entries(grouped).map(([date, trades]) => (
-            <View key={date} style={{}}>
-              <Text style={{ paddingVertical: 12 }}>
-                {new Date(date).toDateString()}
-              </Text>
-
+            <View key={date}>
+              <Text style={{ paddingVertical: 12 }}>{new Date(date).toDateString()}</Text>
               {trades.map(trade => (
                 <TouchableOpacity
                   key={trade.id}
@@ -939,11 +1050,7 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
       <View style={styles.topToolbar}>
         <Image
           source={require('../../../assets/images/clockIcon.png')}
-          style={{
-            width: SIZES.topIcon,
-            height: SIZES.topIcon,
-            marginRight: 16,
-          }}
+          style={{ width: SIZES.topIcon, height: SIZES.topIcon, marginRight: 16 }}
           resizeMode="contain"
         />
         <View style={styles.bellWrapper}>
@@ -976,37 +1083,28 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
         <View style={styles.segmentTabs}>
           {['Open', 'Pending', 'Closed'].map(t => {
             const active = positionsTab === t;
-
-            // ✅ get count dynamically
-            const count =
-              t === 'Open'
-                ? openTrades.length
-                : t === 'Pending'
+            const count = t === 'Open'
+              ? openTrades.length
+              : t === 'Pending'
                 ? trades.filter(trade => trade.status === 'pending').length
                 : closedTrades.length;
-
             return (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setPositionsTab(t as PositionsTab)}
-              >
+              <TouchableOpacity key={t} onPress={() => setPositionsTab(t as PositionsTab)}>
                 <View style={styles.segmentTabItem}>
-                  <Text
-                    style={[
-                      styles.segmentLabel,
-                      active && styles.segmentActive,
-                    ]}
-                  >
-                    {t}
-                    {count > 0 ? ` ${count}` : ''}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.segmentLabel, active && styles.segmentActive]}>{t}</Text>
+                    {count > 0 && t !== 'Closed' && (
+                      <View style={[styles.tradeCountBadge, t === 'Open' && styles.openTradeCountBadge]}>
+                        <Text style={[styles.tradeCountText, t === 'Open' && styles.openTradeCountText]}>{count}</Text>
+                      </View>
+                    )}
+                  </View>
                   {active && <View style={styles.segmentIndicator} />}
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
-
         <View style={styles.sortButton}>
           <Image
             source={require('../../../assets/images/upDownArrow.png')}
@@ -1021,17 +1119,9 @@ const handleConfirm = async (action: string, selectedInstrument: string) => {
       <TradeModal
         visible={modalVisible}
         trade={selectedTrade}
-        currentPrice={
-          selectedTrade
-            ? currentPrices[selectedTrade.symbol] || selectedTrade.price
-            : 0
-        }
+        currentPrice={selectedTrade ? currentPrices[selectedTrade.symbol] || selectedTrade.price : 0}
         onClose={handleCloseTrade}
-        onForceClose={() => {
-          setModalVisible(false);
-        }}
-        onModify={handleModify}
-        onPartialClose={handlePartialClose}
+        onForceClose={() => setModalVisible(false)}
       />
     </ScrollView>
   );
@@ -1045,17 +1135,14 @@ const AccountScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View
-        style={
-          activeTab === 'accounts'
-            ? styles.mainContent
-            : styles.mainContentNoPad
-        }
+        style={activeTab === 'accounts' ? styles.mainContent : styles.mainContentNoPad}
       >
         {activeTab === 'accounts' && (
           <AccountsUI
             onDepositPress={() => navigation.navigate('DepositScreen')}
             onWithdrawPress={() => navigation.navigate('WithdrawlScreen')}
-            setActiveTab={setActiveTab} // pass setter for tab switching
+            setActiveTab={setActiveTab}
+            closeAllModalPress={() => { }}
           />
         )}
         {activeTab === 'trade' && <TradeScreen />}
@@ -1075,12 +1162,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  closeAllTRadeOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
-  },
   modalBox: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    padding: 16,
+  },
+  accountTypeModal: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
@@ -1090,6 +1178,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     marginBottom: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    fontSize: 14,
   },
   tabRow: {
     flexDirection: 'row',
@@ -1152,11 +1248,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 6,
   },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   header: {
     marginBottom: 16,
   },
@@ -1184,7 +1275,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
   },
-
   pnlText: {
     fontSize: 16,
     fontWeight: '600',
@@ -1193,25 +1283,6 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  actionButton: {
-    backgroundColor: COLORS.soft,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    flex: 1,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
     color: COLORS.text,
   },
   timeContainer: {
@@ -1280,7 +1351,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   mainContent: { flex: 1, paddingHorizontal: 16, backgroundColor: COLORS.bg },
   mainContentNoPad: { flex: 1, backgroundColor: COLORS.bg },
-  scrollContent: { paddingBottom: 24, backgroundColor: COLORS.bg },
+  scrollContent: { paddingBottom: 300, backgroundColor: COLORS.bg },
   topToolbar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -1305,8 +1376,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: SIZES.header,
-    fontWeight: '600',
+    fontSize: 30,
+    fontWeight: '500',
     color: COLORS.text,
     letterSpacing: 0.5,
   },
@@ -1320,11 +1391,24 @@ const styles = StyleSheet.create({
   },
   accountCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: 7,
     paddingVertical: 24,
     paddingHorizontal: 18,
     marginBottom: 18,
     marginHorizontal: 0,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+    
+  },
+  accountCardInModal: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginTop: 16,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 3 },
@@ -1362,7 +1446,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -1398,7 +1482,8 @@ const styles = StyleSheet.create({
   segmentTabItem: {
     position: 'relative',
     paddingHorizontal: 12,
-    paddingBottom: 6,
+    paddingBottom: 10,
+
   },
   segmentLabel: {
     fontSize: SIZES.tab,
@@ -1414,6 +1499,30 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: COLORS.active,
     borderRadius: 1,
+  },
+  tradeCountBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#23272F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  openTradeCountBadge: {
+    backgroundColor: '#6E8495',
+    borderWidth: 0,
+  },
+  tradeCountText: {
+    fontSize: SIZES.tab - 2,
+    color: COLORS.chipText,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  openTradeCountText: {
+    color: '#FFFFFF',
   },
   sortButton: {
     width: 34,
@@ -1482,19 +1591,18 @@ const styles = StyleSheet.create({
     color: '#23272F',
     textAlign: 'center',
   },
-  // Trade item styles
   tradeItem: {
     backgroundColor: COLORS.card,
-    borderRadius: 12,
+    borderRadius: 4,
     padding: 10,
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 0,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
-    height: 65,
+    height: 75,
   },
   tradeHeader: {
     flexDirection: 'row',
@@ -1504,32 +1612,36 @@ const styles = StyleSheet.create({
     width: '92%',
     bottom: 3,
   },
+  tradeInfo: {
+    flexDirection: 'column',
+  },
   tradeSymbol: {
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
+    marginBottom: 4,
+  },
+  tradeType: {
+    fontSize: 14,
+    color: '#2E92E0',
+    marginTop: 7,
+    
+  },
+  tradePrice: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+  },
+  tradePnlContainer: {
+    alignItems: 'flex-end',
   },
   tradePnl: {
     fontSize: 16,
     fontWeight: '500',
-  },
-  tradeDetails: {
-    borderTopColor: COLORS.divider,
-    paddingTop: 5,
-  },
-  tradeDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
-  },
-  tradeLabel: {
-    fontSize: 14,
-    color: COLORS.textMuted,
   },
   tradeValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: COLORS.text,
   },
   openTotalProfitlossView: {
@@ -1540,17 +1652,87 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   openTotalProfitlossTextLb: {
     flex: 1,
     fontSize: 14,
     color: COLORS.textMuted,
   },
-
   openTotalProfitlossValueLb: {
     fontSize: 16,
     fontWeight: '500',
   },
+  horizontalLine: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginVertical: 12,
+  },
+  accountOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  activeAccountOption: {
+    // backgroundColor: COLORS.soft,
+    // borderRadius: 8,
+  },
+  accountOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  // Add to the existing styles object
+  accountOptionsContainer: {
+    flexDirection: 'row',
+    marginVertical: 1,
+  },
+  modalHandle: {
+  width: 40,
+  height: 4,
+  backgroundColor: '#CCCCCC',
+  borderRadius: 2,
+  alignSelf: 'center',
+  marginBottom: 16,
+},
+plusText: {
+  fontSize: 26,
+
+  color: '#111111',
+},
+rowContent: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  width: '100%',
+  paddingVertical: 12,
+},
+rowLabel: {
+  fontSize: 16,
+  fontWeight: '500',
+  color: '#000',
+},
+pnlContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+},
+pnlText: {
+  fontSize: 14,
+  fontWeight: '500',
+},
+checkmark: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#000',
+},
+divider: {
+  height: 1,
+  backgroundColor: '#E5E7EB',
+  marginVertical: 16,
+},
+cancelButtonText: {
+  color: '#6B7280',
+  fontWeight: '500',
+},
+
 });
 
 export default AccountScreen;

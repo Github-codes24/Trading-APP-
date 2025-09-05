@@ -75,7 +75,7 @@ export default function DepositStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA", padding: 16 },
+  container: { flex: 1, backgroundColor: "#FAFAFA", padding: 16,marginTop:15 },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   headerTitle: { fontSize: 20, fontWeight: "600", marginLeft: 10, color: "#000" },
   successTitle: { fontSize: 18, fontWeight: "600", textAlign: "center", marginTop: 10, color: "#000" },

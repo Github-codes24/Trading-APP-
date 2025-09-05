@@ -51,6 +51,7 @@ export default function SetPasscodeScreen() {
       if (newCode.length === 6) {
         if (!email) return;
         await AsyncStorage.setItem(`passcode_${email}`, newCode);
+        await AsyncStorage.setItem(`isPasscodeSet_${email}`, 'true');
         setTimeout(() => {
           navigation.navigate("ReEnterPasscodeScreen", {
             passcode: newCode,
