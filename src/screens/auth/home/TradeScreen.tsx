@@ -21,7 +21,6 @@ const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
   const [activeTab, setActiveTab] = useState('Favorites');
   const [connectionError, setConnectionError] = useState(false);
-  const [tradeAmount, setTradeAmount] = useState<number>(0);
 
   const navigation = useNavigation();
   const balance = useSelector((state: RootState) => state.balance.amount);
@@ -68,19 +67,31 @@ const TradeScreen: React.FC = () => {
   };
 
   const formatInstrumentName = (name: string) => {
-    if (name && name.length === 6 && /^[A-Z]{6}$/.test(name)) {
+    if (name && name === 'BTCUSD') {
+      return `${name.slice(0, 3)}`;
+    }
+    if (
+      name &&
+      name.length === 6 &&
+      /^[A-Z]{6}$/.test(name) &&
+      name !== 'BTCUSD'
+    ) {
       return `${name.slice(0, 3)}/${name.slice(3)}`;
     }
+
     return name;
   };
 
   const getInstrumentIcon = (symbol: string) => {
     switch (symbol) {
       case 'BTCUSD':
+         return require('../../../assets/images/bitcoin.png');
       case 'USTEC':
         return require('../../../assets/images/us.png');
       case 'USOIL':
         return require('../../../assets/images/water-and-oil.png');
+      case 'BTC':
+        return require('../../../assets/images/bitcoin.png');
       default:
         return null; // handled in forex pair case
     }
@@ -113,10 +124,10 @@ const TradeScreen: React.FC = () => {
   // Safe price renderer
   const renderPrice = (price: any) => {
     const num = Number(price);
-    if (isNaN(num)) return '0.0000';
+    if (isNaN(num)) return '0.00';
     // Block numbers >= 1e8 (10^8)
-    if (num >= 1e8) return '0.0000';
-    return num.toFixed(4);
+    if (num >= 1e8) return '0.00';
+    return num.toFixed(2);
   };
 
   return (
@@ -228,18 +239,22 @@ const TradeScreen: React.FC = () => {
                     // Forex pair → show 2 flags
                     <View style={{ flexDirection: 'row' }}>
                       <Image
-                        source={getFlagIcon(formatInstrumentName(item.name).slice(0, 3))}
+                        source={getFlagIcon(
+                          formatInstrumentName(item.name).slice(0, 3),
+                        )}
                         style={{
                           width: 16,
                           height: 16,
                           borderRadius: 8,
-                          marginRight:-8,
+                          marginRight: -8,
                           marginTop: -4,
                         }}
                         resizeMode="contain"
                       />
                       <Image
-                        source={getFlagIcon(formatInstrumentName(item.name).slice(4, 7))}
+                        source={getFlagIcon(
+                          formatInstrumentName(item.name).slice(4, 7),
+                        )}
                         style={{ width: 16, height: 16, borderRadius: 8 }}
                         resizeMode="contain"
                       />
