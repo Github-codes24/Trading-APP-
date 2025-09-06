@@ -361,6 +361,7 @@ export interface TradeData {
 const COLORS = {
   bg: '#f9f9f9',
   text: '#111111',
+  text: '#111111',
   textMuted: '#6B7280',
   chipBg: '#F5F6F7',
   chipText: '#6B7280',
@@ -937,11 +938,27 @@ const AccountsUI: React.FC<{
         (t.status === 'executed' || t.status === 'open')
       );
 
-      if (action === 'Close all Buy') tradesToClose = tradesToClose.filter(t => t.type === 'buy');
-      else if (action === 'Close all Sell') tradesToClose = tradesToClose.filter(t => t.type === 'sell');
+      if (action === 'Close all Profitable') {
+        tradesToClose = tradesToClose.filter(t => {
+          const current = currentPrices[t.symbol];
+          if (!current) return false;
+          return (t.type === 'buy' && current > t.price) || (t.type === 'sell' && current < t.price);
+        });
+      } else if (action === 'Close all Losing') {
+        tradesToClose = tradesToClose.filter(t => {
+          const current = currentPrices[t.symbol];
+          if (!current) return false;
+          return (t.type === 'buy' && current < t.price) || (t.type === 'sell' && current > t.price);
+        });
+      } else if (action === 'Close all Buy') {
+        tradesToClose = tradesToClose.filter(t => t.type === 'buy');
+      } else if (action === 'Close all Sell') {
+        tradesToClose = tradesToClose.filter(t => t.type === 'sell');
+      }
+      // For 'Close all', no additional filter needed
 
       const updatedTrades = trades.map(t =>
-        tradesToClose.includes(t)
+        tradesToClose.some(closeTrade => closeTrade.id === t.id)
           ? { ...t, status: 'closed', closePrice: currentPrices[t.symbol] || t.price }
           : t
       );
