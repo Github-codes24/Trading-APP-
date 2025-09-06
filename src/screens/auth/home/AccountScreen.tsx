@@ -485,7 +485,7 @@ const TradeItem: React.FC<{ trades: TradeData[]; currentPrice: number }> = ({
       case 'USD':
         return require('../../../assets/images/us.png');
       case 'ETH':
-        return require('../../../assets/images/ethereum.png');
+        return require('../../../assets/images/eth.png');
       case 'JPY':
         return require('../../../assets/images/japan.png');
       case 'EUR':

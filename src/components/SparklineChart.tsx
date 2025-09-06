@@ -8,7 +8,7 @@ interface SparklineChartProps {
   height?: number;
   color?: string;
   showReferenceLine?: boolean;
-  animationDuration?: number; // ms
+  animationDuration?: number;
 }
 
 const SparklineChart: React.FC<SparklineChartProps> = ({
@@ -17,7 +17,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   height = 20,
   color = '#1E90FF',
   showReferenceLine = true,
-  animationDuration = 250000,
+  animationDuration = 2000,
 }) => {
   const [animatedData, setAnimatedData] = useState<number[]>(data);
   const prevDataRef = useRef<number[]>(data);
@@ -69,7 +69,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
     return { x, y };
   });
 
-  // Path string
+  // Path string 
   const pathData = normalizedData
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
@@ -88,7 +88,6 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
             strokeDasharray="2,2"
           />
         )}
-
         <Path d={pathData} stroke={color} strokeWidth={1.5} fill="none" />
       </Svg>
     </View>

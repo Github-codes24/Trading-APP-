@@ -24,6 +24,7 @@ import { withdraw } from '../store/balanceSlice';
 import Svg, { Line } from 'react-native-svg';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
+const WS_URL_LIVE = 'ws://13.201.33.113:8000/ws/live'; // Adjust this URL as needed
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface Candle {
@@ -39,6 +40,18 @@ export interface HistoryResponse {
   symbol: string;
   days: number;
   data: Candle[];
+}
+
+export interface LiveTick {
+  type: 'live';
+  symbol: string;
+  tick: {
+    bid: number;
+    ask: number;
+    last: number;
+    yesterday_close: number;
+    pnl_pct: number;
+  };
 }
 
 const formatInstrumentName = (name: string) => {
@@ -124,6 +137,40 @@ export const FetchTradeDetails = async (
       reject(error);
     }
   });
+};
+
+// LIVE WEBSOCKET CONNECTION
+const useLiveWebSocket = (symbol: string, onLiveData: (data: LiveTick) => void) => {
+  useEffect(() => {
+    const socket = new WebSocket(`${WS_URL_LIVE}?symbol=${symbol}`);
+    
+    socket.onopen = () => {
+      console.log('Live WebSocket connected');
+    };
+    
+    socket.onmessage = (event) => {
+      try {
+        const data: LiveTick = JSON.parse(event.data);
+        if (data.type === 'live' && data.symbol === symbol) {
+          onLiveData(data);
+        }
+      } catch (error) {
+        console.error('Error parsing live data:', error);
+      }
+    };
+    
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    socket.onclose = () => {
+      console.log('Live WebSocket disconnected');
+    };
+    
+    return () => {
+      socket.close();
+    };
+  }, [symbol, onLiveData]);
 };
 
 // TIME FRAME MODAL
@@ -418,14 +465,24 @@ const instrumentConfig: Record<string, InstrumentConfig> = {
   DEFAULT: { pricePrecision: 2, minSpread: 0.1, spreadFactor: 0.0003 }, // fallback
 };
 
-// LIVE CANDLE ENGINE (synthetic per-second updates)
+// LIVE CANDLE ENGINE (updated with WebSocket integration)
 const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
   const [candles, setCandles] = useState<Candle[]>(initial || []);
+  const [lastLivePrice, setLastLivePrice] = useState<number | null>(null);
+  const [lastLiveTime, setLastLiveTime] = useState<number>(0);
 
   useEffect(() => {
     if (initial && initial.length) setCandles(initial);
     else setCandles([]);
   }, [initial?.length, symbol]);
+
+  // Handle live WebSocket data
+  const handleLiveData = useCallback((data: LiveTick) => {
+    setLastLivePrice(data.tick.last);
+    setLastLiveTime(Date.now());
+  }, []);
+
+  useLiveWebSocket(symbol, handleLiveData);
 
   useEffect(() => {
     if (!candles || candles.length === 0) return;
@@ -438,20 +495,30 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
         const next = [...prev];
         const last = { ...next[next.length - 1] };
 
-        // Dynamic spread calculation
-        const spread = Math.max(
-          last.close * config.spreadFactor,
-          config.minSpread,
-        );
-        const delta = (Math.random() - 0.5) * spread;
+        // Use live price if available, otherwise use synthetic updates
+        if (lastLivePrice !== null && Date.now() - lastLiveTime < 2000) {
+          // Update with live price
+          last.close = parseFloat(lastLivePrice.toFixed(config.pricePrecision));
+          if (last.close > last.high) last.high = last.close;
+          if (last.close < last.low) last.low = last.close;
+        } else {
+          // Fallback to synthetic updates
+          const spread = Math.max(
+            last.close * config.spreadFactor,
+            config.minSpread,
+          );
+          const delta = (Math.random() - 0.5) * spread;
 
-        // Update candle close with precision
-        const newClose = parseFloat(
-          (last.close + delta).toFixed(config.pricePrecision),
-        );
-        last.close = newClose;
-        if (newClose > last.high) last.high = newClose;
-        if (newClose < last.low) last.low = newClose;
+          // Update candle close with precision
+          const newClose = parseFloat(
+            (last.close + delta).toFixed(config.pricePrecision),
+          );
+          last.close = newClose;
+          if (newClose > last.high) last.high = newClose;
+          if (newClose < last.low) last.low = newClose;
+        }
+
+        last.tick_volume += 1;
         next[next.length - 1] = last;
 
         // Optionally simulate new candle
@@ -465,7 +532,7 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
             high: base,
             low: base,
             close: base,
-            tick_volume: last.tick_volume + 1,
+            tick_volume: 1,
           };
           next.push(newCandle);
           if (next.length > 400) next.shift();
@@ -473,10 +540,10 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
 
         return next;
       });
-    }, 1500);
+    }, 1000); // Update more frequently for live data
 
     return () => clearInterval(interval);
-  }, [symbol, candles.length]);
+  }, [symbol, candles.length, lastLivePrice, lastLiveTime]);
 
   return candles;
 };
@@ -610,9 +677,6 @@ const DynamicGraph: React.FC<GraphProps> = ({
 
   const levels = [zoomedMax, midPrice, zoomedMin];
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
-
-  // const chartWidth = data.length * candleSlotWidth;
-  // const finalchartWeidth = SCREEN_WIDTH - chartWidth;
 
   return (
     <View style={{ flex: 1 }}>
@@ -838,7 +902,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
                           fontWeight: '500',
                         }}
                       >
-                        {formatDate(c.time)}
+                        {/* {formatDate(c.time)} */}
                       </Text>
                     );
                   }
@@ -916,7 +980,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       case 'USD':
         return require('../assets/images/us.png');
       case 'ETH':
-        return require('../assets/images/ethereum.png');
+        return require('../assets/images/eth.png');
       case 'JPY':
         return require('../assets/images/japan.png');
       case 'EUR':
@@ -971,7 +1035,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       dispatch(withdraw(tradeCost));
 
       Alert.alert(
-        'Trade Executed',
+        'Trade Open',
         `Successfully ${
           type === 'buy' ? 'bought' : 'sold'
         } ${lotSize} lots of ${formatInstrumentName(
@@ -1785,7 +1849,6 @@ const styles = StyleSheet.create({
   },
   tradeModalButtons: {
     flexDirection: 'row',
-    // justifyContent: 'space-between',
   },
   tradeModalButton: {
     padding: 5,

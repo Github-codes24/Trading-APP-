@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 
 const FONT_BOLD = 'Satoshi-Bold';
@@ -106,7 +107,7 @@ const VolumeChart: React.FC<{ data: number[] }> = ({ data }) => {
 };
 
 const PerformanceScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  // const [activeTab, setActiveTab] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
   const [selectedRange, setSelectedRange] = useState('Last 7 days');
@@ -166,8 +167,10 @@ const PerformanceScreen: React.FC = () => {
   )} USD`;
 
   const totalInvestment = totalProfit + totalLoss;
+
   const percentageChange =
     totalInvestment > 0 ? (netResult / totalInvestment) * 100 : 0;
+
   const isProfit = netResult >= 0;
   const formattedPercentage = `${isProfit ? '+' : ''}${percentageChange.toFixed(
     2,
@@ -374,7 +377,7 @@ const PerformanceScreen: React.FC = () => {
 
             {/* ✅ Bars (anchored at 0-line) */}
             <View style={styles.chartBarsContainer}>
-              {displayedData.map(item => {
+              {displayedData.map((item, index) => {
                 const profitHeight =
                   (item.profit / (maxProfit || 1)) * halfHeight;
                 const lossHeight = (item.loss / (maxLoss || 1)) * halfHeight;
@@ -406,14 +409,13 @@ const PerformanceScreen: React.FC = () => {
               })}
             </View>
 
+            {/* ✅ X-axis */}
             <View style={styles.chartXAxisRow}>
-              {' '}
               {xAxisLabels.map(date => (
                 <Text key={date} style={styles.chartXAxisLabel}>
-                  {' '}
-                  {date}{' '}
+                  {date}
                 </Text>
-              ))}{' '}
+              ))}
             </View>
           </View>
 
@@ -540,24 +542,30 @@ const PerformanceScreen: React.FC = () => {
             onPress={() => setModalVisible(false)}
           >
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Range</Text>
+              <Text style={styles.modalTitle}>Select period</Text>
               {['Last 7 days', 'Last 30 days', 'Last 90 days'].map(range => (
                 <TouchableOpacity
                   key={range}
-                  style={[
-                    styles.modalOption,
-                    selectedRange === range && styles.modalOptionActive,
-                  ]}
+                  style={[styles.modalOption]}
                   onPress={() => handleSelectRange(range)}
                 >
-                  <Text
-                    style={[
-                      styles.modalOptionText,
-                      selectedRange === range && styles.modalOptionTextActive,
-                    ]}
-                  >
-                    {range}
-                  </Text>
+                  <Text style={[styles.modalOptionText]}>{range}</Text>
+                  {selectedRange === range && (
+                    <View
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row-reverse',
+                        width: '100%',
+                        height: '100%',
+                        marginRight: 10,
+                      }}
+                    >
+                      <Image
+                        source={require('../../../assets/images/check.png')}
+                        style={styles.checkIcon}
+                      />
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -693,6 +701,11 @@ const styles = StyleSheet.create({
     fontFamily: FONT_MEDIUM,
     fontWeight: '700',
   },
+  checkIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#000',
+  },
   tabTextActive: { color: '#111111', fontFamily: FONT_BOLD },
   tabDivider: {
     height: 1,
@@ -710,7 +723,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   chartXAxisLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#9CA3AF',
     fontFamily: FONT_REGULAR,
     textAlign: 'center',
@@ -830,8 +843,9 @@ const styles = StyleSheet.create({
     height: 280,
     marginVertical: 16,
     borderRadius: 12,
-    padding: 16,
+    padding: 10,
     position: 'relative',
+    // width: '100%',
   },
   chartYAxisContainer: {
     position: 'absolute',
@@ -939,7 +953,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: FONT_BOLD,
+    // fontFamily: FONT_BOLD,
+    fontWeight: '600',
     marginBottom: 12,
     color: '#111',
     alignSelf: 'flex-start',
@@ -947,11 +962,9 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     width: '100%',
+    flexDirection: 'row',
   },
-  modalOptionActive: { backgroundColor: '#F3F4F6', borderRadius: 8 },
-  modalOptionText: { fontSize: 16, fontFamily: FONT_REGULAR, color: '#111' },
-  modalOptionTextActive: { fontFamily: FONT_BOLD, color: '#2563EB' },
-  // Custom Date Input Styles
+  modalOptionText: { fontSize: 14, fontFamily: FONT_REGULAR, color: '#111' },
   customDateRow: {
     flexDirection: 'row',
     alignItems: 'center',

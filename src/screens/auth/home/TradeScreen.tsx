@@ -103,7 +103,7 @@ const TradeScreen: React.FC = () => {
       case 'USD':
         return require('../../../assets/images/us.png');
       case 'ETH':
-        return require('../../../assets/images/ethereum.png');
+        return require('../../../assets/images/eth.png');
       case 'JPY':
         return require('../../../assets/images/japan.png');
       case 'EUR':
@@ -277,6 +277,7 @@ const TradeScreen: React.FC = () => {
                       <SparklineChart
                         data={item.sparkline}
                         color={item.changeColor}
+                        animationDuration={20000}
                         width={80}
                         height={30}
                       />
