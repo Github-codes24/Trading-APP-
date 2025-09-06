@@ -29,6 +29,7 @@ import TradeDetailScreen from './src/screens/TradeDetailScreen';
 import SetPasscodeScreen from './src/screens/SetPasscodeScreen';
 import ReEnterPasscodeScreen from './src/screens/ReEnterPasscodeScreen';
 import PasscodeLoginScreen from './src/screens/PasscodeLoginScreen';
+import TradeScreen from './src/screens/auth/home/TradeScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -74,7 +75,7 @@ function AppContent() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Main" component={AccountScreen} />
+        <Stack.Screen name="Main" component={TradeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="Email" component={EmailScreen} />

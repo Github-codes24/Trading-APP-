@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Line } from 'react-native-svg';
 
@@ -8,6 +8,7 @@ interface SparklineChartProps {
   height?: number;
   color?: string;
   showReferenceLine?: boolean;
+  animationDuration?: number; // ms
 }
 
 const SparklineChart: React.FC<SparklineChartProps> = ({
@@ -16,55 +17,79 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   height = 20,
   color = '#1E90FF',
   showReferenceLine = true,
+  animationDuration = 250000,
 }) => {
-  if (!data || data.length < 2) {
+  const [animatedData, setAnimatedData] = useState<number[]>(data);
+  const prevDataRef = useRef<number[]>(data);
+
+  useEffect(() => {
+    if (!data || data.length < 2) return;
+
+    const prevData = prevDataRef.current;
+    const start = performance.now();
+
+    const animate = (time: number) => {
+      const progress = Math.min((time - start) / animationDuration, 1);
+
+      // Interpolate each point between prevData and new data
+      const interpolated = data.map((val, i) => {
+        const prev = prevData[i] ?? val;
+        return prev + (val - prev) * progress;
+      });
+
+      setAnimatedData(interpolated);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        prevDataRef.current = data; // lock in new data
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [data, animationDuration]);
+
+  if (!animatedData || animatedData.length < 2) {
     return <View style={[styles.container, { width, height }]} />;
   }
 
-  // Normalize data to fit within the chart dimensions
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
+  // Average baseline
+  const average =
+    animatedData.reduce((sum, val) => sum + val, 0) / animatedData.length;
 
-  const normalizedData = data.map((value, index) => ({
-    x: (index / (data.length - 1)) * width,
-    y: height - ((value - min) / range) * height,
-  }));
+  // Only values above average
+  const diffs = animatedData.map(v => Math.max(v - average, 0));
+  const maxDiff = Math.max(...diffs) || 1;
 
-  // Create path for the sparkline
+  // Normalize to chart
+  const normalizedData = animatedData.map((value, index) => {
+    const x = (index / (animatedData.length - 1)) * width - 35;
+    const diff = Math.max(value - average, 0);
+    const y = height - (diff / maxDiff) * height;
+    return { x, y };
+  });
+
+  // Path string
   const pathData = normalizedData
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
-
-  // Calculate reference line (average)
-  const average = data.reduce((sum, val) => sum + val, 0) / data.length;
-  const referenceY = height - ((average - min) / range) * height;
 
   return (
     <View style={[styles.container, { width, height }]}>
       <Svg width={width} height={height}>
-        {/* Reference line */}
         {showReferenceLine && (
           <Line
             x1={0}
-            y1={referenceY}
+            y1={height}
             x2={width}
-            y2={referenceY}
+            y2={height}
             stroke="#000000"
             strokeWidth={1}
             strokeDasharray="2,2"
           />
         )}
-        
-        {/* Sparkline path */}
-        <Path
-          d={pathData}
-          stroke={color}
-          strokeWidth={1.5}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+
+        <Path d={pathData} stroke={color} strokeWidth={1.5} fill="none" />
       </Svg>
     </View>
   );

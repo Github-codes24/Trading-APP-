@@ -2,25 +2,16 @@
 /* eslint-disable react/self-closing-comp */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  useCallback,
-} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
-  PanResponder,
   Modal,
   FlatList,
   LayoutChangeEvent,
-  Platform,
   TextInput,
   Alert,
   Image,
@@ -30,13 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
-import {
-  BarChart,
-  LineChart,
-  PieChart,
-  PopulationPyramid,
-  RadarChart,
-} from 'react-native-gifted-charts';
+import Svg, { Line } from 'react-native-svg';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -56,33 +41,46 @@ export interface HistoryResponse {
   data: Candle[];
 }
 
- const formatInstrumentName = (name: string) => {
-    if (name && name === 'BTCUSD') {
-      return `${name.slice(0, 3)}`;
-    }
-    if (
-      name &&
-      name.length === 6 &&
-      /^[A-Z]{6}$/.test(name) &&
-      name !== 'BTCUSD'
-    ) {
-      return `${name.slice(0, 3)}/${name.slice(3)}`;
-    }
-
-    return name;
-  };
-  
-const formatInstrumentNames = (name: string) => {
-  if (name && name.length === 6) {
-    return [name.slice(0, 3), name.slice(3)];
+const formatInstrumentName = (name: string) => {
+  if (name && name === 'BTCUSD') {
+    return `${name.slice(0, 3)}`;
   }
-  return [name];
+  if (
+    name &&
+    name.length === 6 &&
+    /^[A-Z]{6}$/.test(name) &&
+    name !== 'BTCUSD'
+  ) {
+    return `${name.slice(0, 3)}/${name.slice(3)}`;
+  }
+
+  return name;
+};
+
+const getBuySell = (candles: Candle[], symbol: string) => {
+  if (!candles || candles.length === 0) return null;
+
+  const config = instrumentConfig[symbol] || instrumentConfig.DEFAULT;
+
+  const lastCandle = candles[candles.length - 1];
+  const midPrice = lastCandle.close;
+
+  // Calculate spread dynamically
+  const spread = Math.max(midPrice * config.spreadFactor, config.minSpread);
+
+  const buyPrice = parseFloat(
+    (midPrice + spread / 2).toFixed(config.pricePrecision),
+  );
+  const sellPrice = parseFloat(
+    (midPrice - spread / 2).toFixed(config.pricePrecision),
+  );
+
+  return { buyPrice, sellPrice };
 };
 
 const formatDate = (dateStr: string): string => {
   // expects YYYY-MM-DD
   const [year, month, day] = dateStr.split('-');
-  console.log('=====>', dateStr);
   return `${day}/${month}`;
 };
 
@@ -313,8 +311,6 @@ const TradeModal: React.FC<TradeModalProps> = ({
           </View>
           <Text style={styles.tradeModalTitle}>Regular</Text>
 
-          {/* <View style= {{flex:1, flexDirection: 'row-reverse', backgroundColor: '#f4f5f7', width : 30, height: 30}}> </View> */}
-
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Volume</Text>
             <View style={styles.input}>
@@ -402,6 +398,26 @@ const TradeModal: React.FC<TradeModalProps> = ({
   );
 };
 
+interface InstrumentConfig {
+  pricePrecision: number; // decimals
+  minSpread: number; // smallest spread
+  spreadFactor: number; // dynamic spread scaling
+}
+
+const instrumentConfig: Record<string, InstrumentConfig> = {
+  EURUSD: { pricePrecision: 5, minSpread: 0.00008, spreadFactor: 0.0003 },
+  GBPUSD: { pricePrecision: 5, minSpread: 0.0001, spreadFactor: 0.0003 },
+  USDJPY: { pricePrecision: 3, minSpread: 0.01, spreadFactor: 0.0003 },
+  GBPJPY: { pricePrecision: 3, minSpread: 0.02, spreadFactor: 0.0003 },
+  USDCAD: { pricePrecision: 5, minSpread: 0.0001, spreadFactor: 0.0003 },
+  USOIL: { pricePrecision: 2, minSpread: 0.02, spreadFactor: 0.0005 }, // crude oil
+  USTEC: { pricePrecision: 2, minSpread: 1.0, spreadFactor: 0.0005 }, // NASDAQ 100
+  XAUUSD: { pricePrecision: 2, minSpread: 0.2, spreadFactor: 0.0003 }, // Gold
+  BTCUSD: { pricePrecision: 2, minSpread: 5, spreadFactor: 0.001 }, // Bitcoin
+  ETHUSD: { pricePrecision: 2, minSpread: 0.5, spreadFactor: 0.001 }, // Ethereum
+  DEFAULT: { pricePrecision: 2, minSpread: 0.1, spreadFactor: 0.0003 }, // fallback
+};
+
 // LIVE CANDLE ENGINE (synthetic per-second updates)
 const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
   const [candles, setCandles] = useState<Candle[]>(initial || []);
@@ -414,32 +430,37 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
   useEffect(() => {
     if (!candles || candles.length === 0) return;
 
-    const pricePrecision = symbol === 'EURUSD' ? 4 : 2;
+    const config = instrumentConfig[symbol] || instrumentConfig.DEFAULT;
+
     const interval = setInterval(() => {
       setCandles(prev => {
         if (prev.length === 0) return prev;
         const next = [...prev];
         const last = { ...next[next.length - 1] };
+
+        // Dynamic spread calculation
         const spread = Math.max(
-          last.close * 0.0003,
-          symbol === 'EURUSD' ? 0.0002 : 0.2,
+          last.close * config.spreadFactor,
+          config.minSpread,
         );
         const delta = (Math.random() - 0.5) * spread;
+
+        // Update candle close with precision
         const newClose = parseFloat(
-          (last.close + delta).toFixed(pricePrecision),
+          (last.close + delta).toFixed(config.pricePrecision),
         );
         last.close = newClose;
         if (newClose > last.high) last.high = newClose;
         if (newClose < last.low) last.low = newClose;
         next[next.length - 1] = last;
 
-        // optionally, every ~25s start a fresh candle to simulate stream
+        // Optionally simulate new candle
         const now = Date.now();
-        const shouldAddNew = now % 25000 < 1000; // rough 1s window every 25s
+        const shouldAddNew = now % 30000 < 1000;
         if (shouldAddNew) {
           const base = last.close;
           const newCandle: Candle = {
-            time: last.time, // keep same date label for simplicity
+            time: new Date().toISOString(),
             open: base,
             high: base,
             low: base,
@@ -447,12 +468,13 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
             tick_volume: last.tick_volume + 1,
           };
           next.push(newCandle);
-          // keep memory reasonable
           if (next.length > 400) next.shift();
         }
+
         return next;
       });
     }, 1500);
+
     return () => clearInterval(interval);
   }, [symbol, candles.length]);
 
@@ -461,10 +483,6 @@ const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
 
 // DYNAMIC GRAPH
 interface GraphProps {
-  zoom: number;
-  setZoom: React.Dispatch<React.SetStateAction<number>>;
-  verticalZoom: number;
-  setVerticalZoom: React.Dispatch<React.SetStateAction<number>>;
   timeFrame: number;
   symbol: string;
   onCurrentPriceChange: (price: number) => void;
@@ -473,10 +491,6 @@ interface GraphProps {
 }
 
 const DynamicGraph: React.FC<GraphProps> = ({
-  zoom,
-  setZoom,
-  verticalZoom,
-  setVerticalZoom,
   timeFrame,
   symbol,
   onCurrentPriceChange,
@@ -485,19 +499,24 @@ const DynamicGraph: React.FC<GraphProps> = ({
   const [chartHeight, setChartHeight] = useState(
     Math.floor(SCREEN_HEIGHT * 0.5),
   );
-  const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
   const [showCandleDetails, setShowCandleDetails] = useState(false);
-  const candleSlotWidth = 10 * zoom;
-  const barWidth = candleSlotWidth * 0.5;
+  const [candleCount, setCandleCount] = useState(0); // Track candle count
+  const candleSlotWidth = 20;
+  const barWidth = candleSlotWidth * 0.4;
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       const res = await FetchTradeDetails(symbol, timeFrame).catch(() => null);
       if (!isMounted) return;
-      if (res?.data && res.data.length) setHistory(res.data);
-      else setHistory(null);
+      if (res?.data && res.data.length) {
+        setHistory(res.data);
+        setCandleCount(res.data.length); // Initialize candle count
+      } else {
+        setHistory(null);
+        setCandleCount(0);
+      }
     })();
     return () => {
       isMounted = false;
@@ -505,6 +524,13 @@ const DynamicGraph: React.FC<GraphProps> = ({
   }, [timeFrame, symbol]);
 
   const liveCandles = useLiveCandles(history, symbol);
+
+  // Update candle count when liveCandles changes
+  useEffect(() => {
+    if (liveCandles) {
+      setCandleCount(liveCandles.length);
+    }
+  }, [liveCandles]);
 
   // Update current price when candles change
   useEffect(() => {
@@ -514,63 +540,9 @@ const DynamicGraph: React.FC<GraphProps> = ({
     }
   }, [liveCandles, onCurrentPriceChange]);
 
-  // pinch zoom (horizontal vs vertical) with PanResponder
-  const lastDistance = useRef(0);
-  const isVerticalZoomRef = useRef(false);
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: evt =>
-          evt.nativeEvent.touches.length === 2,
-        onMoveShouldSetPanResponder: evt =>
-          evt.nativeEvent.touches.length === 2,
-        onPanResponderMove: evt => {
-          if (evt.nativeEvent.touches.length === 2) {
-            const [t1, t2] = evt.nativeEvent.touches as any;
-            const dx = t1.pageX - t2.pageX;
-            const dy = t1.pageY - t2.pageY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const isVertical = Math.abs(dy) > Math.abs(dx) * 1.4;
-
-            if (lastDistance.current === 0) {
-              lastDistance.current = distance;
-              isVerticalZoomRef.current = isVertical;
-              return;
-            }
-
-            const diff = distance - lastDistance.current;
-            if (Math.abs(diff) < 4) return;
-
-            if (isVerticalZoomRef.current) {
-              setVerticalZoom(v => clamp(v + diff / 300, 0.5, 3));
-            } else {
-              setZoom(z => clamp(z + diff / 300, 0.5, 3));
-            }
-            lastDistance.current = distance;
-          }
-        },
-        onPanResponderRelease: () => {
-          lastDistance.current = 0;
-          isVerticalZoomRef.current = false;
-        },
-        onPanResponderTerminate: () => {
-          lastDistance.current = 0;
-          isVerticalZoomRef.current = false;
-        },
-      }),
-    [setZoom, setVerticalZoom],
-  );
-
-  // double-tap to reset zoom
-  const lastTapRef = useRef<number>(0);
-  const handleChartTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 250) {
-      setZoom(1);
-      setVerticalZoom(1);
-    }
-    lastTapRef.current = now;
-  }, [setZoom, setVerticalZoom]);
+  // Calculate chart width based on candle count
+  const chartWidth = candleCount * candleSlotWidth;
+  const finalchartWeidth = SCREEN_WIDTH - chartWidth;
 
   // Handle candle tap for showing details
   const handleCandleTap = useCallback(
@@ -602,27 +574,48 @@ const DynamicGraph: React.FC<GraphProps> = ({
   }
 
   const data = liveCandles;
-  // compute zoomed price range
+  // compute price range
   const maxPrice = Math.max(...data.map(d => d.high));
   const minPrice = Math.min(...data.map(d => d.low));
   const midPrice = (maxPrice + minPrice) / 2;
   const baseRange = Math.max(1e-9, maxPrice - minPrice);
-  const zoomedRange = baseRange / verticalZoom;
+  const zoomedRange = baseRange;
   const zoomedMax = midPrice + zoomedRange / 1.5;
   const zoomedMin = midPrice - zoomedRange / 1.5;
   const priceRange = Math.max(1e-9, zoomedMax - zoomedMin);
 
   // Get current price for buy/sell lines
   const currentPrice = data[data.length - 1].close;
-  const buyLineY = ((zoomedMax - currentPrice) / priceRange) * chartHeight;
-  const sellLineY = ((zoomedMax - currentPrice) / priceRange) * chartHeight;
+
+  const spreads: Record<string, number> = {
+    EURUSD: 0.00008, // 0.8 pip
+    GBPUSD: 0.0001, // 1.0 pip
+    USDJPY: 0.01, // 1.0 pip
+    GBPJPY: 0.02, // 2.0 pips
+    USDCAD: 0.0001, // 1.0 pip
+    USOIL: 0.02, // 2 cents
+    USTEC: 1.0, // 1 point
+    XAUUSD: 0.5, // 50 cents
+    BTCUSD: 10, // $10
+    ETHUSD: 0.5, // $0.5
+  };
+
+  const spread = spreads[symbol] ?? 0.0001;
+
+  const buyPrice = currentPrice + spread / 2;
+  const sellPrice = currentPrice - spread / 2;
+
+  const buyLineY = ((zoomedMax - buyPrice) / priceRange) * chartHeight;
+  const sellLineY = ((zoomedMax - sellPrice) / priceRange) * chartHeight;
 
   const levels = [zoomedMax, midPrice, zoomedMin];
-  const totalWidth = data.length * candleSlotWidth + SCREEN_WIDTH;
   const priceDigits = symbol === 'EURUSD' ? 4 : 2;
 
+  // const chartWidth = data.length * candleSlotWidth;
+  // const finalchartWeidth = SCREEN_WIDTH - chartWidth;
+
   return (
-    <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+    <View style={{ flex: 1 }}>
       {/* Candle Details Box */}
       {showCandleDetails && selectedCandle && (
         <View style={styles.candleDetailsBox}>
@@ -657,10 +650,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
               fontSize: 16,
               fontWeight: '500',
               color: '#7c8484',
-              // backgroundColor: 'rgba(0,0,0,0.45)',
               zIndex: 3,
-              // paddingHorizontal: 4,
-              borderRadius: 3,
             }}
           >
             {val.toFixed(priceDigits)}
@@ -688,195 +678,176 @@ const DynamicGraph: React.FC<GraphProps> = ({
             alignItems: 'center',
           }}
         >
-          <View
-            style={{
-              width: 6,
-              height: 1,
-              backgroundColor: '#1992FC',
-              marginRight: 2,
-            }}
-          />
           <Text
             style={{
               fontSize: 14,
               fontWeight: '500',
               color: '#fff',
               backgroundColor: '#1992FC',
-              paddingHorizontal: 6,
-              borderRadius: 3,
+              paddingHorizontal: 11,
+              paddingVertical: 1,
+              borderTopLeftRadius: 15,
             }}
           >
-            {currentPrice.toFixed(priceDigits)}
+            {buyPrice.toFixed(priceDigits)}
           </Text>
         </View>
         <View
           style={{
             position: 'absolute',
             right: 0,
-            top: clamp(sellLineY - 8, 2, chartHeight - 18),
+            top: clamp(sellLineY + 13, 2, chartHeight - 18),
             flexDirection: 'row',
             alignItems: 'center',
           }}
         >
-          <View
-            style={{
-              width: 6,
-              height: 1,
-              backgroundColor: '#ff5b5b',
-              marginRight: 2,
-            }}
-          />
           <Text
             style={{
               fontSize: 14,
               fontWeight: '500',
               color: '#fff',
               backgroundColor: '#ff5b5b',
-              paddingHorizontal: 6,
-              borderRadius: 3,
+              paddingHorizontal: 11,
+              paddingVertical: 1,
+              borderBottomLeftRadius: 15,
             }}
           >
-            {currentPrice.toFixed(priceDigits)}
+            {sellPrice.toFixed(priceDigits)}
           </Text>
         </View>
       </View>
 
-      {/* SCROLLABLE PLOT AREA */}
+      {/* PLOT AREA */}
       <View style={{ flex: 1 }} onLayout={onChartLayout}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ height: '100%', width: totalWidth }}
-          scrollEventThrottle={16}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            height: '94%',
+            position: 'relative',
+          }}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            style={{ flex: 1 }}
-            onPress={handleChartTap}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'flex-end',
-                height: '94%',
-                position: 'relative',
-              }}
-            >
-              {/* HORIZONTAL GRID */}
-              {levels.map((val, i) => {
-                const top = ((zoomedMax - val) / priceRange) * chartHeight;
-                return (
-                  <View
-                    key={`grid-${i}`}
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top,
-                      height: 1,
-                      backgroundColor: '#ececec',
-                    }}
-                  />
-                );
-              })}
-
-              {/* BUY/SELL LINES */}
+          {/* HORIZONTAL GRID */}
+          {levels.map((val, i) => {
+            const top = ((zoomedMax - val) / priceRange) * chartHeight;
+            return (
               <View
+                key={`grid-${i}`}
                 style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
-                  top: buyLineY,
+                  top,
                   height: 1,
-                  backgroundColor: '#1992FC',
+                  backgroundColor: '#ececec',
                 }}
               />
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: sellLineY,
-                  height: 1,
-                  backgroundColor: 'rgba(255, 91, 91, 0.7)',
-                }}
-              />
-              {/* CANDLES */}
-              {data.map((c, idx) => {
-                const isBull = c.close >= c.open;
-                const bodyHeight = Math.max(
-                  4,
-                  Math.abs(((c.close - c.open) / priceRange) * chartHeight),
-                );
-                const wickHeight =
-                  ((c.high - c.low) / priceRange) * chartHeight;
-                const bottomWick =
-                  ((c.low - zoomedMin) / priceRange) * chartHeight;
-                const bottomBody =
-                  ((Math.min(c.open, c.close) - zoomedMin) / priceRange) *
-                  chartHeight;
+            );
+          })}
 
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={{
-                      width: candleSlotWidth,
-                      alignItems: 'center',
-                      position: 'relative',
-                      height: '95%',
-                    }}
-                    onPress={() => handleCandleTap(c)}
-                    activeOpacity={0.7}
-                  >
-                    {/* Wick */}
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: bottomWick,
-                        width: 2,
-                        height: wickHeight,
-                        backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
-                        borderRadius: 2,
-                      }}
-                    />
-                    {/* Body */}
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: bottomBody,
-                        width: barWidth,
-                        height: bodyHeight,
-                        backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
-                        borderRadius: 2,
-                      }}
-                    />
-                    {(() => {
-                      const step = Math.max(1, Math.ceil(8 / zoom));
-                      if (idx % step === 0) {
-                        return (
-                          <Text
-                            style={{
-                              position: 'absolute',
-                              bottom: -10,
-                              fontSize: 11,
-                              color: '#9b9b9b',
-                              width: 70,
-                              fontWeight: '500',
-                            }}
-                          >
-                            {formatDate(c.time)}
-                          </Text>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </TouchableOpacity>
-        </ScrollView>
+          {/* BUY/SELL LINES */}
+           <Svg
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+        }}
+      >
+        {/* Buy line (blue dotted) */}
+        <Line
+          x1="100%"
+          y1={buyLineY + 10}
+          x2={finalchartWeidth - 118}
+          y2={buyLineY + 10}
+          stroke="#1992FC"
+          strokeWidth="1"
+          strokeDasharray="4,4"
+        />
+
+        {/* Sell line (red dotted) */}
+        <Line
+          x1="100%"
+          y1={sellLineY + 14}
+          x2={finalchartWeidth - 118}
+          y2={sellLineY + 14}
+          stroke="rgba(255, 91, 91, 0.7)"
+          strokeWidth="1"
+          strokeDasharray="4,4"
+        />
+      </Svg>
+          {/* CANDLES */}
+          {data.map((c, idx) => {
+            const isBull = c.close >= c.open;
+            const bodyHeight = Math.max(
+              4,
+              Math.abs(((c.close - c.open) / priceRange) * chartHeight),
+            );
+            const wickHeight = ((c.high - c.low) / priceRange) * chartHeight;
+            const bottomWick = ((c.low - zoomedMin) / priceRange) * chartHeight;
+            const bottomBody =
+              ((Math.min(c.open, c.close) - zoomedMin) / priceRange) *
+              chartHeight;
+
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={{
+                  width: candleSlotWidth,
+                  alignItems: 'center',
+                  position: 'relative',
+                  height: '95%',
+                }}
+                onPress={() => handleCandleTap(c)}
+                activeOpacity={0.7}
+              >
+                {/* Wick */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: bottomWick,
+                    width: 2,
+                    height: wickHeight,
+                    backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
+                    borderRadius: 2,
+                  }}
+                />
+                {/* Body */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: bottomBody,
+                    width: barWidth,
+                    height: bodyHeight,
+                    backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
+                    borderRadius: 2,
+                  }}
+                />
+                {(() => {
+                  const step = Math.max(1, Math.ceil(8));
+                  if (idx % step === 0) {
+                    return (
+                      <Text
+                        style={{
+                          position: 'absolute',
+                          bottom: -10,
+                          fontSize: 11,
+                          color: '#9b9b9b',
+                          width: 70,
+                          fontWeight: '500',
+                        }}
+                      >
+                        {formatDate(c.time)}
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -897,8 +868,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     (state: any) => state?.balance?.amount ?? 0,
   );
   const dispatch = useDispatch();
-  const [zoom, setZoom] = useState(1);
-  const [verticalZoom, setVerticalZoom] = useState(1);
   const [timeFrame, setTimeFrame] = useState(7);
   const [showTimeFrameModal, setShowTimeFrameModal] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(0);
@@ -935,58 +904,50 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       case 'USTEC':
         return require('../assets/images/us.png');
       case 'USOIL':
-        return require('../assets/images/water-and-oil.png');
+        return require('../assets/images/crudeoilbig.png');
       default:
-        return require('../assets/images/bitcoin.png'); // fallback
+        return null;
     }
   };
 
-  // Currency flag icons
-  const getFlagIcon = (currencies: string | string[]) => {
-    const mapCurrencyToIcon = (currency: string) => {
-      switch (currency) {
-        case 'USD':
-          return { name: 'USD', source: require('../assets/images/us.png') };
-        case 'ETH':
-          return {
-            name: 'ETH',
-            source: require('../assets/images/ethereum.png'),
-          };
-        case 'JPY':
-          return { name: 'JPY', source: require('../assets/images/japan.png') };
-        case 'EUR':
-          return {
-            name: 'EUR',
-            source: require('../assets/images/european-union.png'),
-          };
-        case 'GBP':
-          return { name: 'GBP', source: require('../assets/images/flag.png') };
-        case 'CAD':
-          return {
-            name: 'CAD',
-            source: require('../assets/images/canada.png'),
-          };
-        case 'XAU':
-          return {
-            name: 'XAU',
-            source: require('../assets/images/tether-gold.png'),
-          };
-        default:
-          return {
-            name: currency,
-            source: require('../assets/images/bitcoin.png'),
-          };
-      }
-    };
-
-    if (Array.isArray(currencies)) {
-      return currencies.map(c => mapCurrencyToIcon(c));
+  // Helper to map country codes to flags
+  const getFlagIcon = (currency: string) => {
+    switch (currency) {
+      case 'USD':
+        return require('../assets/images/us.png');
+      case 'ETH':
+        return require('../assets/images/ethereum.png');
+      case 'JPY':
+        return require('../assets/images/japan.png');
+      case 'EUR':
+        return require('../assets/images/european-union.png');
+      case 'GBP':
+        return require('../assets/images/flag.png');
+      case 'CAD':
+        return require('../assets/images/canada.png');
+      case 'XAU':
+        return require('../assets/images/xau.png');
+      case 'BTC':
+        return require('../assets/images/bitcoin.png');
+      default:
+        return require('../assets/images/bitcoin.png');
     }
-    return [mapCurrencyToIcon(currencies)];
   };
-
   const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
     try {
+      const tradeCost = lotSize * currentPrice;
+
+      // ✅ Check if user has enough balance
+      if (walletBalance < tradeCost) {
+        Alert.alert(
+          'Insufficient Balance',
+          `You need at least ${tradeCost.toFixed(
+            2,
+          )} but you only have ${walletBalance.toFixed(2)}`,
+        );
+        return;
+      }
+
       const tradeData = {
         id: Date.now().toString(),
         symbol: trade.name,
@@ -1004,11 +965,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         : [];
 
       const updatedTrades = [tradeData, ...existingTrades];
-
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
-      const tradeCost = lotSize * currentPrice;
-
+      // Deduct balance only if trade is valid
       dispatch(withdraw(tradeCost));
 
       Alert.alert(
@@ -1040,7 +999,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
       const pendingTrades = existingTrades.filter(
         (t: any) => t.symbol === symbol && t.status === 'pending',
-        
       );
 
       // Calculate total profit/loss for open trades
@@ -1049,7 +1007,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         const priceDifference = currentPrice - trade.price;
         const tradePnl = priceDifference * trade.lotSize;
 
-        
         return total + tradePnl;
       }, 0);
 
@@ -1065,9 +1022,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   };
 
   const priceDigits = trade.name === 'EURUSD' ? 4 : 3;
-  const iconsA = formatInstrumentNames(trade.name);
-  const icons = getFlagIcon(iconsA);
-  console.log('iconsicons', icons);
 
   const [tradeCounts, setTradeCounts] = useState({
     openCount: 0,
@@ -1122,25 +1076,35 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={styles.instrumentIconCircle}>
-                {icons.length > 0 && (
+                {formatInstrumentName(trade.name).includes('/') ? (
                   <View style={{ flexDirection: 'row' }}>
-                    {icons.map((icon, idx) =>
-                      icon ? (
-                        <Image
-                          key={idx}
-                          source={icon.source}
-                          style={{
-                            width: icons ? 18 : 22,
-                            height: icons ? 18 : 22,
-                            borderRadius: icons ? 9 : 11,
-                            marginRight: icons && idx === 0 ? -10 : 0,
-                            marginTop: icons && idx === 0 ? 15 : 20,
-                          }}
-                          resizeMode="contain"
-                        />
-                      ) : null,
-                    )}
+                    <Image
+                      source={getFlagIcon(
+                        formatInstrumentName(trade.name).slice(0, 3),
+                      )}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        marginRight: -12,
+                        marginTop: -6,
+                      }}
+                      resizeMode="contain"
+                    />
+                    <Image
+                      source={getFlagIcon(
+                        formatInstrumentName(trade.name).slice(4, 7),
+                      )}
+                      style={{ width: 20, height: 20, borderRadius: 10 }}
+                      resizeMode="contain"
+                    />
                   </View>
+                ) : (
+                  <Image
+                    source={getInstrumentIcon(trade.name)}
+                    style={{ width: 23, height: 23, borderRadius: 13 }}
+                    resizeMode="contain"
+                  />
                 )}
               </View>
 
@@ -1222,38 +1186,42 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             >
               {tradeCounts.pendingCount}
             </Text>
-            <View
-              style={{
-                flexDirection: 'row-reverse',
-                width: 160,
-                height: '100%',
-                alignItems: 'center',
-              }}
-            >
-              <TouchableOpacity onPress={() => setActiveSection('Chart')}>
-                <Image
-                  source={require('../assets/images/cancel.png')}
-                  style={{
-                    width: 15,
-                    height: 15,
-                    marginLeft: 12,
-                    tintColor: '#ec4945',
-                  }}
-                />
-              </TouchableOpacity>
-              <Text
+
+            {/* Conditionally render the View only when openCount is not 0 */}
+            {tradeCounts.openCount !== 0 && (
+              <View
                 style={{
-                  fontSize: 14,
-                  fontWeight: '500',
-                  color:
-                    tradeCounts.totalProfitLoss >= 0 ? '#4caf50' : '#f44336',
-                  marginLeft: 8,
+                  flex: 1,
+                  flexDirection: 'row-reverse',
+                  height: '100%',
+                  alignItems: 'center',
                 }}
               >
-                {tradeCounts.totalProfitLoss >= 0 ? '+' : ''}
-                {tradeCounts.totalProfitLoss.toFixed(2)} USD
-              </Text>
-            </View>
+                <TouchableOpacity onPress={() => setActiveSection('Chart')}>
+                  <Image
+                    source={require('../assets/images/cancel.png')}
+                    style={{
+                      width: 13,
+                      height: 13,
+                      marginLeft: 12,
+                      tintColor: '#ec4945',
+                    }}
+                  />
+                </TouchableOpacity>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '500',
+                    color:
+                      tradeCounts.totalProfitLoss >= 0 ? '#4caf50' : '#f44336',
+                    marginLeft: 8,
+                  }}
+                >
+                  {tradeCounts.totalProfitLoss >= 0 ? '+' : ''}
+                  {tradeCounts.totalProfitLoss.toFixed(2)} USD
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* SECTION TABS */}
@@ -1314,10 +1282,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <View style={styles.sectionBox}>
             {activeSection === 'Chart' && (
               <DynamicGraph
-                zoom={zoom}
-                setZoom={setZoom}
-                verticalZoom={verticalZoom}
-                setVerticalZoom={setVerticalZoom}
                 timeFrame={timeFrame}
                 symbol={trade.name}
                 onCurrentPriceChange={handleCurrentPriceChange}
@@ -1325,10 +1289,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             )}
             {activeSection === 'Analytics' && (
               <DynamicGraph
-                zoom={zoom}
-                setZoom={setZoom}
-                verticalZoom={verticalZoom}
-                setVerticalZoom={setVerticalZoom}
                 timeFrame={timeFrame}
                 symbol={trade.name}
                 onCurrentPriceChange={handleCurrentPriceChange}
@@ -1336,10 +1296,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             )}
             {activeSection === 'Specification' && (
               <DynamicGraph
-                zoom={zoom}
-                setZoom={setZoom}
-                verticalZoom={verticalZoom}
-                setVerticalZoom={setVerticalZoom}
                 timeFrame={timeFrame}
                 symbol={trade.name}
                 onCurrentPriceChange={handleCurrentPriceChange}
@@ -1563,13 +1519,13 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   instrumentIconCircle: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    marginTop: -16,
+    // marginTop: -16,
     backgroundColor: '#FFFFFF',
   },
   balanceBox: {
@@ -1637,8 +1593,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: '#ffffffff',
     marginHorizontal: 20,
-    marginBottom: 35,
-    width: '100%'
+    marginBottom: 10,
+    width: '100%',
   },
   tab: {
     paddingVertical: 8,
@@ -1649,7 +1605,7 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#000000',
-    borderRadius:1,
+    borderRadius: 1,
     paddingHorizontal: 8,
     marginHorizontal: 8,
     // width: '100%'
@@ -1665,7 +1621,7 @@ const styles = StyleSheet.create({
   sectionBox: {
     height: '46%',
     marginBottom: 30,
-    marginHorizontal: 8,
+    marginHorizontal: 0,
     backgroundColor: '#fff',
   },
   toolsRow: {

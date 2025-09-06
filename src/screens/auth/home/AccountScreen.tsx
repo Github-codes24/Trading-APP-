@@ -353,6 +353,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
 type PositionsTab = 'Open' | 'Pending' | 'Closed';
 
 export interface TradeData {
+  closePrice: number;
   id: string;
   symbol: string;
   formattedSymbol: string;
@@ -468,10 +469,11 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
   const getInstrumentIcon = (symbol: string) => {
     switch (symbol) {
       case 'BTCUSD':
+        return require('../../../assets/images/bitcoin.png');
       case 'USTEC':
         return require('../../../assets/images/us.png');
       case 'USOIL':
-        return require('../../../assets/images/water-and-oil.png');
+        return require('../../../assets/images/crudeoilbig.png');
       default:
         return null;
     }
@@ -493,7 +495,7 @@ const TradeItem: React.FC<{ trade: TradeData; currentPrice: number }> = ({
       case 'CAD':
         return require('../../../assets/images/canada.png');
       case 'XAU':
-        return require('../../../assets/images/tether-gold.png');
+        return require('../../../assets/images/xau.png');
       case 'BTC':
         return require('../../../assets/images/bitcoin.png');
       default:
@@ -883,9 +885,6 @@ const AccountsUI: React.FC<{
     setModalVisible(true);
   };
 
-  const handleModify = () => console.log('Modify trade:', selectedTrade);
-  const handlePartialClose = () => console.log('Partial close trade:', selectedTrade);
-
   const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
 
   const handleCloseAllTrades = () => setcloseAllModelVisible(true);
@@ -1021,7 +1020,6 @@ const AccountsUI: React.FC<{
               {trades.map(trade => (
                 <TouchableOpacity
                   key={trade.id}
-                  onPress={() => handleTradeItemPress(trade)}
                   activeOpacity={0.7}
                 >
                   <TradeItem
@@ -1049,13 +1047,13 @@ const AccountsUI: React.FC<{
       {/* Header */}
       <View style={styles.topToolbar}>
         <Image
-          source={require('../../../assets/images/clockIcon.png')}
+          source={require('../../../assets/images/clockicon.png')}
           style={{ width: SIZES.topIcon, height: SIZES.topIcon, marginRight: 16 }}
           resizeMode="contain"
         />
         <View style={styles.bellWrapper}>
           <Image
-            source={require('../../../assets/images/BellIcon.png')}
+            source={require('../../../assets/images/bellicon.png')}
             style={{ width: SIZES.topIcon, height: SIZES.topIcon }}
             resizeMode="contain"
           />

@@ -9,7 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
@@ -89,7 +89,7 @@ const TradeScreen: React.FC = () => {
       case 'USTEC':
         return require('../../../assets/images/us.png');
       case 'USOIL':
-        return require('../../../assets/images/water-and-oil.png');
+        return require('../../../assets/images/crudeoilbig.png');
       case 'BTC':
         return require('../../../assets/images/bitcoin.png');
       default:
@@ -113,7 +113,7 @@ const TradeScreen: React.FC = () => {
       case 'CAD':
         return require('../../../assets/images/canada.png');
       case 'XAU':
-        return require('../../../assets/images/tether-gold.png');
+        return require('../../../assets/images/xau.png');
       case 'XAU':
         return require('../../../assets/images/bitcoin.png');
       default:
