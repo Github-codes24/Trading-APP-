@@ -22,6 +22,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withdraw } from '../store/balanceSlice';
 import Svg, { Line } from 'react-native-svg';
+import { USER_MODE } from '../services/tradingApi';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const WS_URL_LIVE = 'ws://13.201.33.113:8000/ws/live'; // Adjust this URL as needed
@@ -140,15 +141,18 @@ export const FetchTradeDetails = async (
 };
 
 // LIVE WEBSOCKET CONNECTION
-const useLiveWebSocket = (symbol: string, onLiveData: (data: LiveTick) => void) => {
+const useLiveWebSocket = (
+  symbol: string,
+  onLiveData: (data: LiveTick) => void,
+) => {
   useEffect(() => {
     const socket = new WebSocket(`${WS_URL_LIVE}?symbol=${symbol}`);
-    
+
     socket.onopen = () => {
       console.log('Live WebSocket connected');
     };
-    
-    socket.onmessage = (event) => {
+
+    socket.onmessage = event => {
       try {
         const data: LiveTick = JSON.parse(event.data);
         if (data.type === 'live' && data.symbol === symbol) {
@@ -158,15 +162,15 @@ const useLiveWebSocket = (symbol: string, onLiveData: (data: LiveTick) => void) 
         console.error('Error parsing live data:', error);
       }
     };
-    
-    socket.onerror = (error) => {
+
+    socket.onerror = error => {
       console.error('WebSocket error:', error);
     };
-    
+
     socket.onclose = () => {
       console.log('Live WebSocket disconnected');
     };
-    
+
     return () => {
       socket.close();
     };
@@ -810,37 +814,37 @@ const DynamicGraph: React.FC<GraphProps> = ({
           })}
 
           {/* BUY/SELL LINES */}
-           <Svg
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-        }}
-      >
-        {/* Buy line (blue dotted) */}
-        <Line
-          x1="100%"
-          y1={buyLineY + 10}
-          x2={finalchartWeidth - 118}
-          y2={buyLineY + 10}
-          stroke="#1992FC"
-          strokeWidth="1"
-          strokeDasharray="4,4"
-        />
+          <Svg
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+            }}
+          >
+            {/* Buy line (blue dotted) */}
+            <Line
+              x1="100%"
+              y1={buyLineY + 10}
+              x2={finalchartWeidth - 118}
+              y2={buyLineY + 10}
+              stroke="#1992FC"
+              strokeWidth="1"
+              strokeDasharray="4,4"
+            />
 
-        {/* Sell line (red dotted) */}
-        <Line
-          x1="100%"
-          y1={sellLineY + 14}
-          x2={finalchartWeidth - 118}
-          y2={sellLineY + 14}
-          stroke="rgba(255, 91, 91, 0.7)"
-          strokeWidth="1"
-          strokeDasharray="4,4"
-        />
-      </Svg>
+            {/* Sell line (red dotted) */}
+            <Line
+              x1="100%"
+              y1={sellLineY + 14}
+              x2={finalchartWeidth - 118}
+              y2={sellLineY + 14}
+              stroke="rgba(255, 91, 91, 0.7)"
+              strokeWidth="1"
+              strokeDasharray="4,4"
+            />
+          </Svg>
           {/* CANDLES */}
           {data.map((c, idx) => {
             const isBull = c.close >= c.open;
@@ -997,7 +1001,12 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         return require('../assets/images/bitcoin.png');
     }
   };
-  const handleTradeConfirm = async (lotSize: number, type: 'buy' | 'sell') => {
+
+  const handleTradeConfirm = async (
+    lotSize: number,
+    type: 'buy' | 'sell',
+    user: 'real' | 'demo', // ✅ Add user mode as a parameter
+  ) => {
     try {
       const tradeCost = lotSize * currentPrice;
 
@@ -1021,6 +1030,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         price: currentPrice,
         timestamp: new Date().toISOString(),
         status: 'open',
+        user,
       };
 
       const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
@@ -1040,7 +1050,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           type === 'buy' ? 'bought' : 'sold'
         } ${lotSize} lots of ${formatInstrumentName(
           trade.name,
-        )} at ${currentPrice.toFixed(trade.name === 'EURUSD' ? 4 : 2)}`,
+        )} at ${currentPrice.toFixed(
+          trade.name === 'EURUSD' ? 4 : 2,
+        )} (${user.toUpperCase()} mode)`,
       );
 
       setShowTradeModal(false);
@@ -1050,40 +1062,47 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     }
   };
 
-  const getTradeCounts = async (symbol: string) => {
-    try {
-      const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
-      const existingTrades = existingTradesJSON
-        ? JSON.parse(existingTradesJSON)
-        : [];
+const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
+  try {
+    const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+    const existingTrades = existingTradesJSON
+      ? JSON.parse(existingTradesJSON)
+      : [];
 
-      const openTrades = existingTrades.filter(
-        (t: any) => t.symbol === symbol && t.status === 'open',
-      );
+    // ✅ Only get trades for this user mode
+    const userTrades = existingTrades.filter((t: any) => t.user === user);
 
-      const pendingTrades = existingTrades.filter(
-        (t: any) => t.symbol === symbol && t.status === 'pending',
-      );
+    const openTrades = userTrades.filter(
+      (t: any) => t.symbol === symbol && t.status === 'open',
+    );
 
-      // Calculate total profit/loss for open trades
-      const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
-        // Calculate P/L based on current price vs entry price
-        const priceDifference = currentPrice - trade.price;
-        const tradePnl = priceDifference * trade.lotSize;
+    const pendingTrades = userTrades.filter(
+      (t: any) => t.symbol === symbol && t.status === 'pending',
+    );
 
-        return total + tradePnl;
-      }, 0);
+    // ✅ Calculate total profit/loss for open trades
+    const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+      // Calculate P/L based on current price vs entry price
+      const priceDifference =
+        trade.type === 'buy'
+          ? currentPrice - trade.price
+          : trade.price - currentPrice; // adjust for sell trades
 
-      return {
-        openCount: openTrades.length,
-        pendingCount: pendingTrades.length,
-        totalProfitLoss,
-      };
-    } catch (error) {
-      console.error('Error reading trades:', error);
-      return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
-    }
-  };
+      const tradePnl = priceDifference * trade.lotSize;
+
+      return total + tradePnl;
+    }, 0);
+
+    return {
+      openCount: openTrades.length,
+      pendingCount: pendingTrades.length,
+      totalProfitLoss,
+    };
+  } catch (error) {
+    console.error('Error reading trades:', error);
+    return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
+  }
+};
 
   const priceDigits = trade.name === 'EURUSD' ? 4 : 3;
 
@@ -1095,7 +1114,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
   useEffect(() => {
     const loadCounts = async () => {
-      const counts = await getTradeCounts(trade.name);
+      const counts = await getTradeCounts(trade.name, USER_MODE);
       setTradeCounts(counts);
     };
 
@@ -1104,7 +1123,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
   useEffect(() => {
     const refreshProfitLoss = async () => {
-      const counts = await getTradeCounts(trade.name);
+      const counts = await getTradeCounts(trade.name, USER_MODE);
       setTradeCounts(prev => ({
         ...prev,
         totalProfitLoss: counts.totalProfitLoss,
@@ -1406,7 +1425,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           <TradeModal
             visible={showTradeModal}
             onClose={() => setShowTradeModal(false)}
-            onConfirm={handleTradeConfirm}
+            onConfirm={(lotSize, type) =>
+              handleTradeConfirm(lotSize, type, USER_MODE)
+            }
             tradeType={tradeType}
             currentPrice={currentPrice}
             symbol={trade.name}

@@ -2,6 +2,8 @@
 
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+export let USER_MODE: 'real' | 'demo' = 'demo';
+
 export interface TradingInstrument {
   symbol: string;
   name: string;
