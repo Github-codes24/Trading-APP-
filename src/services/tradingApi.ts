@@ -4,6 +4,46 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 export let USER_MODE: 'real' | 'demo' = 'demo';
 
+type TradeType = "buy" | "sell";
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface TradeInputForPL {
+  symbol: string;
+  openPrice: number;
+  closePrice: number;
+  lotSize: number;
+  tradeType: TradeType;
+}
+
+const CONTRACT_SIZES: Record<string, number> = {
+  EURUSD: 100000,
+  GBPUSD: 100000, 
+  BTCUSD: 1,        
+  USDJPY: 100000,  
+  USTEC: 1,        
+  ETHUSD: 10,       
+  GBPJPY: 100000,  
+  USDCAD: 100000,  
+  USOIL: 1000,      
+  XAUUSD: 100,      
+};
+
+
+export const calculateProfit = ({
+  symbol,
+  openPrice,
+  closePrice,
+  lotSize,
+  tradeType,
+}: TradeInputForPL): number => {
+  const direction = tradeType === "buy" ? 1 : -1;
+  const priceDifference = closePrice - openPrice;
+
+  const contractSize = CONTRACT_SIZES[symbol] ?? 1;
+
+  return priceDifference * lotSize * contractSize * direction;
+};
+
 export interface TradingInstrument {
   symbol: string;
   name: string;

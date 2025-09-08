@@ -70,6 +70,9 @@ const TradeScreen: React.FC = () => {
     if (name && name === 'BTCUSD') {
       return `${name.slice(0, 3)}`;
     }
+     if (name && name === 'ETHUSD') {
+      return `${name.slice(0, 3)}`;
+    }
     if (
       name &&
       name.length === 6 &&
@@ -85,7 +88,9 @@ const TradeScreen: React.FC = () => {
   const getInstrumentIcon = (symbol: string) => {
     switch (symbol) {
       case 'BTCUSD':
-         return require('../../../assets/images/bitcoin.png');
+        return require('../../../assets/images/bitcoin.png');
+      case 'ETHUSD':
+        return require('../../../assets/images/eth.png');
       case 'USTEC':
         return require('../../../assets/images/us.png');
       case 'USOIL':

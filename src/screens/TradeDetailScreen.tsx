@@ -22,9 +22,8 @@ import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { withdraw } from '../store/balanceSlice';
 import Svg, { Line } from 'react-native-svg';
-import { USER_MODE } from '../services/tradingApi';
+import { calculateProfit, USER_MODE } from '../services/tradingApi';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 const WS_URL_LIVE = 'ws://13.201.33.113:8000/ws/live'; // Adjust this URL as needed
@@ -59,6 +58,9 @@ export interface LiveTick {
 
 const formatInstrumentName = (name: string) => {
   if (name && name === 'BTCUSD') {
+    return `${name.slice(0, 3)}`;
+  }
+  if (name && name === 'ETHUSD') {
     return `${name.slice(0, 3)}`;
   }
   if (
@@ -922,6 +924,47 @@ const DynamicGraph: React.FC<GraphProps> = ({
   );
 };
 
+ const getTradeCounts = async (symbol: string, user: 'real' | 'demo', currentPrice: number) => {
+  try {
+    const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+    const existingTrades = existingTradesJSON
+      ? JSON.parse(existingTradesJSON)
+      : [];
+
+    // ✅ Only get trades for this user mode
+    const userTrades = existingTrades.filter((t: any) => t.user === user);
+
+    const openTrades = userTrades.filter(
+      (t: any) => t.symbol === symbol && t.status === 'open',
+    );
+
+    const pendingTrades = userTrades.filter(
+      (t: any) => t.symbol === symbol && t.status === 'pending',
+    );
+
+    // ✅ Calculate total profit/loss for all open trades
+    const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+      const tradePnl = calculateProfit({
+        symbol: trade.symbol,
+        openPrice: trade.price,     // entry price
+        closePrice: currentPrice,   // live market price
+        lotSize: trade.lotSize,     // user lot size
+        tradeType: trade.type,      // buy or sell
+      });
+      return total + tradePnl;
+    }, 0);
+
+    return {
+      openCount: openTrades.length,
+      pendingCount: pendingTrades.length,
+      totalProfitLoss,
+    };
+  } catch (error) {
+    console.error('Error reading trades:', error);
+    return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
+  }
+};
+
 // SCREEN
 interface TradeDetailScreenProps {
   route?: {
@@ -930,6 +973,30 @@ interface TradeDetailScreenProps {
     };
   };
 }
+
+// ✅ Capitalized Component
+  const OpenOrderModal: React.FC<{
+    visible: boolean;
+    onClose: () => void;
+    title: string;
+    message: string;
+  }> = ({ visible, onClose, title, message }) => {
+    return (
+      <Modal transparent visible={visible} animationType="fade">
+        <View style={styles.openOrderOverlay}>
+          <View style={styles.openOrderCard}>
+            <View style={styles.openOrderHeader}>
+              <Text style={styles.openOrderTitle}>{title}</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.openOrderClose}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.openOrderMessage}>{message}</Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
 const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const { trade = { name: 'BTCUSD' } } = route?.params || {};
@@ -942,6 +1009,11 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [tradeCounts, setTradeCounts] = useState({
+    openCount: 0,
+    pendingCount: 0,
+    totalProfitLoss: 0,
+  });
   const [activeSection, setActiveSection] = useState<
     'Chart' | 'Analytics' | 'Specification'
   >('Chart');
@@ -964,7 +1036,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const handleCurrentPriceChange = useCallback((price: number) => {
     setCurrentPrice(price);
   }, []);
-
   const handleTradeAction = (type: 'buy' | 'sell') => {
     setTradeType(type);
     setShowTradeModal(true);
@@ -974,6 +1045,8 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     switch (symbol) {
       case 'BTCUSD':
         return require('../assets/images/bitcoin.png');
+      case 'ETHUSD':
+        return require('../assets/images/eth.png');
       case 'USTEC':
         return require('../assets/images/us.png');
       case 'USOIL':
@@ -1006,34 +1079,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         return require('../assets/images/bitcoin.png');
     }
   };
-
-  // ✅ Capitalized Component
-const OpenOrderModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  title: string;
-  message: string;
-}> = ({ visible, onClose, title, message }) => {
-  return (
-    <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.openOrderOverlay}>
-        <View style={styles.openOrderCard}>
-          <View style={styles.openOrderHeader}>
-            <Text style={styles.openOrderTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.openOrderClose}>×</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.openOrderMessage}>{message}</Text>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-  const handleOpenOrderCloseModal = useCallback(() => {
-    setOpenOrderModalVisible(false);
-  }, []);
 
   const handleTradeConfirm = async (
     lotSize: number,
@@ -1074,12 +1119,12 @@ const OpenOrderModal: React.FC<{
       const updatedTrades = [tradeData, ...existingTrades];
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
-      // Deduct balance only if trade is valid
       // dispatch(withdraw(tradeCost));
 
       setShowTradeModal(false);
 
-      // ✅ Set modal message
+      if (openOrdereModalVisible) return;
+
       setOpenOrderModalTitle('Order Open');
       setOpenOrderModalMessage(
         `${
@@ -1095,70 +1140,15 @@ const OpenOrderModal: React.FC<{
     }
   };
 
-  const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
-    try {
-      const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
-      const existingTrades = existingTradesJSON
-        ? JSON.parse(existingTradesJSON)
-        : [];
-
-      // ✅ Only get trades for this user mode
-      const userTrades = existingTrades.filter((t: any) => t.user === user);
-
-      const openTrades = userTrades.filter(
-        (t: any) => t.symbol === symbol && t.status === 'open',
-      );
-
-      const pendingTrades = userTrades.filter(
-        (t: any) => t.symbol === symbol && t.status === 'pending',
-      );
-
-      // ✅ Calculate total profit/loss for open trades
-      const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
-        // Calculate P/L based on current price vs entry price
-        const priceDifference =
-          trade.type === 'buy'
-            ? currentPrice - trade.price
-            : trade.price - currentPrice; // adjust for sell trades
-
-        const tradePnl = priceDifference * trade.lotSize;
-
-        return total + tradePnl;
-      }, 0);
-
-      return {
-        openCount: openTrades.length,
-        pendingCount: pendingTrades.length,
-        totalProfitLoss,
-      };
-    } catch (error) {
-      console.error('Error reading trades:', error);
-      return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
-    }
-  };
-
   const priceDigits = trade.name === 'EURUSD' ? 4 : 3;
-
-  const [tradeCounts, setTradeCounts] = useState({
-    openCount: 0,
-    pendingCount: 0,
-    totalProfitLoss: 0,
-  });
-
-  useEffect(() => {
-    const loadCounts = async () => {
-      const counts = await getTradeCounts(trade.name, USER_MODE);
-      setTradeCounts(counts);
-    };
-
-    loadCounts();
-  }, [trade.name, currentPrice]);
 
   useEffect(() => {
     const refreshProfitLoss = async () => {
-      const counts = await getTradeCounts(trade.name, USER_MODE);
+
+      const counts = await getTradeCounts(trade.name, USER_MODE,currentPrice);
       setTradeCounts(prev => ({
         ...prev,
+        openCount: counts.openCount,
         totalProfitLoss: counts.totalProfitLoss,
       }));
     };
@@ -1170,21 +1160,16 @@ const OpenOrderModal: React.FC<{
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* TOP (BALANCE BAR) */}
-        <View style={styles.balanceBar}>
-          <View style={styles.balanceBox}>
-            <Text style={styles.demoBadge}>Real</Text>
-            <Text style={styles.balanceAmount}>
-              {walletBalance
-                ? `${Number(walletBalance).toFixed(2)} USD`
-                : '0.00 USD'}
+        <View style={styles.accountButtonContainer}>
+          <TouchableOpacity style={styles.accountButton}>
+            <View style={styles.realButton}>
+              <Text style={styles.accountButtonText}>Real</Text>
+            </View>
+            <Text style={styles.accountBalance}>
+              {walletBalance.toFixed(2)} USD
             </Text>
-            <Icon
-              name="more-vertical"
-              size={14}
-              color="#111"
-              style={{ marginLeft: 4 }}
-            />
-          </View>
+            <Icon name="more-vertical" size={16} color="#6B7280" />
+          </TouchableOpacity>
         </View>
 
         {/* HEADER */}
@@ -1329,12 +1314,12 @@ const OpenOrderModal: React.FC<{
                     fontSize: 14,
                     fontWeight: '500',
                     color:
-                      tradeCounts.totalProfitLoss >= 0 ? '#4caf50' : '#f44336',
+                      tradeCounts.totalProfitLoss >= 0 ? '#64D68C' : '#f44336',
                     marginLeft: 8,
                   }}
                 >
-                  {tradeCounts.totalProfitLoss >= 0 ? '+' : ''}
-                  {tradeCounts.totalProfitLoss.toFixed(2)} USD
+                  {Number(tradeCounts.totalProfitLoss )>= 0 ? '+' : ''}
+                  {Number(tradeCounts.totalProfitLoss.toFixed(2))} USD
                 </Text>
               </View>
             )}
@@ -1555,7 +1540,6 @@ const OpenOrderModal: React.FC<{
             </View>
           </View>
         </View>
-         
       </View>
       {openOrdereModalVisible && (
         <OpenOrderModal
@@ -1572,16 +1556,26 @@ const OpenOrderModal: React.FC<{
 // STYLES
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f8f8' },
-  balanceBar: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+  accountButtonContainer: { alignItems: 'center', paddingBottom: 8 },
+  accountButton: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 0,
-    borderColor: '#e5e7eb',
-    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
+  realButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    backgroundColor: '#F3F5F7',
+    borderRadius: 20,
+    marginRight: 6,
+  },
+  accountButtonText: { fontSize: 12, fontWeight: '600', color: '#111111' },
+  accountBalance: { fontSize: 14, fontWeight: '600', color: '#111111' },
   openOrderOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -1689,29 +1683,7 @@ const styles = StyleSheet.create({
     // marginTop: -16,
     backgroundColor: '#FFFFFF',
   },
-  balanceBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffffff',
-    paddingVertical: 4,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    maxWidth: 200,
-    borderWidth: 1, // Border
-    borderColor: '#d3d3d3',
-    height: 37,
-  },
-  demoBadge: {
-    backgroundColor: '#edeff5',
-    color: '#111',
-    fontWeight: '400',
-    fontSize: 12,
-    marginRight: 7,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-  },
-  balanceAmount: { fontWeight: '600', fontSize: 16, color: '#222' },
+
   containtView: {
     backgroundColor: '#fff',
     borderTopRightRadius: 15,
