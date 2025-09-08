@@ -63,7 +63,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
 
   // Normalize to chart
   const normalizedData = animatedData.map((value, index) => {
-    const x = (index / (animatedData.length - 1)) * width - 35;
+    const x = (index / (animatedData.length - 1)) * width - 40;
     const diff = Math.max(value - average, 0);
     const y = height - (diff / maxDiff) * height;
     return { x, y };

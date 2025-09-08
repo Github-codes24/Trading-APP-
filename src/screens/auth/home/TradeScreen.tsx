@@ -277,9 +277,9 @@ const TradeScreen: React.FC = () => {
                       <SparklineChart
                         data={item.sparkline}
                         color={item.changeColor}
-                        animationDuration={20000}
+                        animationDuration={25000}
                         width={80}
-                        height={30}
+                        height={25}
                       />
                     </View>
                   </View>

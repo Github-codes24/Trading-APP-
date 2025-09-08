@@ -1,3 +1,5 @@
+/* eslint-disable react/no-unstable-nested-components */
+/* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable react/self-closing-comp */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -433,7 +435,6 @@ const TradeModal: React.FC<TradeModalProps> = ({
             <Icon
               name="info"
               size={22}
-              color="#111"
               style={{
                 marginRight: 4,
                 height: 22,
@@ -948,6 +949,10 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const leftPercent = 31;
   const rightPercent = 69;
 
+  const [openOrdereModalVisible, setOpenOrderModalVisible] = useState(false);
+  const [openOrderModalTitle, setOpenOrderModalTitle] = useState('');
+  const [openorderModalMessage, setOpenOrderModalMessage] = useState('');
+
   const handleTimeFrameSelect = (v: number) => {
     setTimeFrame(v);
     setShowTimeFrameModal(false);
@@ -1002,6 +1007,34 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     }
   };
 
+  // ✅ Capitalized Component
+const OpenOrderModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+}> = ({ visible, onClose, title, message }) => {
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.openOrderOverlay}>
+        <View style={styles.openOrderCard}>
+          <View style={styles.openOrderHeader}>
+            <Text style={styles.openOrderTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.openOrderClose}>×</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.openOrderMessage}>{message}</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+  const handleOpenOrderCloseModal = useCallback(() => {
+    setOpenOrderModalVisible(false);
+  }, []);
+
   const handleTradeConfirm = async (
     lotSize: number,
     type: 'buy' | 'sell',
@@ -1011,15 +1044,15 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       const tradeCost = lotSize * currentPrice;
 
       // ✅ Check if user has enough balance
-      if (walletBalance < tradeCost) {
-        Alert.alert(
-          'Insufficient Balance',
-          `You need at least ${tradeCost.toFixed(
-            2,
-          )} but you only have ${walletBalance.toFixed(2)}`,
-        );
-        return;
-      }
+      // if (walletBalance < tradeCost) {
+      //   Alert.alert(
+      //     'Insufficient Balance',
+      //     `You need at least ${tradeCost.toFixed(
+      //       2,
+      //     )} but you only have ${walletBalance.toFixed(2)}`,
+      //   );
+      //   return;
+      // }
 
       const tradeData = {
         id: Date.now().toString(),
@@ -1042,67 +1075,67 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
       // Deduct balance only if trade is valid
-      dispatch(withdraw(tradeCost));
-
-      Alert.alert(
-        'Trade Open',
-        `Successfully ${
-          type === 'buy' ? 'bought' : 'sold'
-        } ${lotSize} lots of ${formatInstrumentName(
-          trade.name,
-        )} at ${currentPrice.toFixed(
-          trade.name === 'EURUSD' ? 4 : 2,
-        )} (${user.toUpperCase()} mode)`,
-      );
+      // dispatch(withdraw(tradeCost));
 
       setShowTradeModal(false);
+
+      // ✅ Set modal message
+      setOpenOrderModalTitle('Order Open');
+      setOpenOrderModalMessage(
+        `${
+          tradeType === 'buy' ? 'Buy' : '123456'
+        } ${lotSize} lots of ${formatInstrumentName(
+          trade.name,
+        )} at ${currentPrice.toFixed(2)}`,
+      );
+      setOpenOrderModalVisible(true);
     } catch (error) {
       console.error('Error saving trade:', error);
       Alert.alert('Error', 'Failed to save trade to history');
     }
   };
 
-const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
-  try {
-    const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
-    const existingTrades = existingTradesJSON
-      ? JSON.parse(existingTradesJSON)
-      : [];
+  const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
+    try {
+      const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
+      const existingTrades = existingTradesJSON
+        ? JSON.parse(existingTradesJSON)
+        : [];
 
-    // ✅ Only get trades for this user mode
-    const userTrades = existingTrades.filter((t: any) => t.user === user);
+      // ✅ Only get trades for this user mode
+      const userTrades = existingTrades.filter((t: any) => t.user === user);
 
-    const openTrades = userTrades.filter(
-      (t: any) => t.symbol === symbol && t.status === 'open',
-    );
+      const openTrades = userTrades.filter(
+        (t: any) => t.symbol === symbol && t.status === 'open',
+      );
 
-    const pendingTrades = userTrades.filter(
-      (t: any) => t.symbol === symbol && t.status === 'pending',
-    );
+      const pendingTrades = userTrades.filter(
+        (t: any) => t.symbol === symbol && t.status === 'pending',
+      );
 
-    // ✅ Calculate total profit/loss for open trades
-    const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
-      // Calculate P/L based on current price vs entry price
-      const priceDifference =
-        trade.type === 'buy'
-          ? currentPrice - trade.price
-          : trade.price - currentPrice; // adjust for sell trades
+      // ✅ Calculate total profit/loss for open trades
+      const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+        // Calculate P/L based on current price vs entry price
+        const priceDifference =
+          trade.type === 'buy'
+            ? currentPrice - trade.price
+            : trade.price - currentPrice; // adjust for sell trades
 
-      const tradePnl = priceDifference * trade.lotSize;
+        const tradePnl = priceDifference * trade.lotSize;
 
-      return total + tradePnl;
-    }, 0);
+        return total + tradePnl;
+      }, 0);
 
-    return {
-      openCount: openTrades.length,
-      pendingCount: pendingTrades.length,
-      totalProfitLoss,
-    };
-  } catch (error) {
-    console.error('Error reading trades:', error);
-    return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
-  }
-};
+      return {
+        openCount: openTrades.length,
+        pendingCount: pendingTrades.length,
+        totalProfitLoss,
+      };
+    } catch (error) {
+      console.error('Error reading trades:', error);
+      return { openCount: 0, pendingCount: 0, totalProfitLoss: 0 };
+    }
+  };
 
   const priceDigits = trade.name === 'EURUSD' ? 4 : 3;
 
@@ -1432,7 +1465,6 @@ const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
             currentPrice={currentPrice}
             symbol={trade.name}
           />
-
           {/* BUY / SELL ACTIONS */}
           <View style={styles.bottomBar}>
             <TouchableOpacity
@@ -1523,7 +1555,16 @@ const getTradeCounts = async (symbol: string, user: 'real' | 'demo') => {
             </View>
           </View>
         </View>
+         
       </View>
+      {openOrdereModalVisible && (
+        <OpenOrderModal
+          visible={openOrdereModalVisible}
+          onClose={() => setOpenOrderModalVisible(false)}
+          title={openOrderModalTitle}
+          message={openorderModalMessage}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -1541,7 +1582,42 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     marginTop: 10,
   },
-
+  openOrderOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 100,
+  },
+  openOrderCard: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  openOrderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  openOrderTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#000',
+  },
+  openOrderClose: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  openOrderMessage: {
+    fontSize: 14,
+    color: '#333',
+  },
   volumeControl: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1939,3 +2015,10 @@ const styles = StyleSheet.create({
 });
 
 export default TradeDetailScreen;
+function setOpenTradeModalVisible(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
+
+function setOpenTradeModalMessage(arg0: string) {
+  throw new Error('Function not implemented.');
+}
