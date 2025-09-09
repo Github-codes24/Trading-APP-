@@ -16,17 +16,16 @@ interface TradeInputForPL {
 }
 
 const CONTRACT_SIZES: Record<string, number> = {
-  EURUSD: 100000,   // Standard FX lot
-  GBPUSD: 100000,   // Standard FX lot
-  USDJPY: 100000,   // Standard FX lot
-  GBPJPY: 100000,   // Standard FX lot
-  USDCAD: 100000,   // Standard FX lot
-
-  BTCUSD: 1,        // Typically 1 BTC per contract
-  ETHUSD: 10,       // Commonly 10 ETH per contract
-  USTEC: 1,         // Index CFDs usually 1 contract = 1 unit
-  USOIL: 1000,      // 1 contract = 1000 barrels
-  XAUUSD: 100,      // 1 contract = 100 ounces
+  EURUSD: 1,
+  GBPUSD: 1,
+  USDJPY: 0.68,
+  GBPJPY: 0.68,
+  USDCAD: 0.72,
+  BTCUSD: 1,       
+  ETHUSD: 0.10,      
+  USTEC: 1,
+  USOIL: 1,
+  XAUUSD: 1,
 };
 
 
@@ -111,8 +110,6 @@ class TradingApiService {
         // console.log('📥 Raw message received:', event.data);
         try {
           const data = JSON.parse(event.data);
-          // console.log('📥 Parsed JSON:', data);
-          
           // Normalize different possible payload shapes into 'tradingData'
           if (Array.isArray(data)) {
             console.log('📊 Emitting tradingData event with array');
