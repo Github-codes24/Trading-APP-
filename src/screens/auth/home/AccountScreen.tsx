@@ -33,6 +33,29 @@ import { calculateProfit } from '../../../services/tradingApi';
 // WebSocket URL for fetching historical data
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
 
+const renderPrice = (price: any, symbol: string) => {
+  const num = Number(price);
+  if (isNaN(num)) return '0.00';
+  if (num >= 1e8) return '0.00';
+
+  // Map symbols to precision
+  const precisionMap: Record<string, number> = {
+    EURUSD: 5,
+    GBPUSD: 5,
+    USDJPY: 3,
+    GBPJPY: 3,
+    USDCAD: 5,
+    BTCUSD: 2,
+    ETHUSD: 2,
+    USTEC: 2,
+    USOIL: 3,
+    XAUUSD: 3,
+  };
+
+  const decimals = precisionMap[symbol] ?? 2; // fallback to 2
+  return num.toFixed(decimals);
+};
+
 export interface Candle {
   time: string;
   open: number;
@@ -155,6 +178,12 @@ export const CloseAllModal: React.FC<Props> = ({
 
           <View style={styles.pnlContainer}>
             {trades.length > 0 && (
+              <Text style={[
+                styles.pnlText,
+                { color: isProfit ? COLORS.profit : COLORS.loss }
+              ]}>
+                {isProfit ? '+' : ''}
+                {totalPnL.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
               <Text
                 style={[
                   styles.pnlText,
@@ -419,8 +448,8 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
-  profit: '#6ac391',
-  loss: '#EF4444',
+  profit: '#74d99d',
+  loss: '#eb483f',
 };
 
 const SIZES = {
@@ -609,15 +638,17 @@ const TradeItem: React.FC<{
                   formatInstrumentName(trade.symbol).slice(0, 3),
                 )}
                 style={{
-                  width: 14,
-                  height: 14,
+                  width: 16,
+                  height: 16,
                   borderRadius: 7,
                   marginRight: -8,
-                  marginTop: -4,
+                  marginTop: 3,
                 }}
                 resizeMode="contain"
               />
               <Image
+                source={getFlagIcon(formatInstrumentName(trade.symbol).slice(4, 7))}
+                style={{ width: 16, height: 16, borderRadius: 7, marginTop: 6 }}
                 source={getFlagIcon(
                   formatInstrumentName(trade.symbol).slice(4, 7),
                 )}
@@ -628,7 +659,7 @@ const TradeItem: React.FC<{
           ) : (
             <Image
               source={getInstrumentIcon(trade.symbol)}
-              style={{ width: 20, height: 20, borderRadius: 10 }}
+              style={{ width: 23, height: 23, borderRadius: 11, marginTop: 5 }}
               resizeMode="contain"
             />
           )}
@@ -638,6 +669,12 @@ const TradeItem: React.FC<{
                 {trade.formattedSymbol || trade.symbol}
               </Text>
               <Text style={styles.tradeType}>
+                <Text style={{ color: trade.type === 'sell' ? COLORS.loss : undefined }}>
+                  {trade.type === 'buy' ? 'Buy' : 'Sell'} {trade.lotSize.toFixed(2)} lot
+                </Text>{' '}
+                <Text style={{ color: '#2d3132' }}>
+                  at {renderPrice(trade.price, trade.symbol)}
+                </Text>
                 {trade.type === 'buy' ? 'Buy' : 'Sell'}{' '}
                 {trade.lotSize.toFixed(2)}{' '}
                 <Text style={{ color: '#2d3132' }}>
@@ -653,7 +690,7 @@ const TradeItem: React.FC<{
                 ]}
               >
                 {pnl >= 0 ? '+' : ''}
-                {pnl.toFixed(2)} USD
+                {pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
               </Text>
               <Text style={[styles.tradeValue, { color: '#808182' }]}>
                 {currentPrice.toFixed(2)}
@@ -890,6 +927,32 @@ const AccountCard: React.FC<{
   );
 };
 
+const formatDate = (dateStr: string) => {
+  const today = new Date(); // Use current date
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const inputDate = new Date(dateStr);
+
+  const isToday =
+    inputDate.getDate() === today.getDate() &&
+    inputDate.getMonth() === today.getMonth() &&
+    inputDate.getFullYear() === today.getFullYear();
+  const isYesterday =
+    inputDate.getDate() === yesterday.getDate() &&
+    inputDate.getMonth() === yesterday.getMonth() &&
+    inputDate.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) {
+    return `Today, ${inputDate.getDate()} ${inputDate.toLocaleString('en-US', { month: 'long' })}`;
+  }
+  if (isYesterday) {
+    return `Yesterday, ${inputDate.getDate()} ${inputDate.toLocaleString('en-US', { month: 'long' })}`;
+  }
+  return `${inputDate.getDate().toString().padStart(2, '0')}/${(inputDate.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}/${inputDate.getFullYear()}`;
+};
+
 const groupTradesByDate = (trades: TradeData[]) => {
   return trades.reduce((groups: Record<string, TradeData[]>, trade) => {
     const date = new Date(trade.timestamp).toISOString().split('T')[0];
@@ -897,6 +960,71 @@ const groupTradesByDate = (trades: TradeData[]) => {
     groups[date].push(trade);
     return groups;
   }, {});
+};
+
+export interface ClosePositionModalProps {
+  visible: boolean;
+  trade: TradeData | null;
+  currentPrice: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
+  visible,
+  trade,
+  currentPrice,
+  onConfirm,
+  onCancel,
+}) => {
+  if (!trade) return null;
+
+  const pnl = calculateProfit({
+    symbol: trade.symbol,
+    openPrice: trade.price,
+    closePrice: currentPrice,
+    lotSize: trade.lotSize,
+    tradeType: trade.type,
+  });
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.overlay}>
+        <View style={styles.modalBox}>
+          {/* Greyish line above title */}
+          <View style={styles.greyLine} />
+          <Text style={styles.title}>Close position #{trade.id} ?</Text>
+          <View style={styles.row}>
+            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>Lots</Text>
+            <Text style={[styles.pnlText, { color: '#000000' }]}>{trade.lotSize.toFixed(2)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>Closing price</Text>
+            <Text style={[styles.pnlText, { color: '#000000' }]}>{renderPrice(currentPrice, trade.symbol)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>{pnl >= 0 ? 'Profit' : 'Loss'}</Text>
+            <Text style={[
+              styles.pnlText,
+              { color: pnl >= 0 ? COLORS.profit : COLORS.loss }
+            ]}>
+              {pnl >= 0 ? '+' : ''}
+              {pnl.toFixed(2)} USD
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={onConfirm}
+          >
+            <Text style={{ color: '#000', fontWeight: 'bold' }}>Confirm</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: '#e8eaeeff' }]} onPress={onCancel}>
+            <Text style={[styles.cancelButtonText, { color: 'black' }]}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 };
 
 // ---------- MAIN UI ----------
@@ -958,9 +1086,18 @@ const AccountsUI: React.FC<{
         trade => trade.status === 'executed' || trade.status === 'open',
       );
       const symbols = openTrades.map(trade => trade.symbol);
+    const fetchCurrentPrices = async () => {
+      const openTrades = trades.filter(
+        trade => trade.status === 'executed' || trade.status === 'open',
+      );
+      const symbols = openTrades.map(trade => trade.symbol);
 
       const prices: Record<string, number> = {};
+      const prices: Record<string, number> = {};
 
+      for (const symbol of new Set(symbols)) {
+        try {
+          const historyData: any = await FetchTradeDetails(symbol, 7);
       for (const symbol of new Set(symbols)) {
         try {
           const historyData: any = await FetchTradeDetails(symbol, 7);
@@ -973,7 +1110,25 @@ const AccountsUI: React.FC<{
           ) {
             const latestCandle = historyData.data[historyData.data.length - 1];
             const latestClose = latestCandle.close || 0;
+          if (
+            historyData &&
+            historyData.data &&
+            Array.isArray(historyData.data) &&
+            historyData.data.length > 0
+          ) {
+            const latestCandle = historyData.data[historyData.data.length - 1];
+            const latestClose = latestCandle.close || 0;
 
+            prices[symbol] = latestClose;
+          } else {
+            prices[symbol] = 0;
+            console.warn(`No valid data for ${symbol}`);
+          }
+        } catch (error) {
+          console.error(`Error fetching data for ${symbol}:`, error);
+          prices[symbol] = 0;
+        }
+      }
             prices[symbol] = latestClose;
           } else {
             prices[symbol] = 0;
@@ -997,7 +1152,22 @@ const AccountsUI: React.FC<{
         });
         return total + tradePnl;
       }, 0);
+      // Calculate total P&L using reduce and calculateProfit
+      const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+        const currentPrice = prices[trade.symbol] || 0;
+        const tradePnl = calculateProfit({
+          symbol: trade.symbol,
+          openPrice: trade.price, // entry price
+          closePrice: currentPrice, // latest fetched price
+          lotSize: trade.lotSize || 0,
+          tradeType: trade.type, // buy or sell
+        });
+        return total + tradePnl;
+      }, 0);
 
+      setCurrentPrices(prices);
+      setTotalPnL(totalProfitLoss);
+    };
       setCurrentPrices(prices);
       setTotalPnL(totalProfitLoss);
     };
@@ -1163,6 +1333,8 @@ const AccountsUI: React.FC<{
                   ]}
                 >
                   {totalPnL >= 0 ? '+' : ''}
+                  {totalPnL.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  {totalPnL >= 0 ? '+' : ''}
                   {totalPnL.toFixed(2)} USD
                 </Text>
               </View>
@@ -1171,10 +1343,13 @@ const AccountsUI: React.FC<{
                   key={trade.id}
                   trade={trade}
                   currentPrice={currentPrices[trade.symbol] || trade.price}
-                  onClose={handleCloseTrade}
+                  onClose={(t) => {
+                    setSelectedTradeToClose(t);
+                    setCloseModalVisible(true);
+                  }}
                 />
               ))}
-              {openTrades.length > 1 && (
+              {openTrades.length > 0 && (
                 <TouchableOpacity
                   style={styles.closeAllButton}
                   activeOpacity={0.7}
@@ -1243,17 +1418,45 @@ const AccountsUI: React.FC<{
         </View>
       );
     }
-    if (positionsTab === 'Pending') {
-      return (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyTitle}>No pending orders</Text>
-        </View>
-      );
-    }
     if (positionsTab === 'Closed') {
       const grouped = groupTradesByDate(closedTrades);
       return Object.keys(grouped).length > 0 ? (
         <ScrollView style={styles.positionsWrap}>
+          {Object.entries(grouped).map(([date, trades]) => {
+            const totalPnL = trades.reduce((sum, trade) => {
+              const pnl = trade.closePrice
+                ? (trade.type === 'buy'
+                  ? (trade.closePrice - trade.price) * trade.lotSize * 100
+                  : (trade.price - trade.closePrice) * trade.lotSize * 100)
+                : 0;
+              return sum + pnl;
+            }, 0);
+
+            return (
+              <View key={date} style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.text }}>
+                    {formatDate(date)}
+                  </Text>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: totalPnL >= 0 ? 'green' : 'red' }}>
+                    {totalPnL.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </Text>
+                </View>
+                {trades.map(trade => (
+                  <TouchableOpacity
+                    key={trade.id}
+                    onPress={() => handleTradeItemPress(trade)}
+                    activeOpacity={0.7}
+                  >
+                    <TradeItem
+                      trade={trade}
+                      currentPrice={trade.closePrice || trade.price}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            );
+          })}
           {Object.entries(grouped).map(([date, trades]) => (
             <View key={date}>
               <Text style={{ paddingVertical: 12 }}>
@@ -1401,6 +1604,18 @@ const AccountsUI: React.FC<{
         onClose={handleCloseTrade}
         onForceClose={() => setModalVisible(false)}
       />
+      <ClosePositionModal
+        visible={closeModalVisible}
+        trade={selectedTradeToClose}
+        currentPrice={currentPrices[selectedTradeToClose?.symbol || ''] || selectedTradeToClose?.price || 0}
+        onConfirm={() => {
+          if (selectedTradeToClose) {
+            handleCloseTrade(selectedTradeToClose);
+          }
+          setCloseModalVisible(false);
+        }}
+        onCancel={() => setCloseModalVisible(false)}
+      />
     </ScrollView>
   );
 };
@@ -1476,9 +1691,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
+    fontSize: 21,
+    fontWeight: '700',
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 12,
+    textAlign:'center'
   },
   input: {
     borderWidth: 1,
@@ -1505,7 +1723,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 7,
   },
   confirmButton: {
     backgroundColor: '#FFD600',
@@ -1842,7 +2060,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   tradeCountText: {
-    fontSize: SIZES.tab - 2,
+    fontSize: SIZES.tab - 4,
     color: COLORS.chipText,
     fontWeight: '500',
     lineHeight: 18,
@@ -1944,11 +2162,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
+    paddingTop: 8
   },
   tradeType: {
     fontSize: 14,
-    color: '#2695eaff',
+    color: '#158bf9',
     marginTop: 7,
     opacity: 1,
     fontWeight: '400',
@@ -2029,6 +2248,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#000',
+    
   },
   pnlContainer: {
     flexDirection: 'row',
@@ -2045,7 +2265,7 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   cancelButtonText: {
-    color: '#6B7280',
+    color: '#f8f8f8ff',
     fontWeight: '500',
   },
   closeAction: {
@@ -2070,6 +2290,13 @@ const styles = StyleSheet.create({
     height: 14,
     tintColor: '#e2ffff',
     marginBottom: 6,
+  },
+  greyLine: {
+    height: 4,
+    backgroundColor: '#D1D5DB', // Greyish color
+    marginBottom: 8,
+    width:50,
+    alignSelf: 'center',
   },
 });
 
