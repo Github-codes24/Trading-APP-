@@ -16,16 +16,17 @@ interface TradeInputForPL {
 }
 
 const CONTRACT_SIZES: Record<string, number> = {
-  EURUSD: 100000,
-  GBPUSD: 100000, 
-  BTCUSD: 1,        
-  USDJPY: 677.63,  
-  USTEC: 1,        
-  ETHUSD: 10,       
-  GBPJPY: 677.60,  
-  USDCAD: 0.72,  
-  USOIL: 1000,      
-  XAUUSD: 100,      
+  EURUSD: 100000,   // Standard FX lot
+  GBPUSD: 100000,   // Standard FX lot
+  USDJPY: 100000,   // Standard FX lot
+  GBPJPY: 100000,   // Standard FX lot
+  USDCAD: 100000,   // Standard FX lot
+
+  BTCUSD: 1,        // Typically 1 BTC per contract
+  ETHUSD: 10,       // Commonly 10 ETH per contract
+  USTEC: 1,         // Index CFDs usually 1 contract = 1 unit
+  USOIL: 1000,      // 1 contract = 1000 barrels
+  XAUUSD: 100,      // 1 contract = 100 ounces
 };
 
 

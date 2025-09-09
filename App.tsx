@@ -1,4 +1,3 @@
-// ```typescript
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
 import React, { useEffect } from 'react';
@@ -8,14 +7,14 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler'; // ✅ Added import
-import { Provider, useDispatch } from 'react-redux';   // ✅ Redux import
-import { store } from './src/store';      
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Provider, useDispatch } from 'react-redux';
+import { store } from './src/store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setBalance } from './src/store/balanceSlice';  // ✅ import action
-import auth from '@react-native-firebase/auth';         // ✅ import firebase auth
+import { setBalance } from './src/store/balanceSlice';
+import auth from '@react-native-firebase/auth';
 
-// screens
+// Screens
 import MainScreen from './src/screens/auth/MainScreen';
 import RegisterScreen from './src/screens/auth/register/RegisterScreen';
 import EmailScreen from './src/screens/auth/register/EmailScreen';
@@ -38,9 +37,9 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <Provider store={store}>   
+      <Provider store={store}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <GestureHandlerRootView style={styles.container}> {/* ✅ Wrap entire app */}
+        <GestureHandlerRootView style={styles.container}>
           <AppContent />
         </GestureHandlerRootView>
       </Provider>
@@ -53,20 +52,21 @@ function AppContent() {
   const Stack = createNativeStackNavigator();
   const dispatch = useDispatch();
 
-  // ✅ load balance for current user on app start
+  // Load balance for current user on app start
   useEffect(() => {
     const loadBalance = async () => {
       try {
         const uid = auth().currentUser?.uid;
         if (!uid) {
-          console.log("No user logged in, skipping balance load");
+          console.log('No user logged in, skipping balance load');
           return;
         }
         const saved = await AsyncStorage.getItem(`balance_${uid}`);
         if (saved !== null) {
-          dispatch(setBalance(JSON.parse(saved)));
+          const { amount } = JSON.parse(saved);
+          dispatch(setBalance(amount));
         } else {
-          dispatch(setBalance(0)); // default if not found
+          dispatch(setBalance(0)); // Default if not found
         }
       } catch (e) {
         console.log('Error loading balance:', e);
@@ -98,6 +98,7 @@ function AppContent() {
           component={TradeDetailScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="Trade" component={TradeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
