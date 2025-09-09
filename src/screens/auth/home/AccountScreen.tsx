@@ -28,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../store';
 import { deposit, withdraw, loadBalance } from '../../../store/balanceSlice';
+import { calculateProfit } from '../../../services/tradingApi';
 
 // WebSocket URL for fetching historical data
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
@@ -90,17 +91,17 @@ export const CloseAllModal: React.FC<Props> = ({
   const profitable = tradesToShow.filter(t => {
     if (!(t.status === 'open' || t.status === 'executed')) return false;
     if (!currentPrices || !currentPrices[t.symbol]) return false;
-    
-    return (t.type === 'buy' && currentPrices[t.symbol] > t.price) || 
-           (t.type === 'sell' && currentPrices[t.symbol] < t.price);
+
+    return (t.type === 'buy' && currentPrices[t.symbol] > t.price) ||
+      (t.type === 'sell' && currentPrices[t.symbol] < t.price);
   });
 
   const losing = tradesToShow.filter(t => {
     if (!(t.status === 'open' || t.status === 'executed')) return false;
     if (!currentPrices || !currentPrices[t.symbol]) return false;
-    
-    return (t.type === 'buy' && currentPrices[t.symbol] < t.price) || 
-           (t.type === 'sell' && currentPrices[t.symbol] > t.price);
+
+    return (t.type === 'buy' && currentPrices[t.symbol] < t.price) ||
+      (t.type === 'sell' && currentPrices[t.symbol] > t.price);
   });
 
   const buyTrades = tradesToShow.filter(t => t.type === 'buy');
@@ -109,16 +110,16 @@ export const CloseAllModal: React.FC<Props> = ({
   // Calculate total P&L for each group
   const calculateTotalPnL = (trades: TradeData[]) => {
     if (!trades || !currentPrices) return 0;
-  
+
     return trades.reduce((total, trade) => {
       if (!trade || !currentPrices[trade.symbol]) return total;
-    
+
       const lotSize = trade.lotSize || 0;
-    
+
       const pnl = trade.type === 'buy'
         ? (currentPrices[trade.symbol] - trade.price) * lotSize * 100
         : (trade.price - currentPrices[trade.symbol]) * lotSize * 100;
-    
+
       return total + pnl;
     }, 0);
   };
@@ -126,7 +127,7 @@ export const CloseAllModal: React.FC<Props> = ({
   const renderRow = (label: string, trades: TradeData[]) => {
     const totalPnL = calculateTotalPnL(trades);
     const isProfit = totalPnL >= 0;
-    
+
     return (
       <TouchableOpacity
         key={label}
@@ -138,7 +139,7 @@ export const CloseAllModal: React.FC<Props> = ({
           <Text style={styles.rowLabel}>
             {label} {trades.length > 0 ? `(${trades.length})` : ''}
           </Text>
-          
+
           <View style={styles.pnlContainer}>
             {trades.length > 0 && (
               <Text style={[
@@ -239,7 +240,7 @@ export const FetchTradeDetails = async (
       socket.onerror = err => {
         reject(err);
       };
-      socket.onclose = () => {};
+      socket.onclose = () => { };
     } catch (error) {
       reject(error);
     }
@@ -453,16 +454,20 @@ const ActionItem: React.FC<{
 );
 
 // ---------- TRADE ITEM COMPONENT ----------
+// ---------- TRADE ITEM COMPONENT ----------
 const TradeItem: React.FC<{
   trade: TradeData;
   currentPrice: number;
   onClose?: (trade: TradeData) => void;
 }> = ({ trade, currentPrice, onClose }) => {
-  // Calculate P/L based on trade type and current price
-  const pnl =
-    trade.type === 'buy'
-      ? (currentPrice - trade.price) * trade.lotSize * 100
-      : (trade.price - currentPrice) * trade.lotSize * 100;
+  // Calculate P/L for this trade
+  const pnl = calculateProfit({
+    symbol: trade.symbol,
+    openPrice: trade.price, // entry price
+    closePrice: currentPrice, // live market price
+    lotSize: trade.lotSize, // user lot size
+    tradeType: trade.type, // buy or sell
+  });
 
   const getInstrumentIcon = (symbol: string) => {
     switch (symbol) {
@@ -498,8 +503,6 @@ const TradeItem: React.FC<{
         return require('../../../assets/images/canada.png');
       case 'XAU':
         return require('../../../assets/images/xau.png');
-      case 'XAU':
-        return require('../../../assets/images/bitcoin.png');
       default:
         return require('../../../assets/images/bitcoin.png');
     }
@@ -509,7 +512,7 @@ const TradeItem: React.FC<{
     if (name && name === 'BTCUSD') {
       return `${name.slice(0, 3)}`;
     }
-     if (name && name === 'ETHUSD') {
+    if (name && name === 'ETHUSD') {
       return `${name.slice(0, 3)}`;
     }
     if (
@@ -520,7 +523,6 @@ const TradeItem: React.FC<{
     ) {
       return `${name.slice(0, 3)}/${name.slice(3)}`;
     }
-
     return name;
   };
 
@@ -550,9 +552,7 @@ const TradeItem: React.FC<{
           {formatInstrumentName(trade.symbol).includes('/') ? (
             <View style={{ flexDirection: 'row' }}>
               <Image
-                source={getFlagIcon(
-                  formatInstrumentName(trade.symbol).slice(0, 3),
-                )}
+                source={getFlagIcon(formatInstrumentName(trade.symbol).slice(0, 3))}
                 style={{
                   width: 14,
                   height: 14,
@@ -563,9 +563,7 @@ const TradeItem: React.FC<{
                 resizeMode="contain"
               />
               <Image
-                source={getFlagIcon(
-                  formatInstrumentName(trade.symbol).slice(4, 7),
-                )}
+                source={getFlagIcon(formatInstrumentName(trade.symbol).slice(4, 7))}
                 style={{ width: 14, height: 14, borderRadius: 7 }}
                 resizeMode="contain"
               />
@@ -607,6 +605,7 @@ const TradeItem: React.FC<{
     </Swipeable>
   );
 };
+
 
 // ---------- ACCOUNT CARD ----------
 const AccountCard: React.FC<{
@@ -861,19 +860,32 @@ const AccountsUI: React.FC<{
       for (const symbol of new Set(symbols)) {
         try {
           const historyData: any = await FetchTradeDetails(symbol, 7);
-          if (historyData && historyData.data && Array.isArray(historyData.data) && historyData.data.length > 0) {
+
+          if (
+            historyData &&
+            historyData.data &&
+            Array.isArray(historyData.data) &&
+            historyData.data.length > 0
+          ) {
             const latestCandle = historyData.data[historyData.data.length - 1];
             const latestClose = latestCandle.close || 0;
 
             prices[symbol] = latestClose;
 
             const symbolTrades = openTrades.filter(trade => trade.symbol === symbol);
-            for (const trade of symbolTrades) {
-              const pnl = trade.type === 'buy'
-                ? (latestClose - trade.price) * (trade.lotSize || 0) * 100
-                : (trade.price - latestClose) * (trade.lotSize || 0) * 100;
-              totalPnl += pnl;
-            }
+
+            const totalProfitLoss = symbolTrades.reduce((total: number, trade: any) => {
+              const tradePnl = calculateProfit({
+                symbol: trade.symbol,
+                openPrice: trade.price,       // entry price
+                closePrice: latestClose,      // live market price
+                lotSize: trade.lotSize,       // user lot size
+                tradeType: trade.type,        // buy or sell
+              });
+              return total + tradePnl;
+            }, 0);
+
+            console.log(`Total PnL for ${symbol}:`, totalProfitLoss);
           } else {
             prices[symbol] = 0;
             console.warn(`No valid data for ${symbol}`);
@@ -900,9 +912,13 @@ const AccountsUI: React.FC<{
   const handleCloseTrade = async (trade: TradeData) => {
     try {
       const currentPrice = currentPrices[trade.symbol] || trade.price;
-      const pnl = trade.type === 'buy'
-        ? (currentPrice - trade.price) * (trade.lotSize || 0) * 100
-        : (trade.price - currentPrice) * (trade.lotSize || 0) * 100;
+      const pnl = calculateProfit({
+        symbol: trade.symbol,
+        openPrice: trade.price, // entry price
+        closePrice: currentPrice, // live market price
+        lotSize: trade.lotSize, // user lot size
+        tradeType: trade.type, // buy or sell
+      });
 
       const updatedTrades = trades.map(t =>
         t.id === trade.id
@@ -1204,7 +1220,7 @@ const AccountScreen: React.FC = () => {
             onDepositPress={() => navigation.navigate('DepositScreen')}
             onWithdrawPress={() => navigation.navigate('WithdrawlScreen')}
             setActiveTab={setActiveTab}
-            closeAllModalPress={() => {}}
+            closeAllModalPress={() => { }}
           />
         )}
         {activeTab === 'trade' && <TradeScreen />}
@@ -1521,7 +1537,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.actionIcon / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop:5
+    marginTop: 5
   },
   actionIconIdle: { backgroundColor: COLORS.soft },
   actionIconActive: { backgroundColor: COLORS.actionActive },
