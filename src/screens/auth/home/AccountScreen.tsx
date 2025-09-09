@@ -663,7 +663,7 @@ const AccountCard: React.FC<{
           </Text>
           <View style={styles.chipsRow}>
             <Chip label="MT5" />
-            <Chip label="Standard" />
+            <Chip label="Zero" />
             <Chip label={activeAccountType} />
           </View>
         </View>
@@ -1662,7 +1662,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    height: 68,
+    height: 69,
   },
   tradeHeader: {
     flexDirection: 'row',
@@ -1697,7 +1697,7 @@ const styles = StyleSheet.create({
   },
   tradePnl: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     marginBottom: 8,
   },
   tradeValue: {
@@ -1720,7 +1720,7 @@ const styles = StyleSheet.create({
   },
   openTotalProfitlossValueLb: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   horizontalLine: {
     height: 1,
