@@ -1,3 +1,4 @@
+// ```typescript
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
 import React, { useEffect } from 'react';
@@ -7,6 +8,7 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler'; // ✅ Added import
 import { Provider, useDispatch } from 'react-redux';   // ✅ Redux import
 import { store } from './src/store';      
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,7 +40,9 @@ function App() {
     <SafeAreaProvider>
       <Provider store={store}>   
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <AppContent />
+        <GestureHandlerRootView style={styles.container}> {/* ✅ Wrap entire app */}
+          <AppContent />
+        </GestureHandlerRootView>
       </Provider>
     </SafeAreaProvider>
   );
@@ -82,16 +86,13 @@ function AppContent() {
         <Stack.Screen name="EnterPass" component={EnterPassScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Performance" component={PerformanceScreen} />
-
         <Stack.Screen name="DepositScreen" component={DepositScreen} />
         <Stack.Screen name="WithdrawlScreen" component={WithdrawlScreen} />
         <Stack.Screen name="DepositStatus" component={DepositStatusScreen} />
         <Stack.Screen name="WithdrawStatus" component={WithdrawStatusScreen} />
-
         <Stack.Screen name="SetPasscodeScreen" component={SetPasscodeScreen} />
         <Stack.Screen name="ReEnterPasscodeScreen" component={ReEnterPasscodeScreen} />
         <Stack.Screen name="PasscodeLoginScreen" component={PasscodeLoginScreen} />
-
         <Stack.Screen
           name="TradeDetail"
           component={TradeDetailScreen}

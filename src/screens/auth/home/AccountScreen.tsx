@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import Fontisto from 'react-native-vector-icons/Fontisto';
+import { Swipeable } from 'react-native-gesture-handler';
 import BottomTabs from '../../../components/BottomTabs';
 import PerformanceScreen from './PerformanceScreen';
 import ProfileScreen from './ProfileScreen';
@@ -75,11 +76,12 @@ export const CloseAllModal: React.FC<Props> = ({
   onConfirm,
   openTrades = [],
   currentPrices = {},
+  currentPrices = {},
 }) => {
-  const [selectedInstrument, setSelectedInstrument] =
-    useState<string>('All instruments');
+  const [selectedInstrument, setSelectedInstrument] = useState<string>('All instruments');
   const [selectedAction, setSelectedAction] = useState<string>('Close all');
 
+  // ✅ Reverted to include all trades, including duplicates, for instrument list
   const instruments = useMemo(
     () => [
       'All instruments',
@@ -93,7 +95,8 @@ export const CloseAllModal: React.FC<Props> = ({
       ? openTrades || []
       : (openTrades || []).filter(t => t.symbol === selectedInstrument);
 
-  const profitable = (tradesToShow || []).filter(t => {
+  // ✅ Grouping for profitable and losing trades
+  const profitable = tradesToShow.filter(t => {
     if (!(t.status === 'open' || t.status === 'executed')) return false;
     if (!currentPrices || !currentPrices[t.symbol]) return false;
 
@@ -103,7 +106,7 @@ export const CloseAllModal: React.FC<Props> = ({
     );
   });
 
-  const losing = (tradesToShow || []).filter(t => {
+  const losing = tradesToShow.filter(t => {
     if (!(t.status === 'open' || t.status === 'executed')) return false;
     if (!currentPrices || !currentPrices[t.symbol]) return false;
 
@@ -113,8 +116,8 @@ export const CloseAllModal: React.FC<Props> = ({
     );
   });
 
-  const buyTrades = (tradesToShow || []).filter(t => t.type === 'buy');
-  const sellTrades = (tradesToShow || []).filter(t => t.type === 'sell');
+  const buyTrades = tradesToShow.filter(t => t.type === 'buy');
+  const sellTrades = tradesToShow.filter(t => t.type === 'sell');
 
   const calculateTotalPnL = (
     trades: TradeData[],
@@ -196,17 +199,17 @@ export const CloseAllModal: React.FC<Props> = ({
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.modalBox}>
-          <View style={styles.topLine} />
           <Text style={styles.title}>Close positions at the market price?</Text>
 
+          {/* Instruments Tabs */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.tabRow}
           >
-            {(instruments || []).map(inst => (
+            {instruments.map((inst, index) => (
               <TouchableOpacity
-                key={inst}
+                key={`${inst}-${index}`} // Unique key for duplicate symbols
                 style={[
                   styles.tab,
                   selectedInstrument === inst && styles.activeTab,
@@ -236,6 +239,7 @@ export const CloseAllModal: React.FC<Props> = ({
           {renderRow('Close all Sell', sellTrades, USER_MODE)}
           <View style={styles.divider} />
 
+          {/* Buttons */}
           <TouchableOpacity
             style={styles.confirmButton}
             onPress={() => onConfirm(selectedAction, selectedInstrument)}
@@ -275,6 +279,7 @@ export const FetchTradeDetails = async (
         reject(err);
       };
       socket.onclose = () => {};
+      socket.onclose = () => {};
     } catch (error) {
       reject(error);
     }
@@ -290,6 +295,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
 }) => {
   if (!trade) return null;
 
+  // Calculate P&L
   const pnl =
     trade.type === 'buy'
       ? (currentPrice - trade.price) * trade.lotSize * 100
@@ -304,6 +310,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Accounts</Text>
             <Text style={styles.headerSubtitle}>Changes to trading hours</Text>
@@ -313,6 +320,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
             </View>
           </View>
 
+          {/* Trade Details */}
           <View style={styles.tradeDetails}>
             <Text style={styles.symbolText}>
               {trade.formattedSymbol || trade.symbol}
@@ -338,12 +346,14 @@ export const TradeModal: React.FC<TradeModalProps> = ({
             <Text style={styles.currentPrice}>{currentPrice.toFixed(2)}</Text>
           </View>
 
+          {/* Time */}
           <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
               Time: {new Date(trade.timestamp).toLocaleString()}
             </Text>
           </View>
 
+          {/* Take Profit & Stop Loss */}
           <View style={styles.profitLossContainer}>
             <View style={styles.profitLossRow}>
               <Text style={styles.profitLossLabel}>Take Profit</Text>
@@ -368,6 +378,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
             </View>
           </View>
 
+          {/* Footer Actions */}
           <View style={styles.footerActions}>
             <TouchableOpacity style={styles.footerButton}>
               <Text style={styles.footerButtonText}>View on chart</Text>
@@ -402,14 +413,14 @@ const COLORS = {
   text: '#111111',
   textMuted: '#6B7280',
   chipBg: '#F5F6F7',
-  chipText: '#6B7280',
+  chipText: '#5c5e5d',
   card: '#FFFFFF',
   circle: '#efeff1',
   soft: '#F3F4F6',
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
-  profit: '#64D68C',
+  profit: '#6ac391',
   loss: '#EF4444',
 };
 
@@ -540,6 +551,7 @@ const TradeItem: React.FC<TradeItemProps> = ({
     }
   };
 
+  // Helper to map country codes to flags
   const getFlagIcon = (currency: string) => {
     switch (currency) {
       case 'USD':
@@ -569,6 +581,21 @@ const TradeItem: React.FC<TradeItemProps> = ({
     }
     return name;
   };
+
+  // Render right swipe action (red "Close" button)
+  const renderRightActions = () => (
+    <TouchableOpacity
+      style={styles.closeAction}
+      onPress={() => onClose?.(trade)}
+    >
+      <Image
+        source={require('../../../assets/images/close.png')}
+        style={styles.closeIcon}
+        resizeMode="contain"
+      />
+      <Text style={styles.closeActionText}>Close</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.tradeItem}>
@@ -646,7 +673,7 @@ const TradeItem: React.FC<TradeItemProps> = ({
 };
 
 // ---------- ACCOUNT CARD ----------
-interface AccountCardProps {
+const AccountCard: React.FC<{
   onDepositPress: () => void;
   onWithdrawPress: () => void;
   navigation: any;
@@ -665,6 +692,8 @@ const AccountCard: React.FC<AccountCardProps> = ({
   const [traderName, setTraderName] = useState('RISING TRADERS');
   const [accountNumber, setAccountNumber] = useState('#79555989');
   const [activeAccountType, setActiveAccountType] = useState('Real');
+
+  const displayedBalance = useMemo(() => Math.max(0, balance + livePnL), [balance, livePnL]);
 
   useEffect(() => {
     const loadAccountDetails = async () => {
@@ -693,9 +722,8 @@ const AccountCard: React.FC<AccountCardProps> = ({
   const handleAccountOptionSelect = (option: string) => {
     setActiveAccountType(option);
     console.log(`Selected option: ${option}`);
+    setAccountOptionsModalVisible(false);
   };
-
-  const displayedBalance = balance + totalPnL;
 
   return (
     <View style={styles.accountCard}>
@@ -751,6 +779,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
         />
       </View>
 
+      {/* Details Modal */}
       <Modal
         visible={detailsModalVisible}
         animationType="slide"
@@ -958,6 +987,7 @@ const AccountsUI: React.FC<{
   const dispatch = useDispatch();
   const balance = useSelector((state: RootState) => state.balance.amount);
 
+  // Load saved trades from storage
   useEffect(() => {
     const loadTrades = async () => {
       try {
@@ -983,8 +1013,18 @@ const AccountsUI: React.FC<{
     loadTrades();
   }, [USER_MODE]);
 
+  // Load balance on component mount to ensure sync with AsyncStorage
   useEffect(() => {
-    let interval: any;
+    const initBalance = async () => {
+      const loadedBalance = await loadBalance();
+      dispatch(setBalance(loadedBalance.amount));
+    };
+    initBalance();
+  }, [dispatch]);
+
+  // Fetch prices and recalc live PnL for UI only
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
 
     const fetchCurrentPrices = async () => {
       const openTrades = trades.filter(
@@ -995,12 +1035,12 @@ const AccountsUI: React.FC<{
       const prices: Record<string, number> = {};
       let totalPnl = 0;
 
-      for (const symbol of symbols) {
+      for (const symbol of new Set(symbols)) {
         try {
           const historyData: any = await FetchTradeDetails(symbol, 7);
-          if (historyData && historyData.data.length > 0) {
+          if (historyData && historyData.data && Array.isArray(historyData.data) && historyData.data.length > 0) {
             const latestCandle = historyData.data[historyData.data.length - 1];
-            const latestClose = latestCandle.close;
+            const latestClose = latestCandle.close || 0;
 
             prices[symbol] = latestClose;
 
@@ -1014,6 +1054,9 @@ const AccountsUI: React.FC<{
                   : (trade.price - latestClose) * trade.lotSize * 100;
               totalPnl += pnl;
             }
+          } else {
+            prices[symbol] = 0;
+            console.warn(`No valid data for ${symbol}`);
           }
         } catch (error) {
           console.error(`Error fetching data for ${symbol}:`, error);
@@ -1101,6 +1144,7 @@ const AccountsUI: React.FC<{
 
   const handleCloseAllTrades = () => setcloseAllModelVisible(true);
 
+  // Handle close all
   const handleConfirm = async (action: string, selectedInstrument: string) => {
     try {
       let tradesToClose = trades.filter(
@@ -1155,7 +1199,13 @@ const AccountsUI: React.FC<{
         totalPnL += pnl;
       });
 
-      dispatch(deposit(totalPnL));
+      // Dispatch based on totalPnL sign
+      if (totalPnL >= 0) {
+        dispatch(deposit(totalPnL));
+      } else {
+        dispatch(withdraw(Math.abs(totalPnL)));
+      }
+
       setTrades(updatedTrades);
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
       setcloseAllModelVisible(false);
@@ -1164,11 +1214,12 @@ const AccountsUI: React.FC<{
     }
   };
 
+  // Positions content
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
       return (
         <View style={styles.positionsWrap}>
-          {Object.keys(groupedOpenTrades).length > 0 ? (
+          {openTrades.length > 0 ? (
             <>
               <View style={styles.openTotalProfitlossView}>
                 <Text style={styles.openTotalProfitlossTextLb}>Total P/L</Text>
@@ -1300,7 +1351,7 @@ const AccountsUI: React.FC<{
         </View>
       );
     }
-  }, [positionsTab, openTrades, closedTrades, currentPrices, totalPnL]);
+  }, [positionsTab, openTrades, closedTrades, currentPrices, totalPnL, navigation, setActiveTab]);
 
   return (
     <ScrollView
@@ -1339,7 +1390,7 @@ const AccountsUI: React.FC<{
         onDepositPress={onDepositPress}
         onWithdrawPress={onWithdrawPress}
         navigation={navigation}
-        totalPnL={totalPnL}
+        livePnL={totalPnL}
       />
 
       <View style={styles.segmentRow}>
@@ -1417,6 +1468,7 @@ const AccountsUI: React.FC<{
   );
 };
 
+// ---------- SCREEN ----------
 const AccountScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('accounts');
   const navigation = useNavigation();
@@ -1436,6 +1488,7 @@ const AccountScreen: React.FC = () => {
             onWithdrawPress={() => navigation.navigate('WithdrawalScreen')} // Corrected typo from 'WithdrawlScreen'
             setActiveTab={setActiveTab}
             closeAllModalPress={() => {}}
+            closeAllModalPress={() => {}}
           />
         )}
         {activeTab === 'trade' && <TradeScreen />}
@@ -1448,6 +1501,7 @@ const AccountScreen: React.FC = () => {
   );
 };
 
+// ---------- STYLES ----------
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -1467,18 +1521,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
     marginBottom: 12,
-    textAlign: 'center',
-    paddingBottom: 10,
-  },
-  topLine: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    width: '20%',
-    alignSelf: 'center',
-    marginBottom: 16,
   },
   input: {
     borderWidth: 1,
@@ -1506,68 +1551,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
-  },
-  rowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  rowLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
-  countCircle: {
-    backgroundColor: '#E5E7EB', // Light grey background
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  countText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#000', // Black text
-  },
-  leftContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  countCircleRight: {
-    backgroundColor: '#f8f8f8ff',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  countTextRight: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#000',
-  },
-  pnlContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pnlText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  checkmark: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 0,
   },
   confirmButton: {
     backgroundColor: '#FFD600',
@@ -1754,16 +1737,16 @@ const styles = StyleSheet.create({
   },
   accountCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 7,
-    paddingVertical: 29,
+    borderRadius: 5,
+    paddingVertical: 20,
     paddingHorizontal: 18,
-    marginBottom: 18,
+    marginBottom: 17,
     marginHorizontal: 0,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
+    // shadowColor: '#000',
+    // shadowOpacity: 0.08,
+    // shadowOffset: { width: 0, height: 0 },
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 0.5,
   },
   accountCardInModal: {
     backgroundColor: 'white',
@@ -1808,27 +1791,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 11,
   },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginHorizontal: -18,
   },
-  actionItem: { width: '25%', alignItems: 'center' },
+  actionItem: { width: '22%', alignItems: 'center' },
   actionIconWrap: {
     width: SIZES.actionIcon,
     height: SIZES.actionIcon,
     borderRadius: SIZES.actionIcon / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop:5
   },
   actionIconIdle: { backgroundColor: COLORS.soft },
   actionIconActive: { backgroundColor: COLORS.actionActive },
   actionLabel: {
-    marginTop: 4,
+    marginTop: 5,
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: '#4f5153',
     fontWeight: '500',
   },
   tradeIcon: { width: 24, height: 24, alignSelf: 'center' },
@@ -1865,8 +1849,8 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#6E8495',
-    borderWidth: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     borderColor: '#23272F',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1878,9 +1862,9 @@ const styles = StyleSheet.create({
   },
   tradeCountText: {
     fontSize: SIZES.tab - 2,
-    color: '#FFFFFF',
+    color: COLORS.chipText,
     fontWeight: '500',
-    lineHeight: 10,
+    lineHeight: 18,
   },
   openTradeCountText: {
     color: '#FFFFFF',
@@ -1954,16 +1938,15 @@ const styles = StyleSheet.create({
   },
   tradeItem: {
     backgroundColor: COLORS.card,
-    borderRadius: 2,
+    borderRadius: 4,
     padding: 10,
     width: '100%',
-    marginBottom: -1,
+    marginBottom: 0,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    elevation: 2,
-    height: 75,
+    height: 68,
   },
   tradeHeader: {
     flexDirection: 'row',
@@ -1984,8 +1967,10 @@ const styles = StyleSheet.create({
   },
   tradeType: {
     fontSize: 14,
-    color: '#0070FF',
+    color: '#2695eaff',
     marginTop: 7,
+    opacity: 1,
+    fontWeight: '400',
   },
   tradePrice: {
     fontSize: 14,
@@ -2002,7 +1987,7 @@ const styles = StyleSheet.create({
   tradeValue: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#6B7280',
+    color: COLORS.text,
   },
   openTotalProfitlossView: {
     height: 45,
@@ -2031,6 +2016,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   activeAccountOption: {},
+  activeAccountOption: {},
   accountOptionText: {
     fontSize: 16,
     fontWeight: '500',
@@ -2052,24 +2038,40 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: '#111111',
   },
+  rowContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 12,
+  },
+  rowLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  pnlContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pnlText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  checkmark: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+  },
   cancelButtonText: {
     color: '#6B7280',
     fontWeight: '500',
-  },
-  tabContainer: {
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  underline: {
-    width: 20,
-    height: 2,
-    backgroundColor: COLORS.active,
-    marginTop: 4,
-    borderRadius: 1,
-  },
-  activeTabText: {
-    color: COLORS.active,
-    fontWeight: '600',
   },
   accountCardInModal: {
     backgroundColor: '#fff',
