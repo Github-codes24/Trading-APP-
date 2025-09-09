@@ -924,7 +924,11 @@ const DynamicGraph: React.FC<GraphProps> = ({
   );
 };
 
- const getTradeCounts = async (symbol: string, user: 'real' | 'demo', currentPrice: number) => {
+const getTradeCounts = async (
+  symbol: string,
+  user: 'real' | 'demo',
+  currentPrice: number,
+) => {
   try {
     const existingTradesJSON = await AsyncStorage.getItem('tradeHistory');
     const existingTrades = existingTradesJSON
@@ -946,10 +950,10 @@ const DynamicGraph: React.FC<GraphProps> = ({
     const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
       const tradePnl = calculateProfit({
         symbol: trade.symbol,
-        openPrice: trade.price,     // entry price
-        closePrice: currentPrice,   // live market price
-        lotSize: trade.lotSize,     // user lot size
-        tradeType: trade.type,      // buy or sell
+        openPrice: trade.price, // entry price
+        closePrice: currentPrice, // live market price
+        lotSize: trade.lotSize, // user lot size
+        tradeType: trade.type, // buy or sell
       });
       return total + tradePnl;
     }, 0);
@@ -975,28 +979,28 @@ interface TradeDetailScreenProps {
 }
 
 // ✅ Capitalized Component
-  const OpenOrderModal: React.FC<{
-    visible: boolean;
-    onClose: () => void;
-    title: string;
-    message: string;
-  }> = ({ visible, onClose, title, message }) => {
-    return (
-      <Modal transparent visible={visible} animationType="fade">
-        <View style={styles.openOrderOverlay}>
-          <View style={styles.openOrderCard}>
-            <View style={styles.openOrderHeader}>
-              <Text style={styles.openOrderTitle}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={styles.openOrderClose}>×</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.openOrderMessage}>{message}</Text>
+const OpenOrderModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+}> = ({ visible, onClose, title, message }) => {
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.openOrderOverlay}>
+        <View style={styles.openOrderCard}>
+          <View style={styles.openOrderHeader}>
+            <Text style={styles.openOrderTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.openOrderClose}>×</Text>
+            </TouchableOpacity>
           </View>
+          <Text style={styles.openOrderMessage}>{message}</Text>
         </View>
-      </Modal>
-    );
-  };
+      </View>
+    </Modal>
+  );
+};
 
 const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const { trade = { name: 'BTCUSD' } } = route?.params || {};
@@ -1123,8 +1127,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
       setShowTradeModal(false);
 
-      if (openOrdereModalVisible) return;
-
       setOpenOrderModalTitle('Order Open');
       setOpenOrderModalMessage(
         `${
@@ -1134,6 +1136,11 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         )} at ${currentPrice.toFixed(2)}`,
       );
       setOpenOrderModalVisible(true);
+      const timer = setTimeout(() => {
+        setOpenOrderModalVisible(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
     } catch (error) {
       console.error('Error saving trade:', error);
       Alert.alert('Error', 'Failed to save trade to history');
@@ -1144,8 +1151,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
   useEffect(() => {
     const refreshProfitLoss = async () => {
-
-      const counts = await getTradeCounts(trade.name, USER_MODE,currentPrice);
+      const counts = await getTradeCounts(trade.name, USER_MODE, currentPrice);
       setTradeCounts(prev => ({
         ...prev,
         openCount: counts.openCount,
@@ -1318,7 +1324,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
                     marginLeft: 8,
                   }}
                 >
-                  {Number(tradeCounts.totalProfitLoss )>= 0 ? '+' : ''}
+                  {Number(tradeCounts.totalProfitLoss) >= 0 ? '+' : ''}
                   {Number(tradeCounts.totalProfitLoss.toFixed(2))} USD
                 </Text>
               </View>

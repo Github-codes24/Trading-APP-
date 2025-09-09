@@ -127,13 +127,29 @@ const TradeScreen: React.FC = () => {
   };
 
   // Safe price renderer
-  const renderPrice = (price: any) => {
-    const num = Number(price);
-    if (isNaN(num)) return '0.00';
-    // Block numbers >= 1e8 (10^8)
-    if (num >= 1e8) return '0.00';
-    return num.toFixed(2);
+ const renderPrice = (price: any, symbol: string) => {
+  const num = Number(price);
+  if (isNaN(num)) return '0.00';
+  if (num >= 1e8) return '0.00';
+
+  // Map symbols to precision
+  const precisionMap: Record<string, number> = {
+    EURUSD: 5,
+    GBPUSD: 5,
+    USDJPY: 3,
+    GBPJPY: 3,
+    USDCAD: 5,
+    BTCUSD: 2,
+    ETHUSD: 2,
+    USTEC: 2,
+    USOIL: 3,
+    XAUUSD: 3,
   };
+
+  const decimals = precisionMap[symbol] ?? 2; // fallback to 2
+  return num.toFixed(decimals);
+};
+
 
   return (
     <View style={styles.container}>
@@ -293,7 +309,7 @@ const TradeScreen: React.FC = () => {
               </View>
               <View style={styles.instrumentRight}>
                 <Text style={styles.instrumentPrice}>
-                  {renderPrice(item.price)}
+                  {renderPrice(item.price, item.symbol)}
                 </Text>
                 <Text
                   style={[styles.instrumentChange, { color: item.changeColor }]}
