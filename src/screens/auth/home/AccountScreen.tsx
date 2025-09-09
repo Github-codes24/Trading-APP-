@@ -850,55 +850,54 @@ const AccountsUI: React.FC<{
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
-    const fetchCurrentPrices = async () => {
-      const openTrades = trades.filter(trade => trade.status === 'executed' || trade.status === 'open');
-      const symbols = openTrades.map(trade => trade.symbol);
+const fetchCurrentPrices = async () => {
+  const openTrades = trades.filter(
+    trade => trade.status === 'executed' || trade.status === 'open',
+  );
+  const symbols = openTrades.map(trade => trade.symbol);
 
-      const prices: Record<string, number> = {};
-      let totalPnl = 0;
+  const prices: Record<string, number> = {};
 
-      for (const symbol of new Set(symbols)) {
-        try {
-          const historyData: any = await FetchTradeDetails(symbol, 7);
+  for (const symbol of new Set(symbols)) {
+    try {
+      const historyData: any = await FetchTradeDetails(symbol, 7);
 
-          if (
-            historyData &&
-            historyData.data &&
-            Array.isArray(historyData.data) &&
-            historyData.data.length > 0
-          ) {
-            const latestCandle = historyData.data[historyData.data.length - 1];
-            const latestClose = latestCandle.close || 0;
+      if (
+        historyData &&
+        historyData.data &&
+        Array.isArray(historyData.data) &&
+        historyData.data.length > 0
+      ) {
+        const latestCandle = historyData.data[historyData.data.length - 1];
+        const latestClose = latestCandle.close || 0;
 
-            prices[symbol] = latestClose;
-
-            const symbolTrades = openTrades.filter(trade => trade.symbol === symbol);
-
-            const totalProfitLoss = symbolTrades.reduce((total: number, trade: any) => {
-              const tradePnl = calculateProfit({
-                symbol: trade.symbol,
-                openPrice: trade.price,       // entry price
-                closePrice: latestClose,      // live market price
-                lotSize: trade.lotSize,       // user lot size
-                tradeType: trade.type,        // buy or sell
-              });
-              return total + tradePnl;
-            }, 0);
-
-            console.log(`Total PnL for ${symbol}:`, totalProfitLoss);
-          } else {
-            prices[symbol] = 0;
-            console.warn(`No valid data for ${symbol}`);
-          }
-        } catch (error) {
-          console.error(`Error fetching data for ${symbol}:`, error);
-          prices[symbol] = 0;
-        }
+        prices[symbol] = latestClose;
+      } else {
+        prices[symbol] = 0;
+        console.warn(`No valid data for ${symbol}`);
       }
+    } catch (error) {
+      console.error(`Error fetching data for ${symbol}:`, error);
+      prices[symbol] = 0;
+    }
+  }
 
-      setCurrentPrices(prices);
-      setTotalPnL(totalPnl);
-    };
+  // Calculate total P&L using reduce and calculateProfit
+  const totalProfitLoss = openTrades.reduce((total: number, trade: any) => {
+    const currentPrice = prices[trade.symbol] || 0;
+    const tradePnl = calculateProfit({
+      symbol: trade.symbol,
+      openPrice: trade.price, // entry price
+      closePrice: currentPrice, // latest fetched price
+      lotSize: trade.lotSize || 0,
+      tradeType: trade.type, // buy or sell
+    });
+    return total + tradePnl;
+  }, 0);
+
+  setCurrentPrices(prices);
+  setTotalPnL(totalProfitLoss);
+};
 
     if (trades.length > 0) {
       fetchCurrentPrices();
