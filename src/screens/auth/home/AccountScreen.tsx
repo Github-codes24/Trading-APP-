@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
@@ -138,22 +139,23 @@ export const CloseAllModal: React.FC<Props> = ({
   const sellTrades = tradesToShow.filter(t => t.type === 'sell');
 
   // Calculate total P&L for each group
-  const calculateTotalPnL = (trades: TradeData[]) => {
-    if (!trades || !currentPrices) return 0;
+ const calculateTotalPnL = (trades: TradeData[]): number => {
+  if (!trades || !currentPrices) return 0;
 
-    return trades.reduce((total, trade) => {
-      if (!trade || !currentPrices[trade.symbol]) return total;
+  return trades.reduce((total, trade) => {
+    if (!trade || !currentPrices[trade.symbol]) return total;
 
-      const lotSize = trade.lotSize || 0;
+    const pnl = calculateProfit({
+      symbol: trade.symbol,
+      openPrice: trade.price,                // entry price
+      closePrice: currentPrices[trade.symbol], // live/current price
+      lotSize: trade.lotSize || 0,
+      tradeType: trade.type,
+    });
 
-      const pnl =
-        trade.type === 'buy'
-          ? (currentPrices[trade.symbol] - trade.price) * lotSize * 100
-          : (trade.price - currentPrices[trade.symbol]) * lotSize * 100;
-
-      return total + pnl;
-    }, 0);
-  };
+    return total + pnl;
+  }, 0);
+};
 
   const renderRow = (label: string, trades: TradeData[]) => {
     const totalPnL = calculateTotalPnL(trades);
@@ -267,27 +269,37 @@ export const CloseAllModal: React.FC<Props> = ({
 };
 
 export const CloseAllTradeModal: React.FC<{
-    visible: boolean;
-    onClose: () => void;
-    title: string;
-    message: string;
-  }> = ({ visible, onClose, title, message }) => {
-    return (
-      <Modal transparent visible={visible} animationType="fade">
-        <View style={styles.closeAllOrderOverlay}>
-          <View style={styles.closeAllOrderCard}>
-            <View style={styles.closeAllOrderHeader}>
-              <Text style={styles.closeAllOrderTitle}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={styles.closeAllOrderClose}>×</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.closeAllOrderMessage}>{message}</Text>
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  pnl?: number; // ✅ optional prop for profit/loss
+}> = ({ visible, onClose, title, message, pnl }) => {
+  const messageColor =
+    pnl !== undefined
+      ? pnl >= 0
+        ? COLORS.profit
+        : COLORS.loss
+      : COLORS.text;
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.closeAllOrderOverlay}>
+        <View style={styles.closeAllOrderCard}>
+          <View style={styles.closeAllOrderHeader}>
+            <Text style={styles.closeAllOrderTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.closeAllOrderClose}>×</Text>
+            </TouchableOpacity>
           </View>
+          <Text style={[styles.closeAllOrderMessage, { color: messageColor }]}>
+            {message}
+          </Text>
         </View>
-      </Modal>
-    );
-  };
+      </View>
+    </Modal>
+  );
+};
 
 export const FetchTradeDetails = async (
   symbol: string,
@@ -1051,9 +1063,15 @@ const AccountsUI: React.FC<{
   const dispatch = useDispatch();
   const balance = useSelector((state: RootState) => state.balance.amount);
 
-  const [closeOrderModalVisible, setCloseOrderModalVisible] = useState(true);
-  const [closeOrderModalTitle, setCloseOrderModalTitle] = useState('');
-  const [closeOrderModalMessage, setCloseOrderModalMessage] = useState('');
+  const [allTradeCloseModalVisible, setAllTradeCloseModalVisible] = useState(false);
+  const [allTradeCloseModalTitle, setAllTradeCloseModalTitle] = useState('');
+  const [allTradeCloseModalMessage, setAllTradeCloseModalMessage] = useState('');
+  
+  const [closeAllTradePnL, setCloseAllTradePnL] = useState(0);
+
+  const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
+
+  const handleCloseAllTrades = () => setcloseAllModelVisible(true);
 
   // Load saved trades from storage
   useEffect(() => {
@@ -1182,7 +1200,6 @@ const AccountsUI: React.FC<{
     };
   }, [trades]);
 
-
   // Close trade
   const handleCloseTrade = async (trade: TradeData) => {
     try {
@@ -1233,89 +1250,97 @@ const AccountsUI: React.FC<{
     setModalVisible(true);
   };
 
-  const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
-
-  const handleCloseAllTrades = () => setcloseAllModelVisible(true);
-
   // Handle close all
-  const handleConfirm = async (action: string, selectedInstrument: string) => {
-    try {
-      let tradesToClose = trades.filter(
-        t =>
-          (selectedInstrument === 'All instruments' ||
-            t.symbol === selectedInstrument) &&
-          (t.status === 'executed' || t.status === 'open'),
-      );
+ const handleConfirm = async (action: string, selectedInstrument: string) => {
+  try {
+    let tradesToClose = trades.filter(
+      t =>
+        (selectedInstrument === "All instruments" || t.symbol === selectedInstrument) &&
+        (t.status === "executed" || t.status === "open"),
+    );
 
-      if (action === 'Close all Buy')
-        tradesToClose = tradesToClose.filter(t => t.type === 'buy');
-      else if (action === 'Close all Sell')
-        tradesToClose = tradesToClose.filter(t => t.type === 'sell');
-      else if (action === 'Close all Profitable')
-        tradesToClose = tradesToClose.filter(t => {
-          const currentPrice = currentPrices[t.symbol] || t.price;
-          const pnl =
-            t.type === 'buy'
-              ? (currentPrice - t.price) * (t.lotSize || 0) * 100
-              : (t.price - currentPrice) * (t.lotSize || 0) * 100;
-          return pnl >= 0;
+    if (action === "Close all Buy") {
+      tradesToClose = tradesToClose.filter(t => t.type === "buy");
+    } else if (action === "Close all Sell") {
+      tradesToClose = tradesToClose.filter(t => t.type === "sell");
+    } else if (action === "Close all Profitable") {
+      tradesToClose = tradesToClose.filter(t => {
+        const currentPrice = currentPrices[t.symbol] || t.price;
+        const pnl = calculateProfit({
+          symbol: t.symbol,
+          openPrice: t.price,
+          closePrice: currentPrice,
+          lotSize: t.lotSize || 0,
+          tradeType: t.type,
         });
-      else if (action === 'Close all Losing')
-        tradesToClose = tradesToClose.filter(t => {
-          const currentPrice = currentPrices[t.symbol] || t.price;
-          const pnl =
-            t.type === 'buy'
-              ? (currentPrice - t.price) * (t.lotSize || 0) * 100
-              : (t.price - currentPrice) * (t.lotSize || 0) * 100;
-          return pnl < 0;
-        });
-
-      const updatedTrades = trades.map(t =>
-        tradesToClose.some(closeTrade => closeTrade.id === t.id)
-          ? {
-              ...t,
-              status: 'closed',
-              closePrice: currentPrices[t.symbol] || t.price,
-            }
-          : t,
-      );
-
-      let totalPnL = 0;
-      tradesToClose.forEach(t => {
-        const exitPrice = currentPrices[t.symbol] || t.price;
-        const pnl =
-          t.type === 'buy'
-            ? (exitPrice - t.price) * (t.lotSize || 0) * 100
-            : (t.price - exitPrice) * (t.lotSize || 0) * 100;
-        totalPnL += pnl;
+        return pnl >= 0;
       });
-
-      // Dispatch based on totalPnL sign
-      if (totalPnL >= 0) {
-        dispatch(deposit(totalPnL));
-      } else {
-        dispatch(withdraw(Math.abs(totalPnL)));
-      }
-
-      setTrades(updatedTrades);
-
-      await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
-
-      setcloseAllModelVisible(false);
-
-       setCloseOrderModalTitle(`${tradesToClose.length} Orders are closed`);
-       setCloseOrderModalMessage(`${tradesToClose.length} USD`);
-
-      setCloseOrderModalVisible(true);
-
-      const timer = setTimeout(() => {
-        setCloseOrderModalVisible(false);
-      }, 5000);
-
-    } catch (error) {
-      console.error('Error closing trades:', error);
+    } else if (action === "Close all Losing") {
+      tradesToClose = tradesToClose.filter(t => {
+        const currentPrice = currentPrices[t.symbol] || t.price;
+        const pnl = calculateProfit({
+          symbol: t.symbol,
+          openPrice: t.price,
+          closePrice: currentPrice,
+          lotSize: t.lotSize || 0,
+          tradeType: t.type,
+        });
+        return pnl < 0;
+      });
     }
-  };
+
+    // ✅ Close selected trades
+    const updatedTrades = trades.map(t =>
+      tradesToClose.some(closeTrade => closeTrade.id === t.id)
+        ? {
+            ...t,
+            status: "closed",
+            closePrice: currentPrices[t.symbol] || t.price,
+          }
+        : t,
+    );
+
+    // ✅ Calculate total PnL using utility
+    let totalPnL = 0;
+    tradesToClose.forEach(t => {
+      const exitPrice = currentPrices[t.symbol] || t.price;
+      totalPnL += calculateProfit({
+        symbol: t.symbol,
+        openPrice: t.price,
+        closePrice: exitPrice,
+        lotSize: t.lotSize || 0,
+        tradeType: t.type,
+      });
+    });
+
+    // ✅ Dispatch balance update
+    if (totalPnL >= 0) {
+      dispatch(deposit(totalPnL));
+    } else {
+      dispatch(withdraw(Math.abs(totalPnL)));
+    }
+
+    setTrades(updatedTrades);
+
+    await AsyncStorage.setItem("tradeHistory", JSON.stringify(updatedTrades));
+
+    setcloseAllModelVisible(false);
+
+    setCloseAllTradePnL(totalPnL);
+
+    setAllTradeCloseModalTitle(`${tradesToClose.length} Orders are closed`);
+    setAllTradeCloseModalMessage(`${totalPnL.toFixed(2)} USD`);
+
+    setAllTradeCloseModalVisible(true);
+
+    setTimeout(() => {
+      setAllTradeCloseModalVisible(false);
+    }, 5000);
+  } catch (error) {
+    console.error("Error closing trades:", error);
+  }
+};
+
 
   // Positions content
   const positionsContent = useMemo(() => {
@@ -1376,10 +1401,11 @@ const AccountsUI: React.FC<{
               />
 
               <CloseAllTradeModal
-                visible={closeOrderModalVisible}
-                onClose={() => setCloseOrderModalVisible(false)}
-                title={closeOrderModalTitle}
-                message={closeOrderModalMessage}
+                visible={allTradeCloseModalVisible}
+                onClose={() => setAllTradeCloseModalVisible(false)}
+                title={allTradeCloseModalTitle}
+                message={allTradeCloseModalMessage}
+                pnl={closeAllTradePnL}
               />
             </>
           ) : (
@@ -1886,7 +1912,7 @@ const styles = StyleSheet.create({
   },
   closeAllOrderClose: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: 'bold', 
     color: '#555',
   },
   closeAllOrderMessage: {
@@ -2274,7 +2300,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 80,
     height: '100%',
-    // borderRadius: 4,
     borderBottomRightRadius: 4,
     borderTopRightRadius: 4,
     flexDirection: 'row',
