@@ -111,7 +111,10 @@ const formatInstrumentName = (name: string) => {
   return name;
 };
 
-const calculateTotalPnL = (trades: TradeData[], currentPrices: Record<string, number>): number => {
+const calculateTotalPnL = (
+  trades: TradeData[],
+  currentPrices: Record<string, number>,
+): number => {
   if (!trades || !currentPrices) return 0;
 
   return trades.reduce((total, trade) => {
@@ -198,7 +201,10 @@ export const CloseAllModal: React.FC<Props> = ({
   setSelectedAction,
 }) => {
   const instruments = useMemo(
-    () => ['All instruments', ...Array.from(new Set(openTrades.map(t => t.symbol)))],
+    () => [
+      'All instruments',
+      ...Array.from(new Set(openTrades.map(t => t.symbol))),
+    ],
     [openTrades],
   );
 
@@ -263,7 +269,8 @@ export const CloseAllModal: React.FC<Props> = ({
                 {totalPnL.toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
-                })} USD
+                })}{' '}
+                USD
               </Text>
             )}
             {selectedAction === label && (
@@ -337,11 +344,7 @@ export const CloseAllTradeModal: React.FC<{
   pnl?: number;
 }> = ({ visible, onClose, title, message, pnl }) => {
   const messageColor =
-    pnl !== undefined
-      ? pnl >= 0
-        ? COLORS.profit
-        : COLORS.loss
-      : COLORS.text;
+    pnl !== undefined ? (pnl >= 0 ? COLORS.profit : COLORS.loss) : COLORS.text;
 
   return (
     <Modal transparent visible={visible} animationType="fade">
@@ -444,7 +447,9 @@ export const TradeModal: React.FC<TradeModalProps> = ({
               {pnl >= 0 ? '+' : ''}
               {pnl.toFixed(2)} USD
             </Text>
-            <Text style={styles.currentPrice}>{renderPrice(currentPrice, trade.symbol)}</Text>
+            <Text style={styles.currentPrice}>
+              {renderPrice(currentPrice, trade.symbol)}
+            </Text>
           </View>
           <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
@@ -625,7 +630,9 @@ const TradeItem: React.FC<{
           {formatInstrumentName(trade.symbol).includes('/') ? (
             <View style={{ flexDirection: 'row' }}>
               <Image
-                source={getFlagIcon(formatInstrumentName(trade.symbol).slice(0, 3))}
+                source={getFlagIcon(
+                  formatInstrumentName(trade.symbol).slice(0, 3),
+                )}
                 style={{
                   width: 16,
                   height: 16,
@@ -636,7 +643,9 @@ const TradeItem: React.FC<{
                 resizeMode="contain"
               />
               <Image
-                source={getFlagIcon(formatInstrumentName(trade.symbol).slice(4, 7))}
+                source={getFlagIcon(
+                  formatInstrumentName(trade.symbol).slice(4, 7),
+                )}
                 style={{ width: 14, height: 14, borderRadius: 7 }}
                 resizeMode="contain"
               />
@@ -654,8 +663,13 @@ const TradeItem: React.FC<{
                 {trade.formattedSymbol || trade.symbol}
               </Text>
               <Text style={styles.tradeType}>
-                <Text style={{ color: trade.type === 'sell' ? COLORS.loss : undefined }}>
-                  {trade.type === 'buy' ? 'Buy' : 'Sell'} {trade.lotSize.toFixed(2)} lot
+                <Text
+                  style={{
+                    color: trade.type === 'sell' ? COLORS.loss : undefined,
+                  }}
+                >
+                  {trade.type === 'buy' ? 'Buy' : 'Sell'}{' '}
+                  {trade.lotSize.toFixed(2)} lot
                 </Text>{' '}
                 <Text style={{ color: '#2d3132' }}>
                   at {renderPrice(trade.price, trade.symbol)}
@@ -673,7 +687,8 @@ const TradeItem: React.FC<{
                 {pnl.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
-                })} USD
+                })}{' '}
+                USD
               </Text>
               <Text style={[styles.tradeValue, { color: '#808182' }]}>
                 {renderPrice(currentPrice, trade.symbol)}
@@ -694,7 +709,8 @@ const AccountCard: React.FC<{
 }> = ({ onDepositPress, onWithdrawPress, navigation, livePnL }) => {
   const balance = useSelector((state: RootState) => state.balance.amount);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [accountOptionsModalVisible, setAccountOptionsModalVisible] = useState(false);
+  const [accountOptionsModalVisible, setAccountOptionsModalVisible] =
+    useState(false);
   const [traderName, setTraderName] = useState('RISING TRADERS');
   const [accountNumber, setAccountNumber] = useState('#79555989');
   const [activeAccountType, setActiveAccountType] = useState('Real');
@@ -758,7 +774,8 @@ const AccountCard: React.FC<{
         {displayedBalance.toLocaleString('en-IN', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        })} USD
+        })}{' '}
+        USD
       </Text>
       <View style={styles.actionsRow}>
         <ActionItem
@@ -864,7 +881,8 @@ const AccountCard: React.FC<{
               <TouchableOpacity
                 style={[
                   styles.accountOption,
-                  activeAccountType === 'Archived' && styles.activeAccountOption,
+                  activeAccountType === 'Archived' &&
+                    styles.activeAccountOption,
                 ]}
                 onPress={() => handleAccountOptionSelect('Archived')}
                 activeOpacity={0.7}
@@ -876,7 +894,8 @@ const AccountCard: React.FC<{
               <View style={styles.accountHeaderRow}>
                 <View>
                   <Text style={styles.accountTitle}>
-                    RISING TRADERS <Text style={styles.hashGrey}>#356578493</Text>
+                    RISING TRADERS{' '}
+                    <Text style={styles.hashGrey}>#356578493</Text>
                   </Text>
                   <View style={styles.chipsRow}>
                     <Chip label="MT5" />
@@ -917,12 +936,19 @@ const formatDate = (dateStr: string) => {
     inputDate.getFullYear() === yesterday.getFullYear();
 
   if (isToday) {
-    return `Today, ${inputDate.getDate()} ${inputDate.toLocaleString('en-US', { month: 'long' })}`;
+    return `Today, ${inputDate.getDate()} ${inputDate.toLocaleString('en-US', {
+      month: 'long',
+    })}`;
   }
   if (isYesterday) {
-    return `Yesterday, ${inputDate.getDate()} ${inputDate.toLocaleString('en-US', { month: 'long' })}`;
+    return `Yesterday, ${inputDate.getDate()} ${inputDate.toLocaleString(
+      'en-US',
+      { month: 'long' },
+    )}`;
   }
-  return `${inputDate.getDate().toString().padStart(2, '0')}/${(inputDate.getMonth() + 1)
+  return `${inputDate.getDate().toString().padStart(2, '0')}/${(
+    inputDate.getMonth() + 1
+  )
     .toString()
     .padStart(2, '0')}/${inputDate.getFullYear()}`;
 };
@@ -936,7 +962,7 @@ const groupTradesByDate = (trades: TradeData[]) => {
   }, {});
 };
 
-const groupTradesBySymbol = (trades) => {
+const groupTradesBySymbol = trades => {
   return trades.reduce((groups, trade) => {
     if (!groups[trade.symbol]) {
       groups[trade.symbol] = [];
@@ -971,14 +997,22 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
           <Text style={styles.title}>Close position #{trade.id} ?</Text>
           <View style={styles.row}>
             <Text style={[styles.rowLabel, { color: '#6B7280' }]}>Lots</Text>
-            <Text style={[styles.pnlText, { color: '#000000' }]}>{trade.lotSize.toFixed(2)}</Text>
+            <Text style={[styles.pnlText, { color: '#000000' }]}>
+              {trade.lotSize.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.row}>
-            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>Closing price</Text>
-            <Text style={[styles.pnlText, { color: '#000000' }]}>{renderPrice(currentPrice, trade.symbol)}</Text>
+            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>
+              Closing price
+            </Text>
+            <Text style={[styles.pnlText, { color: '#000000' }]}>
+              {renderPrice(currentPrice, trade.symbol)}
+            </Text>
           </View>
           <View style={styles.row}>
-            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>{pnl >= 0 ? 'Profit' : 'Loss'}</Text>
+            <Text style={[styles.rowLabel, { color: '#6B7280' }]}>
+              {pnl >= 0 ? 'Profit' : 'Loss'}
+            </Text>
             <Text
               style={[
                 styles.pnlText,
@@ -989,17 +1023,16 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
               {pnl.toFixed(2)} USD
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.confirmButton}
-            onPress={onConfirm}
-          >
+          <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
             <Text style={{ color: '#000', fontWeight: 'bold' }}>Confirm</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.cancelButton, { backgroundColor: '#e8eaeeff' }]}
             onPress={onCancel}
           >
-            <Text style={[styles.cancelButtonText, { color: 'black' }]}>Cancel</Text>
+            <Text style={[styles.cancelButtonText, { color: 'black' }]}>
+              Cancel
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1020,19 +1053,25 @@ const AccountsUI: React.FC<{
 }) => {
   const [positionsTab, setPositionsTab] = useState<PositionsTab>('Open');
   const [trades, setTrades] = useState<TradeData[]>([]);
-  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
+  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(
+    {},
+  );
   const [totalPnL, setTotalPnL] = useState<number>(0);
   const [selectedTrade, setSelectedTrade] = useState<TradeData | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
-  const [selectedTradeToClose, setSelectedTradeToClose] = useState<TradeData | null>(null);
+  const [selectedTradeToClose, setSelectedTradeToClose] =
+    useState<TradeData | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
-  const [selectedCloseInstrument, setSelectedCloseInstrument] = useState('All instruments');
+  const [selectedCloseInstrument, setSelectedCloseInstrument] =
+    useState('All instruments');
   const [selectedCloseAction, setSelectedCloseAction] = useState('Close all');
-  const [allTradeCloseModalVisible, setAllTradeCloseModalVisible] = useState(false);
+  const [allTradeCloseModalVisible, setAllTradeCloseModalVisible] =
+    useState(false);
   const [allTradeCloseModalTitle, setAllTradeCloseModalTitle] = useState('');
-  const [allTradeCloseModalMessage, setAllTradeCloseModalMessage] = useState('');
+  const [allTradeCloseModalMessage, setAllTradeCloseModalMessage] =
+    useState('');
   const [closeAllTradePnL, setCloseAllTradePnL] = useState(0);
 
   const navigation = useNavigation();
@@ -1139,7 +1178,18 @@ const AccountsUI: React.FC<{
       }
 
       setTrades(updatedTrades);
+      
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
+
+      setAllTradeCloseModalTitle(`Orders are closed`);
+      setAllTradeCloseModalMessage(`Profit: ${totalPnL.toFixed(2)} USD`);
+      setCloseAllTradePnL(totalPnL);
+      setAllTradeCloseModalVisible(true);
+
+      setTimeout(() => {
+        setAllTradeCloseModalVisible(false);
+      }, 5000);
+
     } catch (error) {
       console.error('Error closing trade:', error);
     }
@@ -1149,7 +1199,8 @@ const AccountsUI: React.FC<{
     try {
       let tradesToClose = trades.filter(
         t =>
-          (selectedInstrument === 'All instruments' || t.symbol === selectedInstrument) &&
+          (selectedInstrument === 'All instruments' ||
+            t.symbol === selectedInstrument) &&
           (t.status === 'executed' || t.status === 'open'),
       );
 
@@ -1261,15 +1312,19 @@ const AccountsUI: React.FC<{
                   {totalPnL.toLocaleString('en-IN', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  })} USD
+                  })}{' '}
+                  USD
                 </Text>
               </View>
               {Object.entries(grouped).map(([symbol, trades]) => {
                 const totalGroupPnL = calculateTotalPnL(trades, currentPrices);
                 const totalLot = trades.reduce((sum, t) => sum + t.lotSize, 0);
                 const types = new Set(trades.map(t => t.type));
-                const typeText = types.size === 1 ? Array.from(types)[0] : 'Mixed';
-                const averagePrice = trades.reduce((sum, t) => sum + t.price * t.lotSize, 0) / totalLot;
+                const typeText =
+                  types.size === 1 ? Array.from(types)[0] : 'Mixed';
+                const averagePrice =
+                  trades.reduce((sum, t) => sum + t.price * t.lotSize, 0) /
+                  totalLot;
                 const isExpanded = expanded === symbol;
 
                 const handleParentClose = () => {
@@ -1292,12 +1347,21 @@ const AccountsUI: React.FC<{
                           style={styles.closeAction}
                           onPress={handleParentClose}
                         >
-                          <Image
-                            source={require('../../../assets/images/close.png')}
-                            style={styles.closeIcon}
-                            resizeMode="contain"
-                          />
-                          <Text style={styles.closeActionText}>Close</Text>
+                          <View
+                            style={{
+                              flex: 1,
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Image
+                              source={require('../../../assets/images/cancel.png')}
+                              style={styles.closeIcon}
+                              resizeMode="contain"
+                            />
+                            <Text style={styles.closeActionText}>Close</Text>
+                          </View>
                         </TouchableOpacity>
                       )}
                       overshootRight={false}
@@ -1316,7 +1380,9 @@ const AccountsUI: React.FC<{
                           {formatInstrumentName(symbol).includes('/') ? (
                             <View style={{ flexDirection: 'row' }}>
                               <Image
-                                source={getFlagIcon(formatInstrumentName(symbol).slice(0, 3))}
+                                source={getFlagIcon(
+                                  formatInstrumentName(symbol).slice(0, 3),
+                                )}
                                 style={{
                                   width: 16,
                                   height: 16,
@@ -1327,27 +1393,55 @@ const AccountsUI: React.FC<{
                                 resizeMode="contain"
                               />
                               <Image
-                                source={getFlagIcon(formatInstrumentName(symbol).slice(4, 7))}
-                                style={{ width: 16, height: 16, borderRadius: 7, marginTop: 6 }}
+                                source={getFlagIcon(
+                                  formatInstrumentName(symbol).slice(4, 7),
+                                )}
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 7,
+                                  marginTop: 6,
+                                }}
                                 resizeMode="contain"
                               />
                             </View>
                           ) : (
                             <Image
                               source={getInstrumentIcon(symbol)}
-                              style={{ width: 23, height: 23, borderRadius: 11, marginTop: 5 }}
+                              style={{
+                                width: 23,
+                                height: 23,
+                                borderRadius: 11,
+                                marginTop: 5,
+                              }}
                               resizeMode="contain"
                             />
                           )}
                           <View style={styles.tradeHeader}>
                             <View style={styles.tradeInfo}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                }}
+                              >
                                 <Text style={styles.tradeSymbol}>
                                   {trades[0].formattedSymbol || symbol}
                                 </Text>
                                 {trades.length >= 2 && (
-                                  <View style={[styles.tradeCountBadge, styles.openTradeCountBadge, { marginTop: 4 }]}>
-                                    <Text style={[styles.tradeCountText, styles.openTradeCountText]}>
+                                  <View
+                                    style={[
+                                      styles.tradeCountBadge,
+                                      styles.openTradeCountBadge,
+                                      { marginTop: 4 },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.tradeCountText,
+                                        styles.openTradeCountText,
+                                      ]}
+                                    >
                                       {trades.length}
                                     </Text>
                                   </View>
@@ -1355,11 +1449,21 @@ const AccountsUI: React.FC<{
                               </View>
                               {!isExpanded && (
                                 <Text style={styles.tradeType}>
-                                  <Text style={{ color: typeText.toLowerCase() === 'sell' ? COLORS.loss : undefined }}>
-                                    {typeText.charAt(0).toUpperCase() + typeText.slice(1)} {totalLot.toFixed(2)} lot
+                                  <Text
+                                    style={{
+                                      color:
+                                        typeText.toLowerCase() === 'sell'
+                                          ? COLORS.loss
+                                          : undefined,
+                                    }}
+                                  >
+                                    {typeText.charAt(0).toUpperCase() +
+                                      typeText.slice(1)}{' '}
+                                    {totalLot.toFixed(2)} lot
                                   </Text>{' '}
                                   <Text style={{ color: '#2d3132' }}>
-                                    at {trades.length >= 2 ? '~' : ''} {renderPrice(averagePrice, symbol)}
+                                    at {trades.length >= 2 ? '~' : ''}{' '}
+                                    {renderPrice(averagePrice, symbol)}
                                   </Text>
                                 </Text>
                               )}
@@ -1368,18 +1472,32 @@ const AccountsUI: React.FC<{
                               <Text
                                 style={[
                                   styles.tradePnl,
-                                  { color: totalGroupPnL >= 0 ? COLORS.profit : COLORS.loss },
+                                  {
+                                    color:
+                                      totalGroupPnL >= 0
+                                        ? COLORS.profit
+                                        : COLORS.loss,
+                                  },
                                 ]}
                               >
                                 {totalGroupPnL >= 0 ? '+' : ''}
                                 {totalGroupPnL.toLocaleString('en-IN', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
-                                })} USD
+                                })}{' '}
+                                USD
                               </Text>
                               {!isExpanded && (
-                                <Text style={[styles.tradeValue, { color: '#808182' }]}>
-                                  {renderPrice(currentPrices[symbol] || 0, symbol)}
+                                <Text
+                                  style={[
+                                    styles.tradeValue,
+                                    { color: '#808182' },
+                                  ]}
+                                >
+                                  {renderPrice(
+                                    currentPrices[symbol] || 0,
+                                    symbol,
+                                  )}
                                 </Text>
                               )}
                             </View>
@@ -1389,12 +1507,14 @@ const AccountsUI: React.FC<{
                     </Swipeable>
                     {isExpanded && (
                       <View>
-                        {trades.map((trade) => (
+                        {trades.map(trade => (
                           <TradeItem
                             key={trade.id}
                             trade={trade}
-                            currentPrice={currentPrices[trade.symbol] || trade.price}
-                            onClose={(t) => {
+                            currentPrice={
+                              currentPrices[trade.symbol] || trade.price
+                            }
+                            onClose={t => {
                               setSelectedTradeToClose(t);
                               setCloseModalVisible(true);
                             }}
@@ -1452,7 +1572,9 @@ const AccountsUI: React.FC<{
                   activeOpacity={0.7}
                   style={styles.btcRow}
                   onPress={() =>
-                    navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
+                    navigation.navigate('TradeDetail', {
+                      trade: { name: 'XAUUSD' },
+                    })
                   }
                 >
                   <View style={styles.btcIconWrap}>
@@ -1483,9 +1605,9 @@ const AccountsUI: React.FC<{
           {Object.entries(grouped).map(([date, trades]) => {
             const totalPnL = trades.reduce((sum, trade) => {
               const pnl = trade.closePrice
-                ? (trade.type === 'buy'
+                ? trade.type === 'buy'
                   ? (trade.closePrice - trade.price) * trade.lotSize
-                  : (trade.price - trade.closePrice) * trade.lotSize)
+                  : (trade.price - trade.closePrice) * trade.lotSize
                 : 0;
               return sum + pnl;
             }, 0);
@@ -1500,7 +1622,13 @@ const AccountsUI: React.FC<{
                     paddingVertical: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.text }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '500',
+                      color: COLORS.text,
+                    }}
+                  >
                     {formatDate(date)}
                   </Text>
                   <Text
@@ -1513,7 +1641,8 @@ const AccountsUI: React.FC<{
                     {totalPnL.toLocaleString('en-IN', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
-                    })} USD
+                    })}{' '}
+                    USD
                   </Text>
                 </View>
                 {trades.map(trade => (
@@ -1790,6 +1919,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 8,
+    backgroundColor: '#f4f5f7',
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
@@ -2293,12 +2423,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     paddingVertical: 12,
+    // borderBottomColor: '#e8e8e8',
+    // borderBottomWidth: 1,
   },
   rowLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: '#000',
-
   },
   pnlContainer: {
     flexDirection: 'row',
@@ -2315,7 +2446,7 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   cancelButtonText: {
-    color: '#f8f8f8ff',
+    color: '#333438',
     fontWeight: '500',
   },
   closeAction: {
