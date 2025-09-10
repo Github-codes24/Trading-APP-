@@ -88,6 +88,10 @@ export interface Props {
   onConfirm: (action: string, selectedInstrument: string) => void;
   openTrades: TradeData[];
   currentPrices: Record<string, number>;
+  selectedInstrument: string;
+  setSelectedInstrument: React.Dispatch<React.SetStateAction<string>>;
+  selectedAction: string;
+  setSelectedAction: React.Dispatch<React.SetStateAction<string>>;
 }
 export const CloseAllModal: React.FC<Props> = ({
   visible,
@@ -95,13 +99,14 @@ export const CloseAllModal: React.FC<Props> = ({
   onConfirm,
   openTrades = [],
   currentPrices = {},
+  selectedInstrument,
+  setSelectedInstrument,
+  selectedAction,
+  setSelectedAction,
 }) => {
-  const [selectedInstrument, setSelectedInstrument] = useState<string>('All instruments');
-  const [selectedAction, setSelectedAction] = useState<string>('Close all');
-
   // ✅ Reverted to include all trades, including duplicates, for instrument list
   const instruments = useMemo(
-    () => ['All instruments', ...openTrades.map(t => t.symbol)],
+    () => ['All instruments', ...Array.from(new Set(openTrades.map(t => t.symbol)))],
     [openTrades],
   );
 
@@ -281,10 +286,14 @@ export const TradeModal: React.FC<TradeModalProps> = ({
   if (!trade) return null;
 
   // Calculate P&L
-  const pnl =
-    trade.type === 'buy'
-      ? (currentPrice - trade.price) * trade.lotSize * 100
-      : (trade.price - currentPrice) * trade.lotSize * 100;
+  const pnl = calculateProfit({
+    symbol: trade.symbol,
+    openPrice: trade.price,
+    closePrice: currentPrice,
+    lotSize: trade.lotSize,
+    tradeType: trade.type, // "buy" | "sell"
+  });
+
 
   return (
     <Modal
@@ -859,6 +868,17 @@ const groupTradesByDate = (trades: TradeData[]) => {
   }, {});
 };
 
+// ⬅ 1. Grouping function add karo (file ke top pe ya component ke andar)
+const groupTradesBySymbol = (trades) => {
+  return trades.reduce((groups, trade) => {
+    if (!groups[trade.symbol]) {
+      groups[trade.symbol] = [];
+    }
+    groups[trade.symbol].push(trade);
+    return groups;
+  }, {});
+};
+
 export interface ClosePositionModalProps {
   visible: boolean;
   trade: TradeData | null;
@@ -943,6 +963,10 @@ const AccountsUI: React.FC<{
 
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [selectedTradeToClose, setSelectedTradeToClose] = useState<TradeData | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
+  const [selectedCloseInstrument, setSelectedCloseInstrument] = useState('All instruments');
+  const [selectedCloseAction, setSelectedCloseAction] = useState('Close all');
 
   // Load saved trades from storage
   useEffect(() => {
@@ -1059,6 +1083,12 @@ const AccountsUI: React.FC<{
     }
   };
 
+  const handleCloseGroup = async (trades: TradeData[]) => {
+    for (const trade of trades) {
+      await handleCloseTrade(trade);
+    }
+  };
+
   // Trade filtering
   const openTrades = useMemo(() => trades.filter(trade => trade.status === 'executed' || trade.status === 'open'), [trades]);
   const closedTrades = useMemo(() => trades.filter(trade => trade.status === 'closed'), [trades]);
@@ -1068,9 +1098,11 @@ const AccountsUI: React.FC<{
     setModalVisible(true);
   };
 
-  const [closeAllModelVisible, setcloseAllModelVisible] = useState(false);
-
-  const handleCloseAllTrades = () => setcloseAllModelVisible(true);
+  const handleCloseAllTrades = () => {
+    setSelectedCloseInstrument('All instruments');
+    setSelectedCloseAction('Close all');
+    setcloseAllModelVisible(true);
+  };
 
   // Handle close all
   const handleConfirm = async (action: string, selectedInstrument: string) => {
@@ -1126,6 +1158,8 @@ const AccountsUI: React.FC<{
   // Positions content
   const positionsContent = useMemo(() => {
     if (positionsTab === 'Open') {
+      const grouped = groupTradesBySymbol(openTrades);
+
       return (
         <View style={styles.positionsWrap}>
           {openTrades.length > 0 ? (
@@ -1139,20 +1173,235 @@ const AccountsUI: React.FC<{
                   ]}
                 >
                   {totalPnL >= 0 ? '+' : ''}
-                  {totalPnL.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  {totalPnL.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  USD
                 </Text>
               </View>
-              {openTrades.map(trade => (
-                <TradeItem
-                  key={trade.id}
-                  trade={trade}
-                  currentPrice={currentPrices[trade.symbol] || trade.price}
-                  onClose={(t) => {
-                    setSelectedTradeToClose(t);
+              {Object.entries(grouped).map(([symbol, trades]) => {
+                const totalGroupPnL = trades.reduce((sum, t) => {
+                  const currentPrice = currentPrices[t.symbol] || t.price;
+
+                  return (
+                    sum +
+                    calculateProfit({
+                      symbol: t.symbol,
+                      openPrice: t.price,
+                      closePrice: currentPrice,
+                      lotSize: t.lotSize,
+                      tradeType: t.type, // "buy" | "sell"
+                    })
+                  );
+                }, 0);
+
+
+                const getInstrumentIcon = (symbol: string) => {
+                  switch (symbol) {
+                    case 'BTCUSD':
+                      return require('../../../assets/images/bitcoin.png');
+                    case 'ETHUSD':
+                      return require('../../../assets/images/eth.png');
+                    case 'USTEC':
+                      return require('../../../assets/images/us.png');
+                    case 'USOIL':
+                      return require('../../../assets/images/crudeoilbig.png');
+                    case 'BTC':
+                      return require('../../../assets/images/bitcoin.png');
+                    default:
+                      return null; // handled in forex pair case
+                  }
+                };
+
+                // helper to map country codes to flags
+                const getFlagIcon = (currency: string) => {
+                  switch (currency) {
+                    case 'USD':
+                      return require('../../../assets/images/us.png');
+                    case 'ETH':
+                      return require('../../../assets/images/eth.png');
+                    case 'JPY':
+                      return require('../../../assets/images/japan.png');
+                    case 'EUR':
+                      return require('../../../assets/images/european-union.png');
+                    case 'GBP':
+                      return require('../../../assets/images/flag.png');
+                    case 'CAD':
+                      return require('../../../assets/images/canada.png');
+                    case 'XAU':
+                      return require('../../../assets/images/xau.png');
+                    default:
+                      return require('../../../assets/images/bitcoin.png');
+                  }
+                };
+
+                const formatInstrumentName = (name: string) => {
+                  if (name && name === 'BTCUSD') {
+                    return `${name.slice(0, 3)}`;
+                  }
+                  if (name && name === 'ETHUSD') {
+                    return `${name.slice(0, 3)}`;
+                  }
+                  if (
+                    name &&
+                    name.length === 6 &&
+                    /^[A-Z]{6}$/.test(name) &&
+                    name !== 'BTCUSD'
+                  ) {
+                    return `${name.slice(0, 3)}/${name.slice(3)}`;
+                  }
+                  return name;
+                };
+
+                const totalLot = trades.reduce((sum, t) => sum + t.lotSize, 0);
+                const types = new Set(trades.map(t => t.type));
+                const typeText = types.size === 1 ? Array.from(types)[0] : 'Mixed';
+
+                const averagePrice = trades.reduce((sum, t) => sum + t.price * t.lotSize, 0) / totalLot;
+
+                const isExpanded = expanded === symbol;
+
+                const handleParentClose = () => {
+                  if (trades.length === 1) {
+                    const trade = trades[0];
+                    setSelectedTradeToClose(trade);
                     setCloseModalVisible(true);
-                  }}
-                />
-              ))}
+                  } else {
+                    setSelectedCloseInstrument(symbol);
+                    setSelectedCloseAction('Close all');
+                    setcloseAllModelVisible(true);
+                  }
+                };
+
+                return (
+                  <View key={symbol} style={{ marginBottom: 4 }}>
+                    {/* Parent summary row */}
+                    <Swipeable
+                      renderRightActions={() => (
+                        <TouchableOpacity
+                          style={styles.closeAction}
+                          onPress={handleParentClose}
+                        >
+                          <Image
+                            source={require('../../../assets/images/close.png')}
+                            style={styles.closeIcon}
+                            resizeMode="contain"
+                          />
+                          <Text style={styles.closeActionText}>Close</Text>
+                        </TouchableOpacity>
+                      )}
+                      overshootRight={false}
+                      enabled={true}
+                    >
+                      <TouchableOpacity
+                        onPress={() => {
+                          // Only allow expansion if there are 2 or more trades
+                          if (trades.length >= 2) {
+                            setExpanded(isExpanded ? null : symbol);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        style={styles.tradeItem}
+                      >
+                        <View style={{ flexDirection: 'row', width: '100%' }}>
+                          {formatInstrumentName(symbol).includes('/') ? (
+                            <View style={{ flexDirection: 'row' }}>
+                              <Image
+                                source={getFlagIcon(formatInstrumentName(symbol).slice(0, 3))}
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 7,
+                                  marginRight: -8,
+                                  marginTop: 3,
+                                }}
+                                resizeMode="contain"
+                              />
+                              <Image
+                                source={getFlagIcon(formatInstrumentName(symbol).slice(4, 7))}
+                                style={{ width: 16, height: 16, borderRadius: 7, marginTop: 6 }}
+                                resizeMode="contain"
+                              />
+                            </View>
+                          ) : (
+                            <Image
+                              source={getInstrumentIcon(symbol)}
+                              style={{ width: 23, height: 23, borderRadius: 11, marginTop: 5 }}
+                              resizeMode="contain"
+                            />
+                          )}
+                          <View style={styles.tradeHeader}>
+                            <View style={styles.tradeInfo}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={styles.tradeSymbol}>
+                                  {trades[0].formattedSymbol || symbol}
+                                </Text>
+                                {/* Show badge only if trades.length >= 2 */}
+                                {trades.length >= 2 && (
+                                  <View style={[styles.tradeCountBadge, styles.openTradeCountBadge, { marginTop: 4 }]}>
+                                    <Text style={[styles.tradeCountText, styles.openTradeCountText]}>
+                                      {trades.length}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              {!isExpanded && (
+                                <Text style={styles.tradeType}>
+                                  <Text style={{ color: typeText.toLowerCase() === 'sell' ? COLORS.loss : undefined }}>
+                                    {typeText.charAt(0).toUpperCase() + typeText.slice(1)} {totalLot.toFixed(2)} lot
+                                  </Text>{' '}
+                                  <Text style={{ color: '#2d3132' }}>
+                                    {/* Show ~ only if trades.length >= 2 */}
+                                    at {trades.length >= 2 ? '~' : ''} {renderPrice(averagePrice, symbol)}
+                                  </Text>
+                                </Text>
+                              )}
+                            </View>
+                            <View style={styles.tradePnlContainer}>
+                              <Text
+                                style={[
+                                  styles.tradePnl,
+                                  { color: totalGroupPnL >= 0 ? COLORS.profit : COLORS.loss },
+                                ]}
+                              >
+                                {totalGroupPnL >= 0 ? '+' : ''}
+                                {totalGroupPnL.toLocaleString('en-IN', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })} USD
+                              </Text>
+                              {!isExpanded && (
+                                <Text style={[styles.tradeValue, { color: '#808182' }]}>
+                                  {(currentPrices[symbol] || 0).toFixed(2)}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Swipeable>
+
+                    {/* Children trades */}
+                    {isExpanded && (
+                      <View>
+                        {trades.map((trade) => (
+                          <TradeItem
+                            key={trade.id}
+                            trade={trade}
+                            currentPrice={currentPrices[trade.symbol] || trade.price}
+                            onClose={(t) => {
+                              setSelectedTradeToClose(t);
+                              setCloseModalVisible(true);
+                            }}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+
               {openTrades.length > 0 && (
                 <TouchableOpacity
                   style={styles.closeAllButton}
@@ -1165,16 +1414,23 @@ const AccountsUI: React.FC<{
                       style={{ width: 14, height: 14, marginRight: 5 }}
                       resizeMode="contain"
                     />
-                    <Text style={styles.closeAllButtonText}>Close all positions</Text>
+                    <Text style={styles.closeAllButtonText}>
+                      Close all positions
+                    </Text>
                   </View>
                 </TouchableOpacity>
               )}
+
               <CloseAllModal
                 visible={closeAllModelVisible}
                 onClose={() => setcloseAllModelVisible(false)}
                 onConfirm={handleConfirm}
                 openTrades={openTrades}
                 currentPrices={currentPrices}
+                selectedInstrument={selectedCloseInstrument}
+                setSelectedInstrument={setSelectedCloseInstrument}
+                selectedAction={selectedCloseAction}
+                setSelectedAction={setSelectedCloseAction}
               />
             </>
           ) : (
@@ -1186,7 +1442,9 @@ const AccountsUI: React.FC<{
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={styles.btcRow}
-                  onPress={() => navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })}
+                  onPress={() =>
+                    navigation.navigate('TradeDetail', { trade: { name: 'XAUUSD' } })
+                  }
                 >
                   <View style={styles.btcIconWrap}>
                     <Fontisto name="bitcoin" size={18} color="#FFFFFF" />
@@ -1199,7 +1457,9 @@ const AccountsUI: React.FC<{
                   onPress={() => setActiveTab('trade')}
                 >
                   <Feather name="menu" size={18} color="#23272F" />
-                  <Text style={styles.exploreMoreText}>Explore more instruments</Text>
+                  <Text style={styles.exploreMoreText}>
+                    Explore more instruments
+                  </Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -1215,8 +1475,8 @@ const AccountsUI: React.FC<{
             const totalPnL = trades.reduce((sum, trade) => {
               const pnl = trade.closePrice
                 ? (trade.type === 'buy'
-                  ? (trade.closePrice - trade.price) * trade.lotSize * 100
-                  : (trade.price - trade.closePrice) * trade.lotSize * 100)
+                  ? (trade.closePrice - trade.price) * trade.lotSize
+                  : (trade.price - trade.closePrice) * trade.lotSize)
                 : 0;
               return sum + pnl;
             }, 0);
@@ -1402,7 +1662,7 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '700',
     marginBottom: 12,
-    textAlign:'center'
+    textAlign: 'center'
   },
   input: {
     borderWidth: 1,
@@ -1738,6 +1998,7 @@ const styles = StyleSheet.create({
   openTradeCountBadge: {
     backgroundColor: '#6E8495',
     borderWidth: 0,
+
   },
   tradeCountText: {
     fontSize: SIZES.tab - 4,
@@ -1928,7 +2189,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#000',
-    
+
   },
   pnlContainer: {
     flexDirection: 'row',
@@ -1976,7 +2237,7 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: '#D1D5DB', // Greyish color
     marginBottom: 8,
-    width:50,
+    width: 50,
     alignSelf: 'center',
   },
 });
