@@ -25,7 +25,7 @@ const CONTRACT_SIZES: Record<string, number> = {
   ETHUSD: 0.10,      
   USTEC: 1,
   USOIL: 1,
-  XAUUSD: 1,
+  XAUUSD: 100,
 };
 
 
