@@ -506,8 +506,8 @@ const COLORS = {
   divider: '#E5E7EB',
   active: '#23272F',
   actionActive: '#fddf03',
-  profit: '#74d99d',
-  loss: '#eb483f',
+  profit: '#64D68C',
+  loss: '#f44336',
 };
 
 const SIZES = {
@@ -1178,7 +1178,7 @@ const AccountsUI: React.FC<{
       }
 
       setTrades(updatedTrades);
-      
+
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
 
       setAllTradeCloseModalTitle(`Orders are closed`);
@@ -1189,7 +1189,6 @@ const AccountsUI: React.FC<{
       setTimeout(() => {
         setAllTradeCloseModalVisible(false);
       }, 5000);
-
     } catch (error) {
       console.error('Error closing trade:', error);
     }
@@ -1447,26 +1446,104 @@ const AccountsUI: React.FC<{
                                   </View>
                                 )}
                               </View>
-                              {!isExpanded && (
-                                <Text style={styles.tradeType}>
-                                  <Text
-                                    style={{
-                                      color:
-                                        typeText.toLowerCase() === 'sell'
-                                          ? COLORS.loss
-                                          : undefined,
-                                    }}
-                                  >
-                                    {typeText.charAt(0).toUpperCase() +
-                                      typeText.slice(1)}{' '}
-                                    {totalLot.toFixed(2)} lot
-                                  </Text>{' '}
-                                  <Text style={{ color: '#2d3132' }}>
-                                    at {trades.length >= 2 ? '~' : ''}{' '}
-                                    {renderPrice(averagePrice, symbol)}
-                                  </Text>
-                                </Text>
-                              )}
+                              {!isExpanded &&
+                                (() => {
+                                  // Separate buy/sell trades
+                                  const buyTrades = trades.filter(
+                                    t => t.type.toLowerCase() === 'buy',
+                                  );
+                                  const sellTrades = trades.filter(
+                                    t => t.type.toLowerCase() === 'sell',
+                                  );
+
+                                  const buyLots = buyTrades.reduce(
+                                    (sum, t) => sum + (t.lotSize || 0),
+                                    0,
+                                  );
+                                  const sellLots = sellTrades.reduce(
+                                    (sum, t) => sum + (t.lotSize || 0),
+                                    0,
+                                  );
+
+                                  // Fully hedged
+                                  if (buyLots > 0 && buyLots === sellLots) {
+                                    return (
+                                      <Text style={{ color: '#000000' }}>
+                                        Fully Hedged
+                                      </Text>
+                                    );
+                                  }
+
+                                  // Majority side
+                                  const majorityType =
+                                    buyLots > sellLots ? 'buy' : 'sell';
+                                  const majorityTrades =
+                                    majorityType === 'buy'
+                                      ? buyTrades
+                                      : sellTrades;
+                                  const majorityLots = majorityTrades.reduce(
+                                    (sum, t) => sum + (t.lotSize || 0),
+                                    0,
+                                  );
+
+                                  // Calculate average price for majority side only
+                                  const averagePrice =
+                                    majorityTrades.reduce(
+                                      (sum, t) =>
+                                        sum + t.price * (t.lotSize || 0),
+                                      0,
+                                    ) / (majorityLots || 1);
+
+                                  // Calculate PnL for majority side only
+                                  const totalGroupPnL = majorityTrades.reduce(
+                                    (sum, t) => {
+                                      const currentPrice =
+                                        currentPrices[t.symbol] || t.price;
+                                      return (
+                                        sum +
+                                        (t.type.toLowerCase() === 'buy'
+                                          ? (currentPrice - t.price) *
+                                            (t.lotSize || 0)
+                                          : (t.price - currentPrice) *
+                                            (t.lotSize || 0))
+                                      );
+                                    },
+                                    0,
+                                  );
+
+                                  return (
+                                    <Text style={styles.tradeType}>
+                                      <Text
+                                        style={{
+                                          color:
+                                            majorityType === 'sell'
+                                              ? COLORS.loss
+                                              : undefined,
+                                        }}
+                                      >
+                                        {majorityType.charAt(0).toUpperCase() +
+                                          majorityType.slice(1)}{' '}
+                                        {majorityLots.toFixed(2)} lot
+                                      </Text>{' '}
+                                      <Text style={{ color: '#2d3132' }}>
+                                        at {trades.length >= 2 ? '~' : ''}{' '}
+                                        {renderPrice(averagePrice, symbol)}
+                                      </Text>
+                                      <Text
+                                        style={{
+                                          color:
+                                            totalGroupPnL >= 0
+                                              ? COLORS.profit
+                                              : COLORS.loss,
+                                          marginLeft: 5,
+                                        }}
+                                      >
+                                        {/* {totalGroupPnL >= 0 ? '+' : ''}
+          {totalGroupPnL.toFixed(2)} USD */}
+                                      </Text>
+                                    </Text>
+                                  );
+                                })()}
                             </View>
                             <View style={styles.tradePnlContainer}>
                               <Text
@@ -1635,7 +1712,7 @@ const AccountsUI: React.FC<{
                     style={{
                       fontSize: 16,
                       fontWeight: '500',
-                      color: totalPnL >= 0 ? 'green' : 'red',
+                      color: totalPnL >= 0 ? COLORS.profit : COLORS.loss,
                     }}
                   >
                     {totalPnL.toLocaleString('en-IN', {
