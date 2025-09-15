@@ -127,6 +127,7 @@ export const FetchTradeDetails = async (
       socket.onmessage = event => {
         try {
           const data: HistoryResponse = JSON.parse(event.data);
+          console.log('===>', data)
           resolve(data);
           socket.close();
         } catch (err) {
@@ -150,7 +151,7 @@ const useLiveWebSocket = (
   onLiveData: (data: LiveTick) => void,
 ) => {
   useEffect(() => {
-    const socket = new WebSocket(`${WS_URL_LIVE}?symbol=${symbol}`);
+    const socket = new WebSocket(`${WS_URL_HISTORY}?symbol=${symbol}`);
 
     socket.onopen = () => {
       console.log('Live WebSocket connected');
@@ -585,6 +586,7 @@ const DynamicGraph: React.FC<GraphProps> = ({
       const res = await FetchTradeDetails(symbol, timeFrame).catch(() => null);
       if (!isMounted) return;
       if (res?.data && res.data.length) {
+        console.log('=======>', res?.data)
         setHistory(res.data);
         setCandleCount(res.data.length); // Initialize candle count
       } else {
