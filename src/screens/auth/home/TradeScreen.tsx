@@ -45,6 +45,7 @@ const TradeScreen: React.FC = () => {
 
   // Tab Filters
   const getFilteredData = () => {
+    console.log("sbsdhvfjdsvh", tradingData);
     switch (activeTab) {
       case 'Favorites':
         return tradingData.filter(item => item.isFavorite);

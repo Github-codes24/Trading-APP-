@@ -24,9 +24,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line } from 'react-native-svg';
 import { calculateProfit, USER_MODE } from '../services/tradingApi';
+import { CustomLineChart } from '../services/CustomLineChart';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
-const WS_URL_LIVE = 'ws://13.201.33.113:8000/ws/live'; // Adjust this URL as needed
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface Candle {
@@ -37,23 +37,15 @@ export interface Candle {
   close: number;
   tick_volume: number;
 }
-
 export interface HistoryResponse {
   symbol: string;
   days: number;
   data: Candle[];
 }
-
 export interface LiveTick {
   type: 'live';
   symbol: string;
-  tick: {
-    bid: number;
-    ask: number;
-    last: number;
-    yesterday_close: number;
-    pnl_pct: number;
-  };
+  tick: Candle[];
 }
 
 const formatInstrumentName = (name: string) => {
@@ -96,90 +88,77 @@ const getBuySell = (candles: Candle[], symbol: string) => {
   return { buyPrice, sellPrice };
 };
 
-const formatDate = (dateStr: string): string => {
-  // expects YYYY-MM-DD
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}`;
-};
-
-const formatTimeForTooltip = (dateStr: string): string => {
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year.slice(2)}`;
-};
-
-const clamp = (v: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, v));
-
 // TIMEFRAMES
 const timeFrames = [{ label: '5 m', value: 7 }];
 
 // FETCH HISTORY VIA WS (one-shot)
-export const FetchTradeDetails = async (
+export const FetchTradeDetails = (
   symbol: string,
   days: number,
-): Promise<HistoryResponse | null> => {
-  return new Promise((resolve, reject) => {
+  onCurrentPriceChange?: (price: number) => void, // Add callback for price updates
+) => {
+  const [history, setHistory] = useState<Candle[]>([]);
+
+  useEffect(() => {
+    let socket: WebSocket | null = null;
+
     try {
-      const socket = new WebSocket(WS_URL_HISTORY);
+      socket = new WebSocket(WS_URL_HISTORY);
+
       socket.onopen = () => {
-        socket.send(JSON.stringify({ symbol, days }));
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ symbol, days }));
+        }
       };
+
       socket.onmessage = event => {
         try {
-          const data: HistoryResponse = JSON.parse(event.data);
-          console.log('===>', data)
-          resolve(data);
-          socket.close();
+          const msg = JSON.parse(event.data);
+
+          console.log('history', msg);
+          if (msg.type === 'history_5m' && Array.isArray(msg.data)) {
+            // Load initial history
+            setHistory(msg.data);
+
+            // Set current price from last candle
+            if (msg.data.length > 0 && onCurrentPriceChange) {
+              onCurrentPriceChange(msg.data[msg.data.length - 1].close);
+            }
+          } else if (msg.type === 'live' && msg.candle) {
+            // Append live candle and update current price
+            setHistory(prev => {
+              const newHistory = [...prev, msg.candle];
+
+              // Update current price whenever a new candle is added
+              if (onCurrentPriceChange) {
+                onCurrentPriceChange(msg.candle.close);
+              }
+
+              return newHistory;
+            });
+          }
         } catch (err) {
-          reject(err);
-          socket.close();
+          console.error('Parse error:', err);
+          socket?.close();
         }
       };
-      socket.onerror = err => {
-        reject(err);
+
+      socket.onerror = event => {
+        console.error('Socket error:', event);
       };
-      socket.onclose = () => {};
+
+      return () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          // socket.close();
+        }
+      };
     } catch (error) {
-      reject(error);
+      console.error('WebSocket init error:', error);
+      return () => {};
     }
-  });
-};
+  }, [symbol, days, onCurrentPriceChange]);
 
-// LIVE WEBSOCKET CONNECTION
-const useLiveWebSocket = (
-  symbol: string,
-  onLiveData: (data: LiveTick) => void,
-) => {
-  useEffect(() => {
-    const socket = new WebSocket(`${WS_URL_HISTORY}?symbol=${symbol}`);
-
-    socket.onopen = () => {
-      console.log('Live WebSocket connected');
-    };
-
-    socket.onmessage = event => {
-      try {
-        const data: LiveTick = JSON.parse(event.data);
-        if (data.type === 'live' && data.symbol === symbol) {
-          onLiveData(data);
-        }
-      } catch (error) {
-        console.error('Error parsing live data:', error);
-      }
-    };
-
-    socket.onerror = error => {
-      console.error('WebSocket error:', error);
-    };
-
-    socket.onclose = () => {
-      console.log('Live WebSocket disconnected');
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [symbol, onLiveData]);
+  return history;
 };
 
 // TIME FRAME MODAL
@@ -453,479 +432,6 @@ const TradeModal: React.FC<TradeModalProps> = ({
   );
 };
 
-interface InstrumentConfig {
-  pricePrecision: number; // decimals
-  minSpread: number; // smallest spread
-  spreadFactor: number; // dynamic spread scaling
-}
-
-const instrumentConfig: Record<string, InstrumentConfig> = {
-  EURUSD: { pricePrecision: 5, minSpread: 0.00008, spreadFactor: 0.0003 },
-  GBPUSD: { pricePrecision: 5, minSpread: 0.0001, spreadFactor: 0.0003 },
-  USDJPY: { pricePrecision: 3, minSpread: 0.01, spreadFactor: 0.0003 },
-  GBPJPY: { pricePrecision: 3, minSpread: 0.02, spreadFactor: 0.0003 },
-  USDCAD: { pricePrecision: 5, minSpread: 0.0001, spreadFactor: 0.0003 },
-  USOIL: { pricePrecision: 2, minSpread: 0.02, spreadFactor: 0.0005 }, // crude oil
-  USTEC: { pricePrecision: 2, minSpread: 1.0, spreadFactor: 0.0005 }, // NASDAQ 100
-  XAUUSD: { pricePrecision: 2, minSpread: 0.2, spreadFactor: 0.0003 }, // Gold
-  BTCUSD: { pricePrecision: 2, minSpread: 5, spreadFactor: 0.001 }, // Bitcoin
-  ETHUSD: { pricePrecision: 2, minSpread: 0.5, spreadFactor: 0.001 }, // Ethereum
-  DEFAULT: { pricePrecision: 2, minSpread: 0.1, spreadFactor: 0.0003 }, // fallback
-};
-
-// LIVE CANDLE ENGINE (updated with WebSocket integration)
-const useLiveCandles = (initial: Candle[] | null, symbol: string) => {
-  const [candles, setCandles] = useState<Candle[]>(initial || []);
-  const [lastLivePrice, setLastLivePrice] = useState<number | null>(null);
-  const [lastLiveTime, setLastLiveTime] = useState<number>(0);
-
-  useEffect(() => {
-    if (initial && initial.length) setCandles(initial);
-    else setCandles([]);
-  }, [initial?.length, symbol]);
-
-  // Handle live WebSocket data
-  const handleLiveData = useCallback((data: LiveTick) => {
-    setLastLivePrice(data.tick.last);
-    setLastLiveTime(Date.now());
-  }, []);
-
-  useLiveWebSocket(symbol, handleLiveData);
-
-  useEffect(() => {
-    if (!candles || candles.length === 0) return;
-
-    const config = instrumentConfig[symbol] || instrumentConfig.DEFAULT;
-
-    const interval = setInterval(() => {
-      setCandles(prev => {
-        if (prev.length === 0) return prev;
-        const next = [...prev];
-        const last = { ...next[next.length - 1] };
-
-        // Use live price if available, otherwise use synthetic updates
-        if (lastLivePrice !== null && Date.now() - lastLiveTime < 2000) {
-          // Update with live price
-          last.close = parseFloat(lastLivePrice.toFixed(config.pricePrecision));
-          if (last.close > last.high) last.high = last.close;
-          if (last.close < last.low) last.low = last.close;
-        } else {
-          // Fallback to synthetic updates
-          const spread = Math.max(
-            last.close * config.spreadFactor,
-            config.minSpread,
-          );
-          const delta = (Math.random() - 0.5) * spread;
-
-          // Update candle close with precision
-          const newClose = parseFloat(
-            (last.close + delta).toFixed(config.pricePrecision),
-          );
-          last.close = newClose;
-          if (newClose > last.high) last.high = newClose;
-          if (newClose < last.low) last.low = newClose;
-        }
-
-        last.tick_volume += 1;
-        next[next.length - 1] = last;
-
-        // Optionally simulate new candle
-        const now = Date.now();
-        const shouldAddNew = now % 30000 < 1000;
-        if (shouldAddNew) {
-          const base = last.close;
-          const newCandle: Candle = {
-            time: new Date().toISOString(),
-            open: base,
-            high: base,
-            low: base,
-            close: base,
-            tick_volume: 1,
-          };
-          next.push(newCandle);
-          if (next.length > 400) next.shift();
-        }
-
-        return next;
-      });
-    }, 1000); // Update more frequently for live data
-
-    return () => clearInterval(interval);
-  }, [symbol, candles.length, lastLivePrice, lastLiveTime]);
-
-  return candles;
-};
-
-// DYNAMIC GRAPH
-interface GraphProps {
-  timeFrame: number;
-  symbol: string;
-  onCurrentPriceChange: (price: number) => void;
-  tpValue?: number;
-  slValue?: number;
-}
-
-const DynamicGraph: React.FC<GraphProps> = ({
-  timeFrame,
-  symbol,
-  onCurrentPriceChange,
-}) => {
-  const [history, setHistory] = useState<Candle[] | null>(null);
-  const [chartHeight, setChartHeight] = useState(
-    Math.floor(SCREEN_HEIGHT * 0.5),
-  );
-  const [selectedCandle, setSelectedCandle] = useState<Candle | null>(null);
-  const [showCandleDetails, setShowCandleDetails] = useState(false);
-  const [candleCount, setCandleCount] = useState(0); // Track candle count
-  const candleSlotWidth = 20;
-  const barWidth = candleSlotWidth * 0.4;
-
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      const res = await FetchTradeDetails(symbol, timeFrame).catch(() => null);
-      if (!isMounted) return;
-      if (res?.data && res.data.length) {
-        console.log('=======>', res?.data)
-        setHistory(res.data);
-        setCandleCount(res.data.length); // Initialize candle count
-      } else {
-        setHistory(null);
-        setCandleCount(0);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [timeFrame, symbol]);
-
-  const liveCandles = useLiveCandles(history, symbol);
-
-  // Update candle count when liveCandles changes
-  useEffect(() => {
-    if (liveCandles) {
-      setCandleCount(liveCandles.length);
-    }
-  }, [liveCandles]);
-
-  // Update current price when candles change
-  useEffect(() => {
-    if (liveCandles && liveCandles.length > 0) {
-      const currentPrice = liveCandles[liveCandles.length - 1].close;
-      onCurrentPriceChange(currentPrice);
-    }
-  }, [liveCandles, onCurrentPriceChange]);
-
-  // Calculate chart width based on candle count
-  const chartWidth = candleCount * candleSlotWidth;
-  const finalchartWeidth = SCREEN_WIDTH - chartWidth;
-
-  // Handle candle tap for showing details
-  const handleCandleTap = useCallback(
-    (candle: Candle) => {
-      if (selectedCandle === candle && showCandleDetails) {
-        // If the same candle is tapped again, hide the details
-        setShowCandleDetails(false);
-        setSelectedCandle(null);
-      } else {
-        // Show details for the tapped candle
-        setSelectedCandle(candle);
-        setShowCandleDetails(true);
-      }
-    },
-    [selectedCandle, showCandleDetails],
-  );
-
-  const onChartLayout = (e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    setChartHeight(h);
-  };
-
-  if (!liveCandles || liveCandles.length === 0) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#999' }}>Loading chart…</Text>
-      </View>
-    );
-  }
-
-  const data = liveCandles;
-  // compute price range
-  const maxPrice = Math.max(...data.map(d => d.high));
-  const minPrice = Math.min(...data.map(d => d.low));
-  const midPrice = (maxPrice + minPrice) / 2;
-  const baseRange = Math.max(1e-9, maxPrice - minPrice);
-  const zoomedRange = baseRange;
-  const zoomedMax = midPrice + zoomedRange / 1.5;
-  const zoomedMin = midPrice - zoomedRange / 1.5;
-  const priceRange = Math.max(1e-9, zoomedMax - zoomedMin);
-
-  // Get current price for buy/sell lines
-  const currentPrice = data[data.length - 1].close;
-
-  const spreads: Record<string, number> = {
-    EURUSD: 0.00008, // 0.8 pip
-    GBPUSD: 0.0001, // 1.0 pip
-    USDJPY: 0.01, // 1.0 pip
-    GBPJPY: 0.02, // 2.0 pips
-    USDCAD: 0.0001, // 1.0 pip
-    USOIL: 0.02, // 2 cents
-    USTEC: 1.0, // 1 point
-    XAUUSD: 0.5, // 50 cents
-    BTCUSD: 10, // $10
-    ETHUSD: 0.5, // $0.5
-  };
-
-  const spread = spreads[symbol] ?? 0.0001;
-
-  const buyPrice = currentPrice + spread / 2;
-  const sellPrice = currentPrice - spread / 2;
-
-  const buyLineY = ((zoomedMax - buyPrice) / priceRange) * chartHeight;
-  const sellLineY = ((zoomedMax - sellPrice) / priceRange) * chartHeight;
-
-  const levels = [zoomedMax, midPrice, zoomedMin];
-  const priceDigits = symbol === 'EURUSD' ? 4 : 2;
-
-  return (
-    <View style={{ flex: 1 }}>
-      {/* Candle Details Box */}
-      {showCandleDetails && selectedCandle && (
-        <View style={styles.candleDetailsBox}>
-          <Text style={styles.candleDetailsText}>
-            Time: {formatTimeForTooltip(selectedCandle.time)}
-          </Text>
-          <Text style={styles.candleDetailsText}>
-            Open: {selectedCandle.open.toFixed(priceDigits)}
-          </Text>
-          <Text style={styles.candleDetailsText}>
-            High: {selectedCandle.high.toFixed(priceDigits)}
-          </Text>
-          <Text style={styles.candleDetailsText}>
-            Low: {selectedCandle.low.toFixed(priceDigits)}
-          </Text>
-          <Text style={styles.candleDetailsText}>
-            Close: {selectedCandle.close.toFixed(priceDigits)}
-          </Text>
-        </View>
-      )}
-
-      {/* PRICE LABELS RIGHT */}
-      {levels.map((val, i) => {
-        const top = ((zoomedMax - val) / priceRange) * chartHeight;
-        return (
-          <Text
-            key={`rlabel-${i}`}
-            style={{
-              position: 'absolute',
-              right: 2,
-              top: clamp(top - 8, 2, chartHeight - 20),
-              fontSize: 16,
-              fontWeight: '500',
-              color: '#7c8484',
-              zIndex: 3,
-            }}
-          >
-            {val.toFixed(priceDigits)}
-          </Text>
-        );
-      })}
-
-      {/* BUY/SELL BADGES (RIGHT) */}
-      <View
-        style={{
-          position: 'absolute',
-          right: 2,
-          top: 0,
-          bottom: 0,
-          zIndex: 4,
-        }}
-        pointerEvents="none"
-      >
-        <View
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: clamp(buyLineY - 8, 2, chartHeight - 18),
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '500',
-              color: '#fff',
-              backgroundColor: '#1992FC',
-              paddingHorizontal: 11,
-              paddingVertical: 1,
-              borderTopLeftRadius: 15,
-            }}
-          >
-            {buyPrice.toFixed(priceDigits)}
-          </Text>
-        </View>
-        <View
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: clamp(sellLineY + 13, 2, chartHeight - 18),
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '500',
-              color: '#fff',
-              backgroundColor: '#ff5b5b',
-              paddingHorizontal: 11,
-              paddingVertical: 1,
-              borderBottomLeftRadius: 15,
-            }}
-          >
-            {sellPrice.toFixed(priceDigits)}
-          </Text>
-        </View>
-      </View>
-
-      {/* PLOT AREA */}
-      <View style={{ flex: 1 }} onLayout={onChartLayout}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            height: '94%',
-            position: 'relative',
-          }}
-        >
-          {/* HORIZONTAL GRID */}
-          {levels.map((val, i) => {
-            const top = ((zoomedMax - val) / priceRange) * chartHeight;
-            return (
-              <View
-                key={`grid-${i}`}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top,
-                  height: 1,
-                  backgroundColor: '#ececec',
-                }}
-              />
-            );
-          })}
-
-          {/* BUY/SELL LINES */}
-          <Svg
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-            }}
-          >
-            {/* Buy line (blue dotted) */}
-            <Line
-              x1="100%"
-              y1={buyLineY + 10}
-              x2={finalchartWeidth - 118}
-              y2={buyLineY + 10}
-              stroke="#1992FC"
-              strokeWidth="1"
-              strokeDasharray="4,4"
-            />
-
-            {/* Sell line (red dotted) */}
-            <Line
-              x1="100%"
-              y1={sellLineY + 14}
-              x2={finalchartWeidth - 118}
-              y2={sellLineY + 14}
-              stroke="rgba(255, 91, 91, 0.7)"
-              strokeWidth="1"
-              strokeDasharray="4,4"
-            />
-          </Svg>
-          {/* CANDLES */}
-          {data.map((c, idx) => {
-            const isBull = c.close >= c.open;
-            const bodyHeight = Math.max(
-              4,
-              Math.abs(((c.close - c.open) / priceRange) * chartHeight),
-            );
-            const wickHeight = ((c.high - c.low) / priceRange) * chartHeight;
-            const bottomWick = ((c.low - zoomedMin) / priceRange) * chartHeight;
-            const bottomBody =
-              ((Math.min(c.open, c.close) - zoomedMin) / priceRange) *
-              chartHeight;
-
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={{
-                  width: candleSlotWidth,
-                  alignItems: 'center',
-                  position: 'relative',
-                  height: '95%',
-                }}
-                onPress={() => handleCandleTap(c)}
-                activeOpacity={0.7}
-              >
-                {/* Wick */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: bottomWick,
-                    width: 2,
-                    height: wickHeight,
-                    backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
-                    borderRadius: 2,
-                  }}
-                />
-                {/* Body */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: bottomBody,
-                    width: barWidth,
-                    height: bodyHeight,
-                    backgroundColor: isBull ? '#1992FC' : '#ff5b5b',
-                    borderRadius: 2,
-                  }}
-                />
-                {(() => {
-                  const step = Math.max(1, Math.ceil(8));
-                  if (idx % step === 0) {
-                    return (
-                      <Text
-                        style={{
-                          position: 'absolute',
-                          bottom: -10,
-                          fontSize: 11,
-                          color: '#9b9b9b',
-                          width: 70,
-                          fontWeight: '500',
-                        }}
-                      >
-                        {/* {formatDate(c.time)} */}
-                      </Text>
-                    );
-                  }
-                  return null;
-                })()}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </View>
-  );
-};
-
 const getTradeCounts = async (
   symbol: string,
   user: 'real' | 'demo',
@@ -1010,6 +516,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     (state: any) => state?.balance?.amount ?? 0,
   );
   const dispatch = useDispatch();
+
   const [timeFrame, setTimeFrame] = useState(7);
   const [showTimeFrameModal, setShowTimeFrameModal] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(0);
@@ -1031,6 +538,10 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const [openOrderModalTitle, setOpenOrderModalTitle] = useState('');
   const [openorderModalMessage, setOpenOrderModalMessage] = useState('');
 
+  const historyData = FetchTradeDetails(trade.name, 7, price => {
+    setCurrentPrice(price);
+  });
+
   const handleTimeFrameSelect = (v: number) => {
     setTimeFrame(v);
     setShowTimeFrameModal(false);
@@ -1042,6 +553,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const handleCurrentPriceChange = useCallback((price: number) => {
     setCurrentPrice(price);
   }, []);
+
   const handleTradeAction = (type: 'buy' | 'sell') => {
     setTradeType(type);
     setShowTradeModal(true);
@@ -1092,19 +604,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     user: 'real' | 'demo', // ✅ Add user mode as a parameter
   ) => {
     try {
-      const tradeCost = lotSize * currentPrice;
-
-      // ✅ Check if user has enough balance
-      // if (walletBalance < tradeCost) {
-      //   Alert.alert(
-      //     'Insufficient Balance',
-      //     `You need at least ${tradeCost.toFixed(
-      //       2,
-      //     )} but you only have ${walletBalance.toFixed(2)}`,
-      //   );
-      //   return;
-      // }
-
       const tradeData = {
         id: Date.now().toString(),
         symbol: trade.name,
@@ -1124,8 +623,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
       const updatedTrades = [tradeData, ...existingTrades];
       await AsyncStorage.setItem('tradeHistory', JSON.stringify(updatedTrades));
-
-      // dispatch(withdraw(tradeCost));
 
       setShowTradeModal(false);
 
@@ -1160,7 +657,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
         totalProfitLoss: counts.totalProfitLoss,
       }));
     };
-
     refreshProfitLoss();
   }, [currentPrice, trade.name]);
 
@@ -1390,25 +886,13 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           {/* SECTION CONTENT */}
           <View style={styles.sectionBox}>
             {activeSection === 'Chart' && (
-              <DynamicGraph
-                timeFrame={timeFrame}
-                symbol={trade.name}
-                onCurrentPriceChange={handleCurrentPriceChange}
-              />
+              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
             )}
             {activeSection === 'Analytics' && (
-              <DynamicGraph
-                timeFrame={timeFrame}
-                symbol={trade.name}
-                onCurrentPriceChange={handleCurrentPriceChange}
-              />
+              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
             )}
             {activeSection === 'Specification' && (
-              <DynamicGraph
-                timeFrame={timeFrame}
-                symbol={trade.name}
-                onCurrentPriceChange={handleCurrentPriceChange}
-              />
+              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
             )}
           </View>
 
@@ -1620,23 +1104,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
-  volumeControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
   volumeButton: {
     alignItems: 'center',
-    // justifyContent: 'center',
   },
   volumeButtonText: {
     fontSize: 25,
-    // fontWeight: 'bold',
     color: '#333',
   },
   input: {
-    // flex:1,
     backgroundColor: 'white',
     borderRadius: 8,
     height: 43,
@@ -1647,40 +1122,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  inputText: {},
-  percentBlock: {
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percentTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  percentPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  percentSub: {
-    fontSize: 12,
-    color: '#fff',
-  },
-  spreadBox: {
-    backgroundColor: '#111',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    marginHorizontal: 4,
-    borderRadius: 6,
-  },
-  spreadText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
   instrumentIconCircle: {
     width: 26,
     height: 26,
@@ -1688,10 +1129,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    // marginTop: -16,
     backgroundColor: '#FFFFFF',
   },
-
   containtView: {
     backgroundColor: '#fff',
     borderTopRightRadius: 15,
@@ -1740,7 +1179,6 @@ const styles = StyleSheet.create({
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    // borderRadius: 8,
     marginHorizontal: 12,
   },
   activeTab: {
@@ -1749,7 +1187,6 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     paddingHorizontal: 8,
     marginHorizontal: 8,
-    // width: '100%'
   },
   tabText: {
     fontSize: 16,
@@ -1761,13 +1198,11 @@ const styles = StyleSheet.create({
   },
   sectionBox: {
     height: '46%',
-    marginBottom: 30,
     marginHorizontal: 0,
     backgroundColor: '#fff',
   },
   toolsRow: {
     flexDirection: 'row',
-    // justifyContent: 'center',
     paddingVertical: 9,
     backgroundColor: '#fff',
     marginBottom: 4,
@@ -1816,17 +1251,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
   },
-
-  percentBarLeft: {
-    backgroundColor: '#ff5b5b',
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
-  },
-  percentBarRight: {
-    backgroundColor: '#1992FC',
-    borderTopLeftRadius: 4,
-    borderBottomLeftRadius: 4,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1834,6 +1258,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+
   modalContent: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -1851,13 +1276,8 @@ const styles = StyleSheet.create({
   timeFrameItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    // borderBottomWidth: 1,
-    // borderBottomColor: '#f0f0f0',
   },
-  selectedTimeFrame: {
-    // backgroundColor: '#1992FC',
-    // borderRadius: 6,
-  },
+
   timeFrameText: {
     fontSize: 16,
     color: '#111',
@@ -1866,21 +1286,7 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '500',
   },
-  candleDetailsBox: {
-    position: 'absolute',
-    top: 25,
-    left: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 12,
-    borderRadius: 6,
-    zIndex: 100,
-  },
-  candleDetailsText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
+
   tradeModalContent: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -1895,13 +1301,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#333',
   },
-  currentPriceText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#555',
-  },
   inputContainer: {
     marginBottom: 20,
   },
@@ -1911,18 +1310,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#393d3e',
   },
-
   calculatedValues: {
     backgroundColor: '#f9f9f9',
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-  },
-  calculatedText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
   },
   tradeModalButtons: {
     flexDirection: 'row',
@@ -1950,7 +1342,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#36373b',
-    // fontWeight: 'bold',
     fontSize: 12,
     top: 7,
   },

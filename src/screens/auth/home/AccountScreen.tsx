@@ -1116,6 +1116,7 @@ const AccountsUI: React.FC<{
             Array.isArray(historyData.data) &&
             historyData.data.length > 0
           ) {
+            console.log('historyDta', historyData);
             const latestCandle = historyData.data[historyData.data.length - 1];
             prices[symbol] = latestCandle.close || 0;
           } else {
@@ -1316,6 +1317,9 @@ const AccountsUI: React.FC<{
                 </Text>
               </View>
               {Object.entries(grouped).map(([symbol, trades]) => {
+                 if (!Array.isArray(trades) || trades.length === 0) {
+                  return null;
+                }
                 const totalGroupPnL = calculateTotalPnL(trades, currentPrices);
                 const totalLot = trades.reduce((sum, t) => sum + t.lotSize, 0);
                 const types = new Set(trades.map(t => t.type));
