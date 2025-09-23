@@ -158,7 +158,7 @@ const TradeScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Account Button */}
-      <View style={styles.accountButtonContainer}>
+      {/* <View style={styles.accountButtonContainer}>
         <TouchableOpacity style={styles.accountButton}>
           <View style={styles.realButton}>
             <Text style={styles.accountButtonText}>Real</Text>
@@ -166,7 +166,7 @@ const TradeScreen: React.FC = () => {
           <Text style={styles.accountBalance}>{balance.toFixed(2)} USD</Text>
           <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Header */}
       <View style={styles.headerRow}>

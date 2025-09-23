@@ -16,18 +16,17 @@ interface TradeInputForPL {
 }
 
 const CONTRACT_SIZES: Record<string, number> = {
-  EURUSD: 1,
-  GBPUSD: 1,
-  USDJPY: 0.68,
-  GBPJPY: 0.68,
-  USDCAD: 0.72,
+  EURUSD: 100000,
+  GBPUSD: 100000,
+  USDJPY: 677.01,
+  GBPJPY: 677.19,
+  USDCAD: 72327.24,
   BTCUSD: 1,       
-  ETHUSD: 0.10,      
+  ETHUSD: 10,      
   USTEC: 1,
-  USOIL: 1,
+  USOIL: 1000,
   XAUUSD: 100,
 };
-
 
 export const calculateProfit = ({
   symbol,
@@ -316,10 +315,10 @@ function getIconForSymbol(symbol: string): string {
 }
 
 function generateSparkline(isPositive: boolean): number[] {
-  const baseValue = 1;
+  const baseValue = 100;
   const sparkline: number[] = [];
   
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 12; i++) {
     if (isPositive) {
       sparkline.push(baseValue + i + Math.random() * 2);
     } else {

@@ -13,29 +13,27 @@ interface SparklineChartProps {
 
 const SparklineChart: React.FC<SparklineChartProps> = ({
   data,
-  width = 80,
+  width = 60,
   height = 20,
   color = '#1E90FF',
   showReferenceLine = true,
-  animationDuration = 7000,
+  animationDuration = 1000, // animation duration
 }) => {
-  const [animatedData, setAnimatedData] = useState<number[]>(data);
-  const prevDataRef = useRef<number[]>(data);
+  const [animatedData, setAnimatedData] = useState<number[]>([]);
+  const prevDataRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (!data || data.length < 2) return;
 
-    const prevData = prevDataRef.current;
+    prevDataRef.current = data.map(() => 0); // start animation from 0
     const start = performance.now();
 
     const animate = (time: number) => {
       const progress = Math.min((time - start) / animationDuration, 1);
-
-      // ✅ EaseOutCubic → smooth + slower feeling
-      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
 
       const interpolated = data.map((val, i) => {
-        const prev = prevData[i] ?? val;
+        const prev = prevDataRef.current[i];
         return prev + (val - prev) * easedProgress;
       });
 
@@ -49,7 +47,8 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
     };
 
     requestAnimationFrame(animate);
-  }, [data, animationDuration]);
+    // ⚠️ Only run once on mount
+  }, []);
 
   if (!animatedData || animatedData.length < 2) {
     return <View style={[styles.container, { width, height }]} />;
@@ -59,19 +58,16 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   const average =
     animatedData.reduce((sum, val) => sum + val, 0) / animatedData.length;
 
-  // Only values above average
   const diffs = animatedData.map(v => Math.max(v - average, 0));
   const maxDiff = Math.max(...diffs) || 1;
 
-  // Normalize to chart space
   const normalizedData = animatedData.map((value, index) => {
-    const x = (index / (animatedData.length - 1)) * width - 40;
+    const x = (index / (animatedData.length - 1)) * width - 30;
     const diff = Math.max(value - average, 0);
     const y = height - (diff / maxDiff) * height;
     return { x, y };
   });
 
-  // Path string
   const pathData = normalizedData
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
