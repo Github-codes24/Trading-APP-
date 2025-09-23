@@ -17,7 +17,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   height = 20,
   color = '#1E90FF',
   showReferenceLine = true,
-  animationDuration = 2000,
+  animationDuration = 7000,
 }) => {
   const [animatedData, setAnimatedData] = useState<number[]>(data);
   const prevDataRef = useRef<number[]>(data);
@@ -31,10 +31,12 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
     const animate = (time: number) => {
       const progress = Math.min((time - start) / animationDuration, 1);
 
-      // Interpolate each point between prevData and new data
+      // ✅ EaseOutCubic → smooth + slower feeling
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+
       const interpolated = data.map((val, i) => {
         const prev = prevData[i] ?? val;
-        return prev + (val - prev) * progress;
+        return prev + (val - prev) * easedProgress;
       });
 
       setAnimatedData(interpolated);
@@ -42,7 +44,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        prevDataRef.current = data; // lock in new data
+        prevDataRef.current = data;
       }
     };
 
@@ -61,7 +63,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
   const diffs = animatedData.map(v => Math.max(v - average, 0));
   const maxDiff = Math.max(...diffs) || 1;
 
-  // Normalize to chart
+  // Normalize to chart space
   const normalizedData = animatedData.map((value, index) => {
     const x = (index / (animatedData.length - 1)) * width - 40;
     const diff = Math.max(value - average, 0);
@@ -69,7 +71,7 @@ const SparklineChart: React.FC<SparklineChartProps> = ({
     return { x, y };
   });
 
-  // Path string 
+  // Path string
   const pathData = normalizedData
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');

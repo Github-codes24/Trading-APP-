@@ -300,7 +300,6 @@ const TradeScreen: React.FC = () => {
                       <SparklineChart
                         data={item.sparkline}
                         color={item.changeColor}
-                        animationDuration={25000}
                         width={80}
                         height={25}
                       />

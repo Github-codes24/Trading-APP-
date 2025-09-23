@@ -316,10 +316,10 @@ function getIconForSymbol(symbol: string): string {
 }
 
 function generateSparkline(isPositive: boolean): number[] {
-  const baseValue = 100;
+  const baseValue = 1;
   const sparkline: number[] = [];
   
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 5; i++) {
     if (isPositive) {
       sparkline.push(baseValue + i + Math.random() * 2);
     } else {
