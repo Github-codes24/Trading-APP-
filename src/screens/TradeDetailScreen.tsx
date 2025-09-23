@@ -67,27 +67,6 @@ const formatInstrumentName = (name: string) => {
   return name;
 };
 
-const getBuySell = (candles: Candle[], symbol: string) => {
-  if (!candles || candles.length === 0) return null;
-
-  const config = instrumentConfig[symbol] || instrumentConfig.DEFAULT;
-
-  const lastCandle = candles[candles.length - 1];
-  const midPrice = lastCandle.close;
-
-  // Calculate spread dynamically
-  const spread = Math.max(midPrice * config.spreadFactor, config.minSpread);
-
-  const buyPrice = parseFloat(
-    (midPrice + spread / 2).toFixed(config.pricePrecision),
-  );
-  const sellPrice = parseFloat(
-    (midPrice - spread / 2).toFixed(config.pricePrecision),
-  );
-
-  return { buyPrice, sellPrice };
-};
-
 // TIMEFRAMES
 const timeFrames = [{ label: '5 m', value: 7 }];
 
@@ -550,9 +529,9 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const getTimeFrameLabel = () =>
     timeFrames.find(tf => tf.value === timeFrame)?.label || '7d';
 
-  const handleCurrentPriceChange = useCallback((price: number) => {
-    setCurrentPrice(price);
-  }, []);
+  // const handleCurrentPriceChange = useCallback((price: number) => {
+  //   setCurrentPrice(price);
+  // }, []);
 
   const handleTradeAction = (type: 'buy' | 'sell') => {
     setTradeType(type);
@@ -664,7 +643,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* TOP (BALANCE BAR) */}
-        <View style={styles.accountButtonContainer}>
+        {/* <View style={styles.accountButtonContainer}>
           <TouchableOpacity style={styles.accountButton}>
             <View style={styles.realButton}>
               <Text style={styles.accountButtonText}>Real</Text>
@@ -674,7 +653,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
             </Text>
             <Icon name="more-vertical" size={16} color="#6B7280" />
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* HEADER */}
         <View style={styles.containtView}>
@@ -886,13 +865,22 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
           {/* SECTION CONTENT */}
           <View style={styles.sectionBox}>
             {activeSection === 'Chart' && (
-              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
+              <CustomLineChart
+                data={FetchTradeDetails(trade.name, 7)}
+                currentPrice={currentPrice}
+              />
             )}
             {activeSection === 'Analytics' && (
-              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
+              <CustomLineChart
+                data={FetchTradeDetails(trade.name, 7)}
+                currentPrice={currentPrice}
+              />
             )}
             {activeSection === 'Specification' && (
-              <CustomLineChart data={FetchTradeDetails(trade.name, 7)} />
+              <CustomLineChart
+                data={FetchTradeDetails(trade.name, 7)}
+                currentPrice={currentPrice}
+              />
             )}
           </View>
 
@@ -1047,7 +1035,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
 
 // STYLES
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f8f8' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   accountButtonContainer: { alignItems: 'center', paddingBottom: 8 },
   accountButton: {
     flexDirection: 'row',
@@ -1135,7 +1123,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopRightRadius: 15,
     borderTopLeftRadius: 15,
-    height: '93%',
+    height: '100%',
     width: '100%',
   },
   header: {

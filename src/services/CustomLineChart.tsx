@@ -25,7 +25,13 @@ const formatDate = (dateStr: string): string => {
   return `${hours}:${minutes}`;
 };
 
-export const CustomLineChart = ({ data }: { data: Candle[] }) => {
+export const CustomLineChart = ({
+  data,
+  currentPrice,
+}: {
+  data: Candle[];
+  currentPrice?: number;
+}) => {
   if (!data || data.length === 0) return null;
 
   // Extract close prices
@@ -139,7 +145,7 @@ export const CustomLineChart = ({ data }: { data: Candle[] }) => {
           borderTopLeftRadius: 15,
         }}
       >
-        {lastPoint.value.toFixed(3)}
+        {typeof currentPrice === "number" ? currentPrice.toFixed(4) : ""}
       </Text>
 
       <Text
@@ -156,7 +162,7 @@ export const CustomLineChart = ({ data }: { data: Candle[] }) => {
           borderBottomLeftRadius: 15,
         }}
       >
-        {lastPoint.value.toFixed(3)}
+        {typeof currentPrice === "number" ? currentPrice.toFixed(4) : ""}
       </Text>
 
       {/* X-axis labels */}
