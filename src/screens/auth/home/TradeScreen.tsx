@@ -30,6 +30,7 @@ const TradeScreen: React.FC = () => {
 
     const handleLiveData = (data: TradingInstrument[]) => {
       if (Array.isArray(data) && data.length > 0) {
+        console.log('symbol', data)
         setTradingData(data);
         setConnectionError(false);
       }

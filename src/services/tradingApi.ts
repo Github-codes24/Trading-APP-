@@ -127,7 +127,7 @@ class TradingApiService {
             // Transform the object into an array of TradingInstrument objects
             const instruments: TradingInstrument[] = Object.entries(data).map(([symbol, details]: [string, any]) => {
               // Extract bid as the price
-              const price = details.bid?.toString() || '0.0';
+              const price = details.open?.toString() || '0.0';
               
               // Create a random change percent for visualization
               const changePercent = (Math.random() * 2 - 1) * 0.5; // Random between -0.5% and +0.5%
