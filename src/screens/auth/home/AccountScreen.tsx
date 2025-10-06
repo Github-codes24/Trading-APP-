@@ -1679,75 +1679,70 @@ const AccountsUI: React.FC<{
         </View>
       );
     }
-    if (positionsTab === 'Closed') {
-      const grouped = groupTradesByDate(closedTrades);
-      return Object.keys(grouped).length > 0 ? (
-        <ScrollView style={styles.positionsWrap}>
-          {Object.entries(grouped).map(([date, trades]) => {
-            const totalPnL = trades.reduce((sum, trade) => {
-              const pnl = trade.closePrice
-                ? trade.type === 'buy'
-                  ? (trade.closePrice - trade.price) * trade.lotSize
-                  : (trade.price - trade.closePrice) * trade.lotSize
-                : 0;
-              return sum + pnl;
-            }, 0);
+ if (positionsTab === 'Closed') {
+  const grouped = groupTradesByDate(closedTrades);
+  return Object.keys(grouped).length > 0 ? (
+    <ScrollView style={styles.positionsWrap}>
+      {Object.entries(grouped).map(([date, trades]) => {
+        const totalPnL = trades.reduce((sum, trade) => {
+          return sum + calculateProfit({
+            symbol: trade.symbol,
+            openPrice: trade.price,
+            closePrice: trade.closePrice || trade.price,
+            lotSize: trade.lotSize,
+            tradeType: trade.type,
+          });
+        }, 0);
 
-            return (
-              <View key={date} style={{ marginBottom: 12 }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingVertical: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '500',
-                      color: COLORS.text,
-                    }}
-                  >
-                    {formatDate(date)}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '500',
-                      color: totalPnL >= 0 ? COLORS.profit : COLORS.loss,
-                    }}
-                  >
-                    {totalPnL.toLocaleString('en-IN', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    USD
-                  </Text>
-                </View>
-                {trades.map(trade => (
-                  <TouchableOpacity
-                    key={trade.id}
-                    onPress={() => handleTradeItemPress(trade)}
-                    activeOpacity={0.7}
-                  >
-                    <TradeItem
-                      trade={trade}
-                      currentPrice={trade.closePrice || trade.price}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            );
-          })}
-        </ScrollView>
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyTitle}>No closed orders</Text>
-        </View>
-      );
-    }
+        return (
+          <View key={date} style={{ marginBottom: 12 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 12,
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.text }}>
+                {formatDate(date)}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '500',
+                  color: totalPnL >= 0 ? COLORS.profit : COLORS.loss,
+                }}
+              >
+                {totalPnL >= 0 ? '+' : ''}
+                {totalPnL.toLocaleString('en-IN', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })} USD
+              </Text>
+            </View>
+            {trades.map(trade => (
+              <TouchableOpacity
+                key={trade.id}
+                onPress={() => handleTradeItemPress(trade)}
+                activeOpacity={0.7}
+              >
+                <TradeItem
+                  trade={trade}
+                  currentPrice={trade.closePrice || trade.price}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      })}
+    </ScrollView>
+  ) : (
+    <View style={styles.emptyStateContainer}>
+      <Text style={styles.emptyTitle}>No closed orders</Text>
+    </View>
+  );
+}
     return null;
   }, [
     positionsTab,
