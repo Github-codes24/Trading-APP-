@@ -4,16 +4,14 @@
 /* eslint-disable react/self-closing-comp */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Modal,
   FlatList,
-  LayoutChangeEvent,
   TextInput,
   Alert,
   Image,
@@ -22,12 +20,10 @@ import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Line } from 'react-native-svg';
 import { calculateProfit, USER_MODE } from '../services/tradingApi';
 import { CustomLineChart } from '../services/CustomLineChart';
 
 const WS_URL_HISTORY = 'ws://13.201.33.113:8000';
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface Candle {
   time: string;
@@ -74,7 +70,7 @@ const timeFrames = [{ label: '5 m', value: 7 }];
 export const FetchTradeDetails = (
   symbol: string,
   days: number,
-  onCurrentPriceChange?: (price: number) => void, // Add callback for price updates
+  onCurrentPriceChange?: (price: number) => void,
 ) => {
   const [history, setHistory] = useState<Candle[]>([]);
 
@@ -94,25 +90,18 @@ export const FetchTradeDetails = (
         try {
           const msg = JSON.parse(event.data);
 
-          console.log('history', msg);
+          // console.log('history', msg);
           if (msg.type === 'history_5m' && Array.isArray(msg.data)) {
-            // Load initial history
             setHistory(msg.data);
-
-            // Set current price from last candle
             if (msg.data.length > 0 && onCurrentPriceChange) {
               onCurrentPriceChange(msg.data[msg.data.length - 1].close);
             }
           } else if (msg.type === 'live' && msg.candle) {
-            // Append live candle and update current price
             setHistory(prev => {
               const newHistory = [...prev, msg.candle];
-
-              // Update current price whenever a new candle is added
               if (onCurrentPriceChange) {
                 onCurrentPriceChange(msg.candle.close);
               }
-
               return newHistory;
             });
           }
@@ -216,63 +205,33 @@ const TradeModal: React.FC<TradeModalProps> = ({
   symbol,
 }) => {
   const [lotSize, setLotSize] = useState<string>('1');
-  const [calculatedValues, setCalculatedValues] = useState<{
-    profit: number;
-    points: number;
-    rsc: number;
-  } | null>(null);
 
-  const calculateTradeValues = useCallback(
-    (size: string) => {
-      const lot = parseFloat(size) || 0;
-      if (lot <= 0) {
-        setCalculatedValues(null);
-        return;
-      }
-
-      const baseSymbol = symbol.substring(0, 3).toUpperCase();
-
-      let profit = 0;
-      let points = 0;
-      let rsc = 0;
-
-      if (baseSymbol === 'VAL') {
-        points = lot * 100;
-        profit = points * 1;
-        rsc = profit * 0.05;
-      } else if (['FUN', 'GEN', 'USO'].includes(baseSymbol)) {
-        const unitSize = 100000;
-        points = lot * unitSize;
-
-        if (baseSymbol === 'FUN' || baseSymbol === 'GEN') {
-          profit = points * 0.004;
-        } else if (baseSymbol === 'USO') {
-          profit = points * 0.02;
-        }
-
-        rsc = profit * 0.15;
-      } else if (symbol === 'BTCUSD') {
-        rsc = lot;
-        profit = rsc * currentPrice;
-        points = profit / 0.01;
-      } else {
-        points = lot * 100;
-        profit = points * 0.01;
-        rsc = profit * 0.1;
-      }
-
-      setCalculatedValues({
-        profit,
-        points,
-        rsc,
-      });
-    },
-    [symbol, currentPrice],
-  );
-
-  useEffect(() => {
-    calculateTradeValues(lotSize);
-  }, [lotSize, calculateTradeValues]);
+  const getSymbolSettings = (symbol: string) => {
+    switch (symbol) {
+      case 'EURUSD':
+        return { feePerLot: 10.00, marginPerLot: 266.50, leverage: 500 };
+      case 'GBPUSD':
+        return { feePerLot: 10.00, marginPerLot: 266.50, leverage: 500 };
+      case 'USDJPY':
+        return { feePerLot: 6.57, marginPerLot: 200.00, leverage: 500 };
+      case 'GBPJPY':
+        return { feePerLot: 14.45, marginPerLot: 266.46, leverage: 500 };
+      case 'USDCAD':
+        return { feePerLot: 10.71, marginPerLot: 200.00, leverage: 500 };
+      case 'BTCUSD':
+        return { feePerLot: 18.0, marginPerLot: 288.70, leverage: 400 };
+      case 'ETHUSD':
+        return { feePerLot: 1.40, marginPerLot: 10.46, leverage: 400 };
+      case 'USTEC':
+        return { feePerLot: 0.79, marginPerLot: 61.77, leverage: 400 };
+      case 'USOIL':
+        return { feePerLot: 18.00, marginPerLot: 59.64, leverage: 1000 };
+      case 'XAUUSD':
+        return { feePerLot: 16.00, marginPerLot: 815.62, leverage: 500 };
+      default:
+        return { feePerLot: 10.00, marginPerLot: 266.50, leverage: 500 };
+    }
+  };
 
   const handleIncrement = () => {
     const current = parseFloat(lotSize) || 0;
@@ -296,6 +255,19 @@ const TradeModal: React.FC<TradeModalProps> = ({
     onConfirm(size, tradeType);
     setLotSize('1');
   };
+
+  // 🧮 Calculate Fees and Margin dynamically
+  const { fees, margin, leverage } = useMemo(() => {
+    const settings = getSymbolSettings(symbol);
+    const size = parseFloat(lotSize) || 0;
+    const feesValue = settings.feePerLot * size;
+    const marginValue = settings.marginPerLot * size;
+    return {
+      fees: feesValue.toFixed(2),
+      margin: marginValue.toFixed(2),
+      leverage: settings.leverage,
+    };
+  }, [lotSize, symbol]);
 
   return (
     <Modal
@@ -323,6 +295,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
               }}
             ></View>
           </View>
+
           <Text style={styles.tradeModalTitle}>Regular</Text>
 
           <View style={styles.inputContainer}>
@@ -382,6 +355,8 @@ const TradeModal: React.FC<TradeModalProps> = ({
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Dynamic Fees & Margin */}
           <View
             style={{
               flex: 1,
@@ -391,7 +366,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
             }}
           >
             <Text style={{ bottom: -12, color: '#797979', fontSize: 12 }}>
-              Fees: 0.16 USD | Margin: 1.77 USD(1:2000)
+              Fees: {fees} USD | Margin: {margin} USD (1:{leverage})
             </Text>
             <Icon
               name="info"
@@ -529,10 +504,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const getTimeFrameLabel = () =>
     timeFrames.find(tf => tf.value === timeFrame)?.label || '7d';
 
-  // const handleCurrentPriceChange = useCallback((price: number) => {
-  //   setCurrentPrice(price);
-  // }, []);
-
   const handleTradeAction = (type: 'buy' | 'sell') => {
     setTradeType(type);
     setShowTradeModal(true);
@@ -553,7 +524,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
     }
   };
 
-  // Helper to map country codes to flags
   const getFlagIcon = (currency: string) => {
     switch (currency) {
       case 'USD':
@@ -580,7 +550,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   const handleTradeConfirm = async (
     lotSize: number,
     type: 'buy' | 'sell',
-    user: 'real' | 'demo', // ✅ Add user mode as a parameter
+    user: 'real' | 'demo',
   ) => {
     try {
       const tradeData = {
@@ -608,7 +578,7 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
       setOpenOrderModalTitle('Order Open');
       setOpenOrderModalMessage(
         `${
-          tradeType === 'buy' ? 'Buy' : '123456'
+          tradeType === 'buy' ? 'Buy' : 'Sell'
         } ${lotSize} lots of ${formatInstrumentName(
           trade.name,
         )} at ${currentPrice.toFixed(2)}`,
@@ -642,19 +612,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
-        {/* TOP (BALANCE BAR) */}
-        {/* <View style={styles.accountButtonContainer}>
-          <TouchableOpacity style={styles.accountButton}>
-            <View style={styles.realButton}>
-              <Text style={styles.accountButtonText}>Real</Text>
-            </View>
-            <Text style={styles.accountBalance}>
-              {walletBalance.toFixed(2)} USD
-            </Text>
-            <Icon name="more-vertical" size={16} color="#6B7280" />
-          </TouchableOpacity>
-        </View> */}
-
         {/* HEADER */}
         <View style={styles.containtView}>
           <View style={styles.header}>
@@ -718,7 +675,6 @@ const TradeDetailScreen: React.FC<TradeDetailScreenProps> = ({ route }) => {
                 source={require('../assets/images/alarm.png')}
                 style={{ width: 22, height: 22, marginLeft: 12 }}
               />
-
               <Image
                 source={require('../assets/images/calculator.png')}
                 style={{ width: 20, height: 20, marginLeft: 12 }}
@@ -1374,6 +1330,7 @@ const styles = StyleSheet.create({
 });
 
 export default TradeDetailScreen;
+
 function setOpenTradeModalVisible(arg0: boolean) {
   throw new Error('Function not implemented.');
 }
