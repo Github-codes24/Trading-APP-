@@ -102,15 +102,15 @@ const getPerformanceData = (accountNumber: string) => {
   }
 };
 
-// Default custom dates for all accounts
+// Default empty custom dates for all accounts
 const defaultAllCustomDates = [
-  { date: '07/10', profit: '200', loss: '100' },
-  { date: '08/10', profit: '150', loss: '50' },
-  { date: '09/10', profit: '300', loss: '200' },
-  { date: '10/10', profit: '100', loss: '0' },
-  { date: '11/10', profit: '250', loss: '150' },
-  { date: '12/10', profit: '180', loss: '80' },
-  { date: '13/10', profit: '220', loss: '120' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
+  { date: '', profit: '', loss: '' },
 ];
 
 // Default empty custom dates for specific account
@@ -219,8 +219,9 @@ const PerformanceScreen: React.FC = () => {
   const [allCustomDates, setAllCustomDates] = useState(defaultAllCustomDates);
   const [specificCustomDates, setSpecificCustomDates] = useState(defaultCustomDates);
   const [customDates, setCustomDates] = useState(defaultAllCustomDates);
-  const [traderName, setTraderName] = useState('John Doe');
-  const [accountNumber, setAccountNumber] = useState('#123456');
+  const [pendingCustomDates, setPendingCustomDates] = useState(defaultAllCustomDates);
+  const [traderName, setTraderName] = useState('RISING TRADERS');
+  const [accountNumber, setAccountNumber] = useState('#79555989');
   const [performanceData, setPerformanceData] = useState(getAllPerformanceData());
 
   // Load account details from AsyncStorage on mount
@@ -333,13 +334,14 @@ const PerformanceScreen: React.FC = () => {
   // Handle date range selection
   const handleSelectRange = (range: string) => {
     setPendingRange(range);
+    setPendingCustomDates(customDates.map(d => ({ ...d })));
     setModalVisible(false);
     setCustomDateModalVisible(true);
   };
 
   // Handle custom date input
   const handleCustomDateInput = async () => {
-    const isValid = customDates.every(
+    const isValid = pendingCustomDates.every(
       item =>
         item.date &&
         item.profit &&
@@ -355,12 +357,13 @@ const PerformanceScreen: React.FC = () => {
 
     try {
       if (selectedMode === 'all') {
-        setAllCustomDates(customDates);
-        await AsyncStorage.setItem('allCustomDates', JSON.stringify(customDates));
+        setAllCustomDates(pendingCustomDates);
+        await AsyncStorage.setItem('allCustomDates', JSON.stringify(pendingCustomDates));
       } else {
-        setSpecificCustomDates(customDates);
-        await AsyncStorage.setItem('specificCustomDates', JSON.stringify(customDates));
+        setSpecificCustomDates(pendingCustomDates);
+        await AsyncStorage.setItem('specificCustomDates', JSON.stringify(pendingCustomDates));
       }
+      setCustomDates(pendingCustomDates);
       setSelectedRange(pendingRange);
       setCustomDateModalVisible(false);
     } catch (error) {
@@ -375,11 +378,13 @@ const PerformanceScreen: React.FC = () => {
     setPendingRange(selectedRange);
   };
 
-  // Update custom date field
-  const updateCustomDateField = (index: number, field: string, value: string) => {
-    const updatedDates = [...customDates];
-    updatedDates[index] = { ...updatedDates[index], [field]: value };
-    setCustomDates(updatedDates);
+  // Update pending custom date field
+  const updatePendingCustomDateField = (index: number, field: string, value: string) => {
+    setPendingCustomDates(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   const xAxisLabels = getXAxisLabels(displayedData);
@@ -769,7 +774,7 @@ const PerformanceScreen: React.FC = () => {
               </View>
 
               <ScrollView style={{ width: '100%' }}>
-                {customDates.map((item, index) => (
+                {pendingCustomDates.map((item, index) => (
                   <View key={index} style={styles.tableRow}>
                     <TextInput
                       style={[
@@ -780,7 +785,7 @@ const PerformanceScreen: React.FC = () => {
                       placeholderTextColor="#d0d2d7ff"
                       value={item.date}
                       onChangeText={text =>
-                        updateCustomDateField(index, 'date', text)
+                        updatePendingCustomDateField(index, 'date', text)
                       }
                     />
                     <TextInput
@@ -789,7 +794,7 @@ const PerformanceScreen: React.FC = () => {
                       keyboardType="numeric"
                       value={item.profit}
                       onChangeText={text =>
-                        updateCustomDateField(index, 'profit', text)
+                        updatePendingCustomDateField(index, 'profit', text)
                       }
                     />
                     <TextInput
@@ -798,7 +803,7 @@ const PerformanceScreen: React.FC = () => {
                       keyboardType="numeric"
                       value={item.loss}
                       onChangeText={text =>
-                        updateCustomDateField(index, 'loss', text)
+                        updatePendingCustomDateField(index, 'loss', text)
                       }
                     />
                   </View>
