@@ -116,16 +116,16 @@ export const CustomLineChart = ({
           x2={chartWidth}
           y2={lastPoint.y}
           stroke="#1992FC"
-          strokeWidth="1"
+          strokeWidth="1.5"
           strokeDasharray="4,4"
         />
          <Line
           x1={lastPoint.x}
-          y1={lastPoint.y + 5}
+          y1={lastPoint.y + 1.5}
           x2={chartWidth}
-          y2={lastPoint.y + 5}
+          y2={lastPoint.y + 1.5}
           stroke="#ff5b5b"
-          strokeWidth="1"
+          strokeWidth="1.5"
           strokeDasharray="4,4"
         />
       </Svg>
@@ -152,7 +152,7 @@ export const CustomLineChart = ({
         style={{
           position: "absolute",
           left: chartWidth,
-          top: lastPoint.y + 25,
+          top: lastPoint.y + 19,
           fontSize: 11,
           fontWeight: "bold",
           color: "black",

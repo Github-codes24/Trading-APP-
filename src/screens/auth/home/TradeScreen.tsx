@@ -7,30 +7,32 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Feather';
 
 import { tradingApiService, TradingInstrument } from '../../../services';
 import SparklineChart from '../../../components/SparklineChart';
-import { RootState } from '../../../store';
 import { Image } from 'react-native';
 
 const TradeScreen: React.FC = () => {
   const [tradingData, setTradingData] = useState<TradingInstrument[]>([]);
   const [activeTab, setActiveTab] = useState('Favorites');
   const [connectionError, setConnectionError] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [currentSymbol, setCurrentSymbol] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [customBases, setCustomBases] = useState<{ [key: string]: number }>({});
 
   const navigation = useNavigation();
-  const balance = useSelector((state: RootState) => state.balance.amount);
 
   useEffect(() => {
     tradingApiService.initializeConnection();
 
     const handleLiveData = (data: TradingInstrument[]) => {
       if (Array.isArray(data) && data.length > 0) {
-        console.log('symbol', data)
         setTradingData(data);
         setConnectionError(false);
       }
@@ -46,7 +48,6 @@ const TradeScreen: React.FC = () => {
 
   // Tab Filters
   const getFilteredData = () => {
-    console.log("sbsdhvfjdsvh", tradingData);
     switch (activeTab) {
       case 'Favorites':
         return tradingData.filter(item => item.isFavorite);
@@ -152,21 +153,9 @@ const TradeScreen: React.FC = () => {
   return num.toFixed(decimals);
 };
 
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Account Button */}
-      {/* <View style={styles.accountButtonContainer}>
-        <TouchableOpacity style={styles.accountButton}>
-          <View style={styles.realButton}>
-            <Text style={styles.accountButtonText}>Real</Text>
-          </View>
-          <Text style={styles.accountBalance}>{balance.toFixed(2)} USD</Text>
-          <Icon name="more-vertical" size={16} color="#6B7280" />
-        </TouchableOpacity>
-      </View> */}
 
       {/* Header */}
       <View style={styles.headerRow}>
@@ -248,84 +237,168 @@ const TradeScreen: React.FC = () => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         >
-          {getFilteredData().map(item => (
-            <TouchableOpacity
-              key={item.symbol}
-              style={styles.instrumentCard}
-              onPress={() =>
-                navigation.navigate('TradeDetail', { trade: item })
+          {getFilteredData().map(item => {
+            let displayPercent = item.changePercent;
+            let displayColor = item.changeColor;
+            if (customBases[item.symbol]) {
+              const base = customBases[item.symbol];
+              if (base !== 0) {
+                displayPercent = ((Number(item.price) - base) / base) * 100;
+                displayColor = displayPercent > 0 ? '#1E90FF' : '#EF4444';
               }
-            >
-              <View style={styles.instrumentLeft}>
-                <View style={styles.instrumentIconCircle}>
-                  {formatInstrumentName(item.name).includes('/') ? (
-                    // Forex pair → show 2 flags
-                    <View style={{ flexDirection: 'row' }}>
+            }
+            return (
+              <TouchableOpacity
+                key={item.symbol}
+                style={styles.instrumentCard}
+                onPress={() =>
+                  navigation.navigate('TradeDetail', { trade: item })
+                }
+              >
+                <View style={styles.instrumentLeft}>
+                  <View style={styles.instrumentIconCircle}>
+                    {formatInstrumentName(item.name).includes('/') ? (
+                      // Forex pair → show 2 flags
+                      <View style={{ flexDirection: 'row' }}>
+                        <Image
+                          source={getFlagIcon(
+                            formatInstrumentName(item.name).slice(0, 3),
+                          )}
+                          style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: 8,
+                            marginRight: -8,
+                            marginTop: -4,
+                          }}
+                          resizeMode="contain"
+                        />
+                        <Image
+                          source={getFlagIcon(
+                            formatInstrumentName(item.name).slice(4, 7),
+                          )}
+                          style={{ width: 16, height: 16, borderRadius: 8 }}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ) : (
+                      // Single instrument → show 1 icon
                       <Image
-                        source={getFlagIcon(
-                          formatInstrumentName(item.name).slice(0, 3),
-                        )}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 8,
-                          marginRight: -8,
-                          marginTop: -4,
-                        }}
+                        source={getInstrumentIcon(item.name)}
+                        style={{ width: 22, height: 22, borderRadius: 11 }}
                         resizeMode="contain"
                       />
-                      <Image
-                        source={getFlagIcon(
-                          formatInstrumentName(item.name).slice(4, 7),
-                        )}
-                        style={{ width: 16, height: 16, borderRadius: 8 }}
-                        resizeMode="contain"
-                      />
-                    </View>
-                  ) : (
-                    // Single instrument → show 1 icon
-                    <Image
-                      source={getInstrumentIcon(item.name)}
-                      style={{ width: 22, height: 22, borderRadius: 11 }}
-                      resizeMode="contain"
-                    />
-                  )}
-                </View>
-                <View style={styles.instrumentInfo}>
-                  <View style={styles.titleChartRow}>
-                    <Text style={styles.instrumentTitle}>
-                      {formatInstrumentName(item.name)}
-                    </Text>
-                    <View style={styles.instrumentMiddle}>
-                      <SparklineChart
-                        data={item.sparkline}
-                        color={item.changeColor}
-                        width={80}
-                        height={25}
-                      />
-                    </View>
+                    )}
                   </View>
-                  <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
+                  <View style={styles.instrumentInfo}>
+                    <View style={styles.titleChartRow}>
+                      <Text style={styles.instrumentTitle}>
+                        {formatInstrumentName(item.name)}
+                      </Text>
+                      <View style={styles.instrumentMiddle}>
+                        <SparklineChart
+                          data={item.sparkline}
+                          color={item.changeColor}
+                          width={80}
+                          height={25}
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.instrumentSubtitle}>{item.subtitle}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.instrumentRight}>
-                <Text style={styles.instrumentPrice}>
-                  {renderPrice(item.price, item.symbol)}
-                </Text>
-                <Text
-                  style={[styles.instrumentChange, { color: item.changeColor }]}
-                >
-                  {item.change}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.instrumentRight}>
+                  <Text style={styles.instrumentPrice}>
+                    {renderPrice(item.price, item.symbol)}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      let percent = item.changePercent;
+                      if (customBases[item.symbol]) {
+                        const base = customBases[item.symbol];
+                        if (base !== 0) {
+                          percent = ((Number(item.price) - base) / base) * 100;
+                        }
+                      }
+                      setCurrentSymbol(item.symbol);
+                      setInputValue(percent.toFixed(2));
+                      setShowModal(true);
+                    }}
+                  >
+                    <Text
+                      style={[styles.instrumentChange, { color: displayColor }]}
+                    >
+                      {displayPercent > 0 ? '+' : ''}
+                      {displayPercent.toFixed(2)}%
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       ) : (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading trading data...</Text>
         </View>
       )}
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TextInput
+              style={styles.modalInput}
+              value={inputValue}
+              onChangeText={setInputValue}
+              keyboardType="numeric"
+              placeholder="0.00"
+              placeholderTextColor="#928a8aff"
+            />
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                const num = parseFloat(inputValue);
+                if (!isNaN(num)) {
+                  const currentItem = tradingData.find(i => i.symbol === currentSymbol);
+                  if (currentItem) {
+                    const currentPrice = Number(currentItem.price);
+                    if (currentPrice > 0) {
+                      const delta = num / 100;
+                      if (Math.abs(1 + delta) > 1e-10) {
+                        const base = currentPrice / (1 + delta);
+                        setCustomBases(prev => ({ ...prev, [currentSymbol]: base }));
+                      }
+                    }
+                  }
+                } else {
+                  setCustomBases(prev => {
+                    const newBases = { ...prev };
+                    delete newBases[currentSymbol];
+                    return newBases;
+                  });
+                }
+                setShowModal(false);
+                setInputValue(''); // Clear input after submission
+              }}
+            >
+              <Text style={styles.modalButtonText}>Submit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowModal(false);
+                setInputValue(''); // Clear input on cancel
+              }}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -485,6 +558,45 @@ const styles = StyleSheet.create({
   retryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 16, color: '#6B7280' },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    marginBottom: 10,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    width: '100%',
+    textAlign: 'center',
+    color: '#000000',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  modalButton: {
+    backgroundColor: '#3B82F6',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
 
 export default TradeScreen;
