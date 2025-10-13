@@ -16,18 +16,17 @@ interface TradeInputForPL {
 }
 
 const CONTRACT_SIZES: Record<string, number> = {
-  EURUSD: 1,
-  GBPUSD: 1,
-  USDJPY: 0.68,
-  GBPJPY: 0.68,
-  USDCAD: 0.72,
+  EURUSD: 100000,
+  GBPUSD: 100000,
+  USDJPY: 677.01,
+  GBPJPY: 677.19,
+  USDCAD: 72327.24,
   BTCUSD: 1,       
-  ETHUSD: 0.10,      
+  ETHUSD: 10,      
   USTEC: 1,
-  USOIL: 1,
+  USOIL: 1000,
   XAUUSD: 100,
 };
-
 
 export const calculateProfit = ({
   symbol,
@@ -127,7 +126,7 @@ class TradingApiService {
             // Transform the object into an array of TradingInstrument objects
             const instruments: TradingInstrument[] = Object.entries(data).map(([symbol, details]: [string, any]) => {
               // Extract bid as the price
-              const price = details.bid?.toString() || '0.0';
+              const price = details.open?.toString() || '0.0';
               
               // Create a random change percent for visualization
               const changePercent = (Math.random() * 2 - 1) * 0.5; // Random between -0.5% and +0.5%

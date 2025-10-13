@@ -30,6 +30,7 @@ const TradeScreen: React.FC = () => {
 
     const handleLiveData = (data: TradingInstrument[]) => {
       if (Array.isArray(data) && data.length > 0) {
+        console.log('symbol', data)
         setTradingData(data);
         setConnectionError(false);
       }
@@ -45,6 +46,7 @@ const TradeScreen: React.FC = () => {
 
   // Tab Filters
   const getFilteredData = () => {
+    console.log("sbsdhvfjdsvh", tradingData);
     switch (activeTab) {
       case 'Favorites':
         return tradingData.filter(item => item.isFavorite);
@@ -156,7 +158,7 @@ const TradeScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Account Button */}
-      <View style={styles.accountButtonContainer}>
+      {/* <View style={styles.accountButtonContainer}>
         <TouchableOpacity style={styles.accountButton}>
           <View style={styles.realButton}>
             <Text style={styles.accountButtonText}>Real</Text>
@@ -164,7 +166,7 @@ const TradeScreen: React.FC = () => {
           <Text style={styles.accountBalance}>{balance.toFixed(2)} USD</Text>
           <Icon name="more-vertical" size={16} color="#6B7280" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Header */}
       <View style={styles.headerRow}>
@@ -298,7 +300,6 @@ const TradeScreen: React.FC = () => {
                       <SparklineChart
                         data={item.sparkline}
                         color={item.changeColor}
-                        animationDuration={25000}
                         width={80}
                         height={25}
                       />
