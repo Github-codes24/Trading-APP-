@@ -576,7 +576,9 @@ const PerformanceScreen: React.FC = () => {
           </View>
 
           {/* Summary */}
-          <View style={styles.summaryRow}>
+          
+        </View>
+        <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <View style={styles.summaryDotGreen} />
               <Text style={styles.summaryLabel}>Profit</Text>
@@ -593,7 +595,6 @@ const PerformanceScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-        </View>
         <View style={styles.lastupdateHeader}>
           <Text style={styles.lastupdatedDateLabel}>
             Last Updated: {formatDate(now)}
